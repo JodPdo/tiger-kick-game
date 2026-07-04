@@ -22,7 +22,3 @@ NetworkManager="*res://networking/NetworkManager.gd"
 ErrorHandler="*res://managers/ErrorHandler.gd"
 DebugOverlay="*res://ui/DebugOverlay.gd"
 PerfOverlay="*res://ui/PerfOverlay.gd"
-
-[rendering]
-
-renderer/rendering_method="forward_plus"
