@@ -107,7 +107,7 @@
     "type": "task",
     "priority": "Medium",
     "owner_agent": "tools-devops",
-    "status": "todo",
+    "status": "done",
     "depends_on": [
       "TK-PX-01"
     ],
@@ -163,7 +163,7 @@
     "type": "task",
     "priority": "Medium",
     "owner_agent": "tools-devops",
-    "status": "todo",
+    "status": "done",
     "depends_on": [
       "TK-PX-01"
     ],

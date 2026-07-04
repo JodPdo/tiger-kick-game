@@ -3,6 +3,12 @@
 บันทึกการเปลี่ยนแปลงสำคัญของโปรเจกต์และเอกสาร (รูปแบบ Keep a Changelog)
 เวอร์ชันล่าสุดอยู่บนสุด
 
+## [0.23] — 2026-07-04 — Phase X: เพิ่ม DebugOverlay + ErrorHandler autoloads
+- `DebugOverlay` (`ui/DebugOverlay.gd`, TK-PX-02): overlay กด F3 เปิด/ปิด แสดง FPS/ping/scene/role/peers, refresh 0.25s, ไม่ crash ตอน offline
+- `ErrorHandler` (`managers/ErrorHandler.gd`, TK-PX-06): `report()/report_if()` route ผ่าน GameLog.error — convention จับ error สำคัญแทน bare push_error (ไม่ hook engine logger เลี่ยงชน GUT error_tracker)
+- Autoload set ปัจจุบัน: GameLog, ConfigManager, NetworkManager, ErrorHandler, DebugOverlay
+- verified: GUT 52/52 (1083 asserts) exit 0, ไม่มี rp_logger/leak
+
 ## [0.22] — 2026-07-04 — Logger autoload ตั้งชื่อ `GameLog` (เลี่ยงชนกับ engine class `Logger`)
 - Phase X: เพิ่ม autoload `GameLog` (ไฟล์ `managers/Logger.gd`) และ `ConfigManager` (`managers/ConfigManager.gd`)
 - **บั๊กที่จับได้ตอน integration:** ตั้งชื่อ autoload ว่า `Logger` **ชนกับ Godot built-in class `Logger`** ที่ GUT `error_tracker.gd` ใช้ (`extends Logger` + `OS.add_logger`) → GUT error-tracking พังเงียบ (`rp_logger is null`) + ObjectDB leak. เปลี่ยนชื่อ singleton เป็น `GameLog` แก้หมด (GUT 37/37 clean, ไม่มี leak). ไฟล์คง `Logger.gd`; โค้ดเรียกผ่านชื่อ singleton `GameLog.info()/warn()/error()` — **ห้ามตั้ง autoload ชื่อ `Logger` อีก**
