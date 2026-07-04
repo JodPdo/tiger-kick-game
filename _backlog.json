@@ -93,7 +93,7 @@
     "type": "task",
     "priority": "Medium",
     "owner_agent": "tools-devops",
-    "status": "todo",
+    "status": "doing",
     "depends_on": [
       "TK-P0-06"
     ],
@@ -135,7 +135,7 @@
     "type": "task",
     "priority": "Medium",
     "owner_agent": "tools-devops",
-    "status": "todo",
+    "status": "doing",
     "depends_on": [
       "TK-P0-06"
     ],
@@ -177,7 +177,7 @@
     "type": "task",
     "priority": "Medium",
     "owner_agent": "tools-devops",
-    "status": "review",
+    "status": "done",
     "depends_on": [
       "TK-P0-04"
     ],

@@ -4,24 +4,28 @@ Single source of truth for "where are we now". **Update this whenever the phase/
 
 | Field | Value |
 |---|---|
-| Docs Version | v0.12 |
-| Game Build | v0.0 — Godot 4.7 project scaffold in repo (TK-P0-01/02 done) |
-| Current Phase | **Phase 0 — Setup & Networking** |
-| Current Milestone | **M0 Networking** |
-| Current Sprint | Networking Foundation |
-| Exit Gate goal | 2 machines connect to each other |
+| Docs Version | v0.21 |
+| Game Build | v0.1 — networking foundation (MainMenu + Host/Join + TestArena, 2-instance connect verified) |
+| Current Phase | **Phase X — Development Infrastructure** |
+| Current Milestone | **MX Dev Infra** |
+| Current Sprint | Dev Infra (Logger, Config, overlays, Settings) |
+| Exit Gate goal | Logger + ConfigManager + Settings + debug/perf overlays in place; GUT/CI green |
 
-## Active this phase
-- **Lead agents:** `tools-devops`, `network-engineer`, `gameplay-engineer`
-- **Always on:** `producer`, `qa-engineer`, `code-reviewer`, `documentation-manager`
-- **Done:** `TK-P0-01` (Godot 4.7), `TK-P0-02` (scaffold), `TK-P0-03` (MainMenu), `TK-P0-04` (NetworkManager autoload)
-- **Open cards:** `TK-P0-05` (TestArena), `TK-P0-06` (2-instance Exit Gate test)
+## Phase 0 — CLOSED ✅ (Exit Gate PASS, merged to main via PR #1)
+- [x] clone repo → opens in Godot 4.7 with no errors (CI headless import)
+- [x] two instances Host/Join → connect successfully (automated localhost harness `tests/net/`, 3–4× PASS; GUI 2-window confirmatory done)
+- [x] log confirms peer joined (`[NET] peer joined`)
+- [x] Regression suite passes, no open S0/S1 (GUT 15/15)
+- Cards done: `TK-P0-01`…`TK-P0-06`. Follow-ups: 2-machine LAN test, `managers/`→`networking/` doc reconcile, PDF regen 4.7.
 
-## Exit Gate — Phase 0 (from 03_QA/Phase0_QA/03_Exit_Gate)
-- [x] clone repo → opens in Godot with no errors (Godot 4.7; verified by CI headless import on push)
-- [ ] two instances Host/Join → connect successfully
-- [ ] log confirms peer joined
-- [ ] Regression suite passes, no open S0/S1
+## Active this phase (Phase X)
+- **Lead agent:** `tools-devops` · **Always on:** `producer`, `qa-engineer`, `code-reviewer`, `documentation-manager`
+- **Done:** `TK-PX-07` (GUT 9.7.0 + CI mandatory + backlog validator)
+- **Doing:** `TK-PX-01` (Logger autoload), `TK-PX-04` (ConfigManager)
+- **Queued:** `TK-PX-02` (debug overlay), `TK-PX-06` (error handling), `TK-PX-05` (Settings menu), `TK-PX-03` (perf overlay)
+
+## Open cross-phase items (not blocking)
+- `TK-P2-09` TigerSelector helper landed early (partial); full card OPEN pending `TK-P2-04` (Phase 2). Architect ack on `managers/` placement deferred to Phase 2.
 
 ## Next
-Phase X — Development Infrastructure (MX Dev Infra) → then Phase 1 (Movement).
+Finish Phase X (Dev Infra) → **Phase 1 (Movement)**.
