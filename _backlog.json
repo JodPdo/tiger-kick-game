@@ -193,7 +193,7 @@
     "type": "task",
     "priority": "High",
     "owner_agent": "gameplay-engineer",
-    "status": "todo",
+    "status": "doing",
     "depends_on": [
       "TK-PX-07"
     ],
