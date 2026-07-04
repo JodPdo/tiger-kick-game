@@ -207,7 +207,7 @@
     "type": "task",
     "priority": "High",
     "owner_agent": "gameplay-engineer",
-    "status": "todo",
+    "status": "done",
     "depends_on": [
       "TK-P1-01"
     ],
@@ -235,11 +235,12 @@
     "type": "task",
     "priority": "High",
     "owner_agent": "network-engineer",
-    "status": "todo",
+    "status": "review",
     "depends_on": [
       "TK-P1-01"
     ],
-    "labels": "task, phase-1, prio-high"
+    "labels": "task, phase-1, prio-high",
+    "handoff": "HANDOFF -> code-reviewer\n- What: Added a host-authoritative MultiplayerSpawner that instances characters/Player.tscn once per connected peer id under world/TestArena.tscn, keyed/named by str(peer_id). Only the server ever add_child()s a Player (spawn_path authority defaults to peer 1, never overridden); NetworkManager.peer_connected/peer_disconnected drive spawn/despawn. Exactly one Camera3D ends up current on every peer, including the host and standalone/offline boot.\n- FOLLOW-UP (post code-review round 1): reviewer found a BLOCKING defect -- MultiplayerSpawner.spawned is REMOTE-RECEIVE-only in Godot 4.7 (verified headless); it does not fire on the authority for its own add_child(), so the host's own Player (and offline-boot Player) never got its camera activated and stayed on TestArena's overview camera. Fixed: _spawn_player() now calls a shared _activate_local_camera_if_own(instance) directly, synchronously, right after its own add_child() -- this covers the host-local/offline path. _on_spawned() (wired to the `spawned` signal) still handles the replicated/client-side path, and both funnel through the same helper so there's one source of truth for 'exactly one camera current'. Also added a comment clarifying _spawn_count is a monotonic spawn counter (not a live-player count) and intentionally doesn't decrement on despawn (non-blocking nit from the same review round). Only networking/PlayerSpawner.gd changed for this follow-up; SpawnPointUtil.gd/TestArena.tscn untouched.\n- Files: networking/PlayerSpawner.gd (new, script on TestArena's MultiplayerSpawner node), networking/SpawnPointUtil.gd (new, pure/static spawn-position + name-matching helpers, node-independent so GUT can cover them), world/TestArena.tscn (added `Players` Node3D container + `PlayerSpawner` MultiplayerSpawner node: spawn_path=NodePath(\"../Players\"), _spawnable_scenes=PackedStringArray(\"res://characters/Player.tscn\")), tests/test_spawn_point_util.gd (new GUT suite, 7 tests: spawn spread/wrap/no-overlap + local-peer-name matching).\n- How to test (2 machines / 2 instances): Window A: MainMenu -> Host (port 7777) -> TestArena loads, console shows `[SPAWN] player 1 spawned at ...`, A's OWN Camera3D is current immediately (not TestArena's overview camera) -- this is the exact path that was broken before the follow-up fix. Window B: MainMenu -> Join 127.0.0.1:7777 -> both consoles show `[SPAWN] player <B's id> spawned at ...`; B sees its OWN camera current (not A's, not TestArena's); A now sees two capsules (no movement yet -- that's TK-P1-02, currently in parallel). Close B -> A's console shows `[SPAWN] player <id> despawned (peer disconnected)` and B's capsule disappears for A. Also verify standalone/offline boot of TestArena.tscn directly (no host/join): the single Player's camera should still activate. GUT: run test_spawn_point_util.gd (node-independent, no live peers needed).\n- Risks/limits: (1) Did NOT set_multiplayer_authority() on spawned Players -- every Player defaults to authority=1 (server) until TK-P1-05 (explicitly scoped there, depends_on this card); non-host movement/input over the network should not be expected to work until P1-05 lands. (2) Spawn positions are a simple 8-slot circle spread (SpawnPointUtil.spawn_point), no gameplay meaning, purely to avoid stacking. (3) Despawn-on-disconnect was added beyond the literal card text (correctness/no-lingering-avatar per CLAUDE.md priority) -- flagging in case reviewer wants it split out. (4) Did not run Godot/GUT (constraint held through both rounds; a parallel QA/gameplay process is using the shared .godot import) -- producer/code-reviewer should run test_spawn_point_util.gd and a live 2-instance + offline-boot check before QA. (5) Did not edit project.godot or characters/Player.gd in either round -- confirmed via diff both times (unrelated concurrent changes to those files from TK-P1-02 are visible in git status but are not mine).\n\nHANDOFF -> qa-engineer (after code-reviewer pass)\n- Re-verify the 2-instance + offline-boot camera/spawn/despawn behavior above against Phase1_QA/01_Test_Plan.md once code-reviewer signs off."
   },
   {
     "id": "TK-P1-05",

@@ -3,6 +3,11 @@
 บันทึกการเปลี่ยนแปลงสำคัญของโปรเจกต์และเอกสาร (รูปแบบ Keep a Changelog)
 เวอร์ชันล่าสุดอยู่บนสุด
 
+## [0.25] — 2026-07-05 — Phase 1: movement + InputMap actions
+- `TK-P1-02` movement: WASD + gravity + Sprint (Shift) ใน `characters/Player.gd`, ค่า walk 5.0 m/s / sprint ×1.4 จาก TDD §11 (export ปรับได้), input gate `is_multiplayer_authority()`
+- เพิ่ม **InputMap actions** ใน `project.godot` `[input]`: `move_forward`(W)/`move_back`(S)/`move_left`(A)/`move_right`(D)/`sprint`(Shift) — ปลดล็อกงาน Controls-rebind ที่ค้างจาก TK-PX-05 ด้วย (ชื่อ action ตรงกับ REBIND_KEYS)
+- ค้าง (ผูกไว้ TK-P1-05/06): non-authority peer ยังรัน move_and_slide → ต้อง skip บน remote กัน jitter ตอน authority per-player + synchronizer active
+
 ## [0.24] — 2026-07-04 — Phase X ครบ: Settings menu + PerfOverlay (จบ MX Dev Infra)
 - `SettingsMenu` (`ui/SettingsMenu.gd/.tscn`, TK-PX-05): Graphics/Audio/Controls tabs → ConfigManager (get/set/save), apply DisplayServer/AudioServer แบบ guard headless + missing-bus; เข้าถึงจากปุ่ม Settings ใหม่ใน MainMenu (แก้ TK-P0-03 แบบ additive — NET SMOKE ยืนยันไม่ regress Host/Join)
 - `PerfOverlay` (`ui/PerfOverlay.gd`, TK-PX-03): overlay กด F4 ใช้ Performance singleton (memory/draw/objects/primitives/nodes/process/physics), แยกจาก DebugOverlay (F3, layer 100 vs 101)
