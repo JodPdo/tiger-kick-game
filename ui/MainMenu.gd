@@ -13,6 +13,11 @@ const DEFAULT_ADDRESS: String = "127.0.0.1"
 const DEFAULT_PORT: int = 7777
 const DEFAULT_ADDRESS_PORT: String = "%s:%d" % [DEFAULT_ADDRESS, DEFAULT_PORT]
 
+## Minimal test level (TK-P0-05). Host and client both switch here once the
+## connection is confirmed by NetworkManager (server_started / connection_succeeded).
+## Path per TDD §3 Folder Structure: res://world/ -- Arena, SafeCircle.
+const TEST_ARENA_SCENE: String = "res://world/TestArena.tscn"
+
 @onready var address_port_edit: LineEdit = $CenterContainer/VBoxContainer/AddressPortEdit
 @onready var host_button: Button = $CenterContainer/VBoxContainer/ButtonRow/HostButton
 @onready var join_button: Button = $CenterContainer/VBoxContainer/ButtonRow/JoinButton
@@ -85,11 +90,24 @@ func _parse_address_port(text: String) -> Dictionary:
 
 func _on_server_started() -> void:
 	status_label.text = "Server started. Waiting for players..."
+	_switch_to_test_arena()
 
 
 func _on_connection_succeeded() -> void:
 	status_label.text = "Connected to server."
+	_switch_to_test_arena()
 
 
 func _on_connection_failed() -> void:
 	status_label.text = "Connection failed."
+
+
+## Switches from MainMenu to the TestArena once a connection is confirmed.
+## Host reacts to `server_started`; client reacts to `connection_succeeded`.
+## Does not touch project.godot's run/main_scene -- the game still boots into
+## MainMenu; this is a runtime-only transition (TK-P0-05).
+func _switch_to_test_arena() -> void:
+	var err: Error = get_tree().change_scene_to_file(TEST_ARENA_SCENE)
+	if err != OK:
+		push_warning("[MENU] failed to switch to %s (error %d)" % [TEST_ARENA_SCENE, err])
+		status_label.text = "Failed to load arena (error %d)" % err
