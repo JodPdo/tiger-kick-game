@@ -3,6 +3,12 @@
 บันทึกการเปลี่ยนแปลงสำคัญของโปรเจกต์และเอกสาร (รูปแบบ Keep a Changelog)
 เวอร์ชันล่าสุดอยู่บนสุด
 
+## [0.22] — 2026-07-04 — Logger autoload ตั้งชื่อ `GameLog` (เลี่ยงชนกับ engine class `Logger`)
+- Phase X: เพิ่ม autoload `GameLog` (ไฟล์ `managers/Logger.gd`) และ `ConfigManager` (`managers/ConfigManager.gd`)
+- **บั๊กที่จับได้ตอน integration:** ตั้งชื่อ autoload ว่า `Logger` **ชนกับ Godot built-in class `Logger`** ที่ GUT `error_tracker.gd` ใช้ (`extends Logger` + `OS.add_logger`) → GUT error-tracking พังเงียบ (`rp_logger is null`) + ObjectDB leak. เปลี่ยนชื่อ singleton เป็น `GameLog` แก้หมด (GUT 37/37 clean, ไม่มี leak). ไฟล์คง `Logger.gd`; โค้ดเรียกผ่านชื่อ singleton `GameLog.info()/warn()/error()` — **ห้ามตั้ง autoload ชื่อ `Logger` อีก**
+- ConfigManager: method `load()` เดิมชนกับ builtin `load(path)` → เปลี่ยนเป็น `load_config()` (API: `get_value/set_value/save/load_config` + static `resolve_value/apply_defaults` + `DEFAULTS`)
+- ตัดสินโดย: producer (integration fix); code identifiers ตรวจโดย code-reviewer/qa
+
 ## [0.21] — 2026-07-04 — เพิ่ม guard ตรวจ _backlog.json ใน CI
 - เพิ่ม `tools/validate_backlog.py` — ตรวจ JSON valid + id ไม่ซ้ำ + depends_on ชี้ id ที่มีจริง + ฟิลด์ id/status ครบ + status อยู่ในชุดที่อนุญาต
 - เพิ่ม step ใน `ci.yml` (รันก่อนโหลด Godot, fail เร็ว) → ถ้า backlog เสีย/ถูกตัด build แดงทันที รู้ตัวก่อน agent หยิบงานผิด
