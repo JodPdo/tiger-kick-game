@@ -1,0 +1,542 @@
+[
+  {
+    "id": "TK-P0-01",
+    "phase": "Phase 0",
+    "milestone": "M0 Networking",
+    "title": "ติดตั้ง Godot 4.6 (เลือก build มาตรฐาน หรือ .NET หากใช้ C#)",
+    "type": "task",
+    "priority": "High",
+    "owner_agent": "tools-devops",
+    "status": "todo",
+    "depends_on": [],
+    "labels": "task, phase-0, prio-high"
+  },
+  {
+    "id": "TK-P0-02",
+    "phase": "Phase 0",
+    "milestone": "M0 Networking",
+    "title": "สร้าง GitHub repo + เพิ่ม .gitignore ของ Godot และตั้งโครงโฟลเดอร์ (scenes/, scripts/, assets/)",
+    "type": "task",
+    "priority": "High",
+    "owner_agent": "tools-devops",
+    "status": "todo",
+    "depends_on": [
+      "TK-P0-01"
+    ],
+    "labels": "task, phase-0, prio-high"
+  },
+  {
+    "id": "TK-P0-03",
+    "phase": "Phase 0",
+    "milestone": "M0 Networking",
+    "title": "สร้าง MainMenu.tscn พร้อมปุ่ม Host / Join และช่องกรอก IP:Port",
+    "type": "task",
+    "priority": "High",
+    "owner_agent": "gameplay-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P0-02"
+    ],
+    "labels": "task, phase-0, prio-high"
+  },
+  {
+    "id": "TK-P0-04",
+    "phase": "Phase 0",
+    "milestone": "M0 Networking",
+    "title": "เขียน NetworkManager (autoload) สร้าง ENetMultiplayerPeer สำหรับ host และ client",
+    "type": "task",
+    "priority": "High",
+    "owner_agent": "network-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P0-02"
+    ],
+    "labels": "task, phase-0, prio-high"
+  },
+  {
+    "id": "TK-P0-05",
+    "phase": "Phase 0",
+    "milestone": "M0 Networking",
+    "title": "สร้าง TestArena.tscn (พื้น + วงกลม) และสลับ scene หลังเชื่อมต่อสำเร็จ",
+    "type": "task",
+    "priority": "High",
+    "owner_agent": "gameplay-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P0-02"
+    ],
+    "labels": "task, phase-0, prio-high"
+  },
+  {
+    "id": "TK-P0-06",
+    "phase": "Phase 0",
+    "milestone": "M0 Networking",
+    "title": "ทดสอบเปิดสองอินสแตนซ์ให้เชื่อมกันและพิมพ์ log ยืนยันการเชื่อมต่อ",
+    "type": "task",
+    "priority": "High",
+    "owner_agent": "network-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P0-03",
+      "TK-P0-04",
+      "TK-P0-05"
+    ],
+    "labels": "task, phase-0, prio-high"
+  },
+  {
+    "id": "TK-PX-01",
+    "phase": "Phase X",
+    "milestone": "MX Dev Infra",
+    "title": "เขียน Logger เป็น Autoload รองรับระดับ log และเขียนลงไฟล์ที่ user://logs/",
+    "type": "task",
+    "priority": "Medium",
+    "owner_agent": "tools-devops",
+    "status": "todo",
+    "depends_on": [
+      "TK-P0-06"
+    ],
+    "labels": "task, phase-x, prio-medium"
+  },
+  {
+    "id": "TK-PX-02",
+    "phase": "Phase X",
+    "milestone": "MX Dev Infra",
+    "title": "ทำ Debug overlay/console เปิด-ปิดด้วยปุ่มลัด (เช่น F3) แสดง FPS/ping/state",
+    "type": "task",
+    "priority": "Medium",
+    "owner_agent": "tools-devops",
+    "status": "todo",
+    "depends_on": [
+      "TK-PX-01"
+    ],
+    "labels": "task, phase-x, prio-medium"
+  },
+  {
+    "id": "TK-PX-03",
+    "phase": "Phase X",
+    "milestone": "MX Dev Infra",
+    "title": "ทำ Performance overlay ใช้ค่าจาก Performance singleton ของ Godot",
+    "type": "task",
+    "priority": "Medium",
+    "owner_agent": "tools-devops",
+    "status": "todo",
+    "depends_on": [
+      "TK-PX-02"
+    ],
+    "labels": "task, phase-x, prio-medium"
+  },
+  {
+    "id": "TK-PX-04",
+    "phase": "Phase X",
+    "milestone": "MX Dev Infra",
+    "title": "ทำ ConfigManager อ่าน/เขียน ConfigFile (user://settings.cfg)",
+    "type": "task",
+    "priority": "Medium",
+    "owner_agent": "tools-devops",
+    "status": "todo",
+    "depends_on": [
+      "TK-P0-06"
+    ],
+    "labels": "task, phase-x, prio-medium"
+  },
+  {
+    "id": "TK-PX-05",
+    "phase": "Phase X",
+    "milestone": "MX Dev Infra",
+    "title": "ทำเมนู Settings: Graphics, Audio, Controls (rebind ปุ่ม)",
+    "type": "task",
+    "priority": "Medium",
+    "owner_agent": "tools-devops",
+    "status": "todo",
+    "depends_on": [
+      "TK-PX-04"
+    ],
+    "labels": "task, phase-x, prio-medium"
+  },
+  {
+    "id": "TK-PX-06",
+    "phase": "Phase X",
+    "milestone": "MX Dev Infra",
+    "title": "วางแนวทาง error handling รวมศูนย์ (จับ error สำคัญและ log)",
+    "type": "task",
+    "priority": "Medium",
+    "owner_agent": "tools-devops",
+    "status": "todo",
+    "depends_on": [
+      "TK-PX-01"
+    ],
+    "labels": "task, phase-x, prio-medium"
+  },
+  {
+    "id": "TK-PX-07",
+    "phase": "Phase X",
+    "milestone": "MX Dev Infra",
+    "title": "ติดตั้ง GUT (Godot Unit Test) และเขียนเทสตัวอย่างสำหรับ NetworkManager/State",
+    "type": "task",
+    "priority": "Medium",
+    "owner_agent": "tools-devops",
+    "status": "todo",
+    "depends_on": [
+      "TK-P0-04"
+    ],
+    "labels": "task, phase-x, prio-medium"
+  },
+  {
+    "id": "TK-P1-01",
+    "phase": "Phase 1",
+    "milestone": "M1 Movement",
+    "title": "สร้าง Player.tscn (CharacterBody3D + Camera3D + MultiplayerSynchronizer)",
+    "type": "task",
+    "priority": "High",
+    "owner_agent": "gameplay-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-PX-07"
+    ],
+    "labels": "task, phase-1, prio-high"
+  },
+  {
+    "id": "TK-P1-02",
+    "phase": "Phase 1",
+    "milestone": "M1 Movement",
+    "title": "เขียน input การเคลื่อนที่ + Sprint (ปรับความเร็วขณะกด Shift)",
+    "type": "task",
+    "priority": "High",
+    "owner_agent": "gameplay-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P1-01"
+    ],
+    "labels": "task, phase-1, prio-high"
+  },
+  {
+    "id": "TK-P1-03",
+    "phase": "Phase 1",
+    "milestone": "M1 Movement",
+    "title": "ตั้งค่า camera rig แบบ third person (spring arm)",
+    "type": "task",
+    "priority": "High",
+    "owner_agent": "gameplay-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P1-01"
+    ],
+    "labels": "task, phase-1, prio-high"
+  },
+  {
+    "id": "TK-P1-04",
+    "phase": "Phase 1",
+    "milestone": "M1 Movement",
+    "title": "ตั้ง MultiplayerSpawner ให้ spawn ผู้เล่นตาม peer id",
+    "type": "task",
+    "priority": "High",
+    "owner_agent": "network-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P1-01"
+    ],
+    "labels": "task, phase-1, prio-high"
+  },
+  {
+    "id": "TK-P1-05",
+    "phase": "Phase 1",
+    "milestone": "M1 Movement",
+    "title": "กำหนด multiplayer authority ให้แต่ละผู้เล่นควบคุมตัวเอง",
+    "type": "task",
+    "priority": "High",
+    "owner_agent": "network-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P1-04"
+    ],
+    "labels": "task, phase-1, prio-high"
+  },
+  {
+    "id": "TK-P1-06",
+    "phase": "Phase 1",
+    "milestone": "M1 Movement",
+    "title": "ปรับ MultiplayerSynchronizer ให้ซิงก์เฉพาะ property ที่จำเป็น (ตำแหน่ง/หัน)",
+    "type": "task",
+    "priority": "High",
+    "owner_agent": "network-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P1-05"
+    ],
+    "labels": "task, phase-1, prio-high"
+  },
+  {
+    "id": "TK-P2-01",
+    "phase": "Phase 2",
+    "milestone": "M2 Core Gameplay",
+    "title": "ทำ Kick: input + hitbox ชั่วคราว + cooldown",
+    "type": "task",
+    "priority": "High",
+    "owner_agent": "gameplay-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P1-02"
+    ],
+    "labels": "task, phase-2, prio-high"
+  },
+  {
+    "id": "TK-P2-02",
+    "phase": "Phase 2",
+    "milestone": "M2 Core Gameplay",
+    "title": "ทำ Tag detection: Area3D รอบเสือ ตรวจผู้เล่นที่เข้าใกล้",
+    "type": "task",
+    "priority": "High",
+    "owner_agent": "gameplay-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P1-01"
+    ],
+    "labels": "task, phase-2, prio-high"
+  },
+  {
+    "id": "TK-P2-03",
+    "phase": "Phase 2",
+    "milestone": "M2 Core Gameplay",
+    "title": "ทำ Tag Sequence (state machine ย่อย): 1) เสือจับล็อกผู้เล่น 2) ทุ่มลงพื้น 3) เล่นเอฟเฟกต์กลายร่าง 4) ผู้เล่นที่ถูกทุ่มกลายเป็นเสือใหม่ 5) เสือเดิมกลับเป็นคน 6) เสือเดิมย้ายออกนอก Safe Circle 7) กลับสู่สถานะ Playing",
+    "type": "task",
+    "priority": "High",
+    "owner_agent": "gameplay-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P2-02"
+    ],
+    "labels": "task, phase-2, prio-high"
+  },
+  {
+    "id": "TK-P2-04",
+    "phase": "Phase 2",
+    "milestone": "M2 Core Gameplay",
+    "title": "สร้าง Role state machine (Outer / Tiger) และสลับ property/กล้องเมื่อจบ Tag Sequence",
+    "type": "task",
+    "priority": "High",
+    "owner_agent": "gameplay-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P2-03"
+    ],
+    "labels": "task, phase-2, prio-high"
+  },
+  {
+    "id": "TK-P2-05",
+    "phase": "Phase 2",
+    "milestone": "M2 Core Gameplay",
+    "title": "สลับกล้อง First Person (เสือ) กับ Third Person (ผู้เล่นอื่น) ตามบทบาท",
+    "type": "task",
+    "priority": "High",
+    "owner_agent": "gameplay-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P2-04"
+    ],
+    "labels": "task, phase-2, prio-high"
+  },
+  {
+    "id": "TK-P2-06",
+    "phase": "Phase 2",
+    "milestone": "M2 Core Gameplay",
+    "title": "ทำ Safe Circle เป็นขอบเขตและ logic ที่เกี่ยวข้อง",
+    "type": "task",
+    "priority": "High",
+    "owner_agent": "gameplay-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P1-01"
+    ],
+    "labels": "task, phase-2, prio-high"
+  },
+  {
+    "id": "TK-P2-07",
+    "phase": "Phase 2",
+    "milestone": "M2 Core Gameplay",
+    "title": "ทำ RoundManager: จับเวลา/เงื่อนไขจบรอบ และรีเซ็ตเริ่มรอบใหม่",
+    "type": "task",
+    "priority": "High",
+    "owner_agent": "gameplay-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P2-04"
+    ],
+    "labels": "task, phase-2, prio-high"
+  },
+  {
+    "id": "TK-P2-08",
+    "phase": "Phase 2",
+    "milestone": "M2 Core Gameplay",
+    "title": "ย้ายการตัดสิน Tag/Kick ไปที่ host: client ส่งคำสั่งผ่าน RPC แล้ว host ยืนยันผล",
+    "type": "task",
+    "priority": "High",
+    "owner_agent": "network-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P2-07"
+    ],
+    "labels": "task, phase-2, prio-high"
+  },
+  {
+    "id": "TK-P3-01",
+    "phase": "Phase 3",
+    "milestone": "M3 First Playtest",
+    "title": "แยกค่าพารามิเตอร์สำคัญออกเป็น export variable / resource ปรับง่าย",
+    "type": "task",
+    "priority": "Medium",
+    "owner_agent": "tools-devops",
+    "status": "todo",
+    "depends_on": [],
+    "labels": "task, phase-3, prio-medium"
+  },
+  {
+    "id": "TK-P3-02",
+    "phase": "Phase 3",
+    "milestone": "M3 First Playtest",
+    "title": "ทำ build สำหรับแจกเทส (export preset)",
+    "type": "task",
+    "priority": "Medium",
+    "owner_agent": "tools-devops",
+    "status": "todo",
+    "depends_on": [
+      "TK-P3-01"
+    ],
+    "labels": "task, phase-3, prio-medium"
+  },
+  {
+    "id": "TK-P3-03",
+    "phase": "Phase 3",
+    "milestone": "M3 First Playtest",
+    "title": "จัด session เทสและบันทึกผล (แบบสอบถามสั้น + คลิป)",
+    "type": "task",
+    "priority": "Medium",
+    "owner_agent": "designer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P3-02"
+    ],
+    "labels": "task, phase-3, prio-medium"
+  },
+  {
+    "id": "TK-P3-04",
+    "phase": "Phase 3",
+    "milestone": "M3 First Playtest",
+    "title": "ปรับค่าและทดสอบซ้ำเป็นรอบ ๆ ตามหัวข้อ Open Questions ใน GDD",
+    "type": "task",
+    "priority": "Medium",
+    "owner_agent": "designer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P3-03"
+    ],
+    "labels": "task, phase-3, prio-medium"
+  },
+  {
+    "id": "TK-P4-01",
+    "phase": "Phase 4",
+    "milestone": "M4 Polish",
+    "title": "import โมเดล/แอนิเมชันจาก Mixamo ผ่าน glTF และตั้ง AnimationTree",
+    "type": "task",
+    "priority": "Medium",
+    "owner_agent": "polish-agent",
+    "status": "todo",
+    "depends_on": [],
+    "labels": "task, phase-4, prio-medium"
+  },
+  {
+    "id": "TK-P4-02",
+    "phase": "Phase 4",
+    "milestone": "M4 Polish",
+    "title": "ผูก event เสียง (เตะ/จับ/สลับบทบาท) กับ AudioStreamPlayer",
+    "type": "task",
+    "priority": "Medium",
+    "owner_agent": "polish-agent",
+    "status": "todo",
+    "depends_on": [
+      "TK-P4-01"
+    ],
+    "labels": "task, phase-4, prio-medium"
+  },
+  {
+    "id": "TK-P4-03",
+    "phase": "Phase 4",
+    "milestone": "M4 Polish",
+    "title": "ทำ particle/VFX ตอนสลับบทบาทให้เห็นชัดว่าใครเป็นเสือ",
+    "type": "task",
+    "priority": "Medium",
+    "owner_agent": "polish-agent",
+    "status": "todo",
+    "depends_on": [
+      "TK-P4-02"
+    ],
+    "labels": "task, phase-4, prio-medium"
+  },
+  {
+    "id": "TK-P4-04",
+    "phase": "Phase 4",
+    "milestone": "M4 Polish",
+    "title": "ทำ HUD: เวลารอบ, ตัวบ่งชี้บทบาท, feedback ตอนถูกจับ",
+    "type": "task",
+    "priority": "Medium",
+    "owner_agent": "polish-agent",
+    "status": "todo",
+    "depends_on": [
+      "TK-P4-03"
+    ],
+    "labels": "task, phase-4, prio-medium"
+  },
+  {
+    "id": "TK-P5-01",
+    "phase": "Phase 5",
+    "milestone": "M5 Ship",
+    "title": "ติดตั้ง GodotSteam และตั้งค่า Steam App ID",
+    "type": "task",
+    "priority": "Medium",
+    "owner_agent": "tools-devops",
+    "status": "todo",
+    "depends_on": [],
+    "labels": "task, phase-5, prio-medium"
+  },
+  {
+    "id": "TK-P5-02",
+    "phase": "Phase 5",
+    "milestone": "M5 Ship",
+    "title": "ทำ Steam Lobby (สร้าง/เข้าร่วม) แทน/เสริมการต่อ IP ตรง",
+    "type": "task",
+    "priority": "Medium",
+    "owner_agent": "network-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P5-01"
+    ],
+    "labels": "task, phase-5, prio-medium"
+  },
+  {
+    "id": "TK-P5-03",
+    "phase": "Phase 5",
+    "milestone": "M5 Ship",
+    "title": "เพิ่ม Steam Achievements ตามโมเมนต์เด่นในเกม",
+    "type": "task",
+    "priority": "Medium",
+    "owner_agent": "network-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P5-02"
+    ],
+    "labels": "task, phase-5, prio-medium"
+  },
+  {
+    "id": "TK-P5-04",
+    "phase": "Phase 5",
+    "milestone": "M5 Ship",
+    "title": "จัดลำดับความสำคัญฟีเจอร์ที่เหลือด้วยเกณฑ์ความสนุก แล้วทำทีละอย่าง",
+    "type": "task",
+    "priority": "Medium",
+    "owner_agent": "tools-devops",
+    "status": "todo",
+    "depends_on": [
+      "TK-P5-03"
+    ],
+    "labels": "task, phase-5, prio-medium"
+  }
+]

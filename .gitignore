@@ -1,0 +1,20 @@
+# --- Godot 4 ---
+.godot/
+/build/
+/android/
+.import/
+export_presets.cfg
+*.translation
+
+# --- Addons that are vendored separately (optional) ---
+# addons/gut/    # keep if you commit GUT; ignore if installed per-machine
+
+# --- OS / Editor ---
+.DS_Store
+Thumbs.db
+*.swp
+
+# --- Doc-tool / office temp (safe to ignore) ---
+*.tmp
+.~lock.*#
+node_modules/

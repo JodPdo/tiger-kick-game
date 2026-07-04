@@ -1,0 +1,59 @@
+# DOCUMENT_ROUTING.yaml — Tiger Kick
+# Topic -> exact document. Agents: resolve "where do I read about X" here before searching.
+# Paths are relative to the repo root. Team docs live under Tiger_Kick_Project_Docs/ (abbreviated TKPD).
+
+meta:
+  team_docs_root: Tiger_Kick_Project_Docs
+  agents_root: .claude/agents
+  language: { agents: en, team_docs: th, filenames: en }
+
+context_layer:            # read by every agent, in this order
+  - CLAUDE.md
+  - AGENT_INDEX.md
+  - DOCUMENT_ROUTING.yaml
+  - CURRENT_PHASE.md
+  - TKPD/04_Management/06_Agent_RACI.md
+  - _backlog.json
+
+design:
+  overview_gdd:        TKPD/01_Design/00_GDD.pdf
+  core_loop:           TKPD/01_Design/00_GDD.pdf        # see also TDD Round Flow
+  tag_sequence:        TKPD/01_Design/00_GDD.pdf        # GDD 2.3 (+ TDD 8.2)
+  roadmap:             TKPD/01_Design/Roadmap/          # Phase0..5 + PhaseX
+  character_art_bible: TKPD/01_Design/Character_Art_Bible.md   # visual/character rules (designer owns, polish obeys)
+
+technical:
+  tdd:                 TKPD/02_Technical/TDD.pdf
+  architecture:        TKPD/02_Technical/TDD.pdf        # TDD 2
+  scene_tree:          TKPD/02_Technical/TDD.pdf        # TDD 4
+  class_diagram:       TKPD/02_Technical/TDD.pdf        # TDD 6
+  round_flow:          TKPD/02_Technical/TDD.pdf        # TDD 7
+  player_state:        TKPD/02_Technical/TDD.pdf        # TDD 8.1
+  network_flow:        TKPD/02_Technical/TDD.pdf        # TDD 9
+  diagrams:            TKPD/diagrams/
+
+qa:
+  master_test_plan:    TKPD/03_QA/_shared/00_Master_Test_Plan.md
+  test_strategy:       TKPD/03_QA/_shared/01_Test_Strategy.md
+  severity_lifecycle:  TKPD/03_QA/_shared/02_Severity_and_Bug_Lifecycle.md
+  bug_template:        TKPD/03_QA/_shared/03_Bug_Template.md
+  regression_suite:    TKPD/03_QA/_shared/04_Regression_Suite.md
+  test_report:         TKPD/03_QA/_shared/05_Test_Report_Template.md
+  rtm:                 TKPD/03_QA/_shared/06_Requirement_Traceability_Matrix.xlsx
+  test_data:           TKPD/03_QA/_shared/07_Test_Data.md
+  phase_qa:            TKPD/03_QA/Phase{N}_QA/            # 01_Test_Plan 02_Checklist 03_Exit_Gate 04_Test_Cases
+
+management:
+  milestone_plan:      TKPD/04_Management/01_Milestone_Plan.md
+  risk_register:       TKPD/04_Management/02_Risk_Register.xlsx
+  change_log:          TKPD/04_Management/03_Change_Log.md
+  team_workflow:       TKPD/04_Management/04_Team_Workflow.md
+  backlog_human:       TKPD/04_Management/05_Backlog.md
+  backlog_machine:     _backlog.json
+  raci:                TKPD/04_Management/06_Agent_RACI.md
+
+ai_team:
+  agent_index:         AGENT_INDEX.md
+  contract_template:   TKPD/05_AI_Team/_AGENT_CONTRACT_TEMPLATE.md
+  handbook:            TKPD/05_AI_Team/Agent_Handbook.md
+  agent_contracts:     .claude/agents/
