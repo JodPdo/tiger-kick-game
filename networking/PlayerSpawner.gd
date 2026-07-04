@@ -32,12 +32,32 @@ extends MultiplayerSpawner
 ##     (wired to the `spawned` signal) handles the replicated/client-side
 ##     case. Both paths funnel through `_activate_local_camera_if_own()`.
 ##
-## Multiplayer authority of the spawned Player itself (who may move it) is
-## OUT OF SCOPE here by design -- see TK-P1-05 ("kick_off multiplayer
-## authority ... ควบคุมตัวเอง"), which depends on this card. Until TK-P1-05
-## runs, every spawned Player defaults to authority = 1 (the server), same
-## as any other node; movement/input gating in Player.gd (TK-P1-02) should
-## not be exercised over the network for non-host peers until then.
+## Multiplayer authority of the spawned Player (TK-P1-05, this update): each
+## spawned Player's multiplayer authority is set to the peer id it was
+## spawned for (str(id) is already its node name -- see naming contract
+## below), so Player.gd's is_multiplayer_authority()-gated input (TK-P1-02)
+## lets each peer drive only its OWN Player; the host no longer drives
+## everyone.
+##
+## set_multiplayer_authority() is a purely LOCAL call -- Godot does NOT
+## propagate it over the network by itself, so every peer's local copy of a
+## given Player node must call it independently and agree. We rely on the
+## deterministic naming contract (node.name == str(peer_id), already used by
+## _on_peer_disconnected/_activate_local_camera_if_own) rather than any
+## extra RPC/race:
+##   - Host side: _spawn_player() sets instance.set_multiplayer_authority(id)
+##     BEFORE add_child(), for every Player it spawns (its own AND every
+##     client's) -- this covers the host's entire local tree in one place,
+##     before that instance's first _ready()/_physics_process() runs.
+##   - Every other peer's side: _on_spawned() (replicated-receive only, see
+##     below) parses the same id back out of node.name and calls
+##     node.set_multiplayer_authority() on ITS local copy, so a client's
+##     local tree ends up agreeing with the host's without needing the
+##     spawner to transmit authority explicitly.
+## set_multiplayer_authority(id) defaults to recursive = true, so
+## Player.tscn's MultiplayerSynchronizer child (whose root_path defaults to
+## "..", i.e. the Player itself) inherits the same authority automatically
+## -- no separate call needed for it to replicate FROM the owning peer.
 ##
 ## Naming contract: each spawned Player's node name is set to str(peer_id)
 ## (e.g. "1" for the host, "2" for the first client, ...) -- this is how
@@ -113,6 +133,19 @@ func _spawn_player(id: int) -> void:
 	instance.position = SpawnPointUtil.spawn_point(_spawn_count)
 	_spawn_count += 1
 
+	# TK-P1-05: assign this Player's multiplayer authority to the peer it was
+	# spawned for, BEFORE add_child(), so the instance never spends a frame
+	# defaulting to authority = 1 (the server) once it enters the tree. This
+	# is the host's local copy of the node -- covers both the host's own
+	# Player and every client's Player, since only the host ever runs
+	# _spawn_player() (see _on_peer_connected's is_server() guard). Every
+	# OTHER peer's local copy of this same node gets its authority set
+	# independently in _on_spawned() below, from the same str(id) naming
+	# contract -- set_multiplayer_authority() does not itself propagate over
+	# the network. recursive = true (default) also covers the Player's
+	# MultiplayerSynchronizer child, so it replicates FROM the owning peer.
+	instance.set_multiplayer_authority(id)
+
 	_players_root.add_child(instance)
 	GameLog.info("[SPAWN] player %d spawned at %s" % [id, instance.position])
 
@@ -128,7 +161,18 @@ func _spawn_player(id: int) -> void:
 ## the network (never fires for the authority's own add_child()). Delegates
 ## to the same local-camera activation used by the host-local path in
 ## _spawn_player() so both routes agree on "exactly one camera current".
+##
+## TK-P1-05: also sets THIS peer's local copy of the replicated node's
+## multiplayer authority, mirroring the host-side assignment in
+## _spawn_player() above. set_multiplayer_authority() never propagates over
+## the network on its own, so every peer must set it independently; we
+## recover the same peer id the host used from node.name (the naming
+## contract: node.name == str(peer_id), guaranteed set before this node was
+## ever replicated). Runs before anything else touches this node this
+## frame, so it's in place before the node's first _physics_process().
 func _on_spawned(node: Node) -> void:
+	var owner_peer_id: int = int(node.name)
+	node.set_multiplayer_authority(owner_peer_id)
 	_activate_local_camera_if_own(node)
 
 
@@ -140,9 +184,20 @@ func _on_spawned(node: Node) -> void:
 ## `current` to true automatically un-currents whatever was previously
 ## current (including TestArena's own overview Camera3D), so no manual
 ## bookkeeping is needed on the TestArena side.
+##
+## Camera lookup contract (TK-P1-03/TK-P1-05 hand-off): TK-P1-03 replaces
+## Player's placeholder Camera3D with a SpringArm3D+Camera3D rig and exposes
+## it via Player.get_view_camera() -> Camera3D. We prefer that accessor when
+## present so we don't care whether the rig has landed yet; only fall back
+## to the old hardcoded "Camera3D" child lookup if get_view_camera() isn't
+## defined (e.g. this scene version predates TK-P1-03).
 func _activate_local_camera_if_own(node: Node) -> void:
 	if not SpawnPointUtil.is_local_peer_name(node.name, multiplayer.get_unique_id()):
 		return
-	var cam: Camera3D = node.get_node_or_null("Camera3D")
+	var cam: Camera3D = null
+	if node.has_method("get_view_camera"):
+		cam = node.get_view_camera()
+	else:
+		cam = node.get_node_or_null("Camera3D")
 	if cam:
 		cam.current = true

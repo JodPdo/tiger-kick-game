@@ -3,6 +3,12 @@
 บันทึกการเปลี่ยนแปลงสำคัญของโปรเจกต์และเอกสาร (รูปแบบ Keep a Changelog)
 เวอร์ชันล่าสุดอยู่บนสุด
 
+## [0.26] — 2026-07-05 — Phase 1: spawner + camera rig + per-player authority
+- `TK-P1-04` MultiplayerSpawner: spawn Player ต่อ peer id (host-authoritative), despawn on disconnect, กล้อง current เฉพาะ local (host-local path + client replicated)
+- `TK-P1-03` third-person camera rig: `Player→CameraRig→SpringArm3D→Camera3D`, mouse-look (yaw/pitch clamp -60..+30), camera-relative movement, contract `get_view_camera()`
+- `TK-P1-05` per-player authority: `set_multiplayer_authority(peer_id)` (host+client path), synchronizer follows recursive → แต่ละ peer คุม player ตัวเอง
+- ค้าง (TK-P1-06): skip move_and_slide/gravity บน non-authority peer (กัน jitter) + synchronizer property tuning + guard `int(node.name)` ใน _on_spawned
+
 ## [0.25] — 2026-07-05 — Phase 1: movement + InputMap actions
 - `TK-P1-02` movement: WASD + gravity + Sprint (Shift) ใน `characters/Player.gd`, ค่า walk 5.0 m/s / sprint ×1.4 จาก TDD §11 (export ปรับได้), input gate `is_multiplayer_authority()`
 - เพิ่ม **InputMap actions** ใน `project.godot` `[input]`: `move_forward`(W)/`move_back`(S)/`move_left`(A)/`move_right`(D)/`sprint`(Shift) — ปลดล็อกงาน Controls-rebind ที่ค้างจาก TK-PX-05 ด้วย (ชื่อ action ตรงกับ REBIND_KEYS)

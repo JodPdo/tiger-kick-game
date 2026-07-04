@@ -1,13 +1,15 @@
 extends GutTest
 ## Unit tests for characters/Player.gd -- pure, node-independent movement
-## math only (TK-P1-02: walk/sprint speed, gravity integration).
+## math only (TK-P1-02: walk/sprint speed, gravity integration; TK-P1-03:
+## camera-relative yaw rotation).
 ##
 ## WHY THIS EXISTS (testability): CharacterBody3D.move_and_slide() needs a
 ## live scene tree/physics world, and Input.get_vector() needs real input
 ## state, so the real _physics_process() can't run under GUT headless.
-## The speed/sprint/gravity DECISIONS are extracted as static, dependency-
-## injected functions (compute_velocity, apply_gravity) so they can be
-## tested with plain values -- no node, no Input, no physics tick required.
+## The speed/sprint/gravity/rotation DECISIONS are extracted as static,
+## dependency-injected functions (compute_velocity, apply_gravity,
+## camera_relative_dir) so they can be tested with plain values -- no node,
+## no Input, no physics tick, no SpringArm3D/CameraRig scene tree required.
 ##
 ## NOTE: Requires the GUT addon (TK-PX-07), same as tests/test_tiger_assignment.gd.
 
@@ -90,6 +92,85 @@ func test_diagonal_input_scales_both_axes() -> void:
 		input_dir, WALK_SPEED, SPRINT_MULTIPLIER, false
 	)
 	assert_eq(result, Vector3(0.5 * WALK_SPEED, 0.0, -0.5 * WALK_SPEED))
+
+
+# --- camera_relative_dir (TK-P1-03) --------------------------------------------
+# Expected values below are computed independently via the standard
+# right-hand-rule rotation-around-Y matrix (x' = x*cos(yaw) + z*sin(yaw),
+# z' = -x*sin(yaw) + z*cos(yaw)) rather than by calling the function under
+# test, so these assertions actually exercise Vector3.rotated()'s behavior
+# and camera_relative_dir()'s axis/sign choices, not just restate them.
+
+func test_camera_relative_dir_zero_yaw_is_identity() -> void:
+	var input_dir: Vector2 = Vector2(0.0, -1.0) # forward
+	var result: Vector3 = PlayerScript.camera_relative_dir(input_dir, 0.0)
+	assert_eq(result, Vector3(0.0, 0.0, -1.0),
+		"zero yaw must not rotate the input direction")
+
+
+func test_camera_relative_dir_no_input_gives_zero_vector_at_any_yaw() -> void:
+	var result: Vector3 = PlayerScript.camera_relative_dir(Vector2.ZERO, PI / 2.0)
+	assert_eq(result, Vector3.ZERO)
+
+
+func test_camera_relative_dir_y_is_always_zero() -> void:
+	var result: Vector3 = PlayerScript.camera_relative_dir(Vector2(1.0, 1.0), 1.234)
+	assert_eq(result.y, 0.0)
+
+
+func test_camera_relative_dir_quarter_turn_forward() -> void:
+	var yaw: float = PI / 2.0
+	var input_dir: Vector2 = Vector2(0.0, -1.0) # forward
+	var expected: Vector3 = Vector3(-sin(yaw), 0.0, -cos(yaw))
+	var result: Vector3 = PlayerScript.camera_relative_dir(input_dir, yaw)
+	assert_almost_eq(result.x, expected.x, 0.0001)
+	assert_almost_eq(result.z, expected.z, 0.0001)
+
+
+func test_camera_relative_dir_half_turn_forward_becomes_backward() -> void:
+	var yaw: float = PI
+	var input_dir: Vector2 = Vector2(0.0, -1.0) # forward
+	var result: Vector3 = PlayerScript.camera_relative_dir(input_dir, yaw)
+	assert_almost_eq(result.x, 0.0, 0.0001)
+	assert_almost_eq(result.z, 1.0, 0.0001,
+		"a 180 degree yaw must flip 'forward' input into world +Z")
+
+
+func test_camera_relative_dir_arbitrary_yaw_matches_rotation_matrix() -> void:
+	var yaw: float = -0.7
+	var input_dir: Vector2 = Vector2(0.6, -0.8)
+	var expected: Vector3 = Vector3(
+		input_dir.x * cos(yaw) + input_dir.y * sin(yaw),
+		0.0,
+		-input_dir.x * sin(yaw) + input_dir.y * cos(yaw)
+	)
+	var result: Vector3 = PlayerScript.camera_relative_dir(input_dir, yaw)
+	assert_almost_eq(result.x, expected.x, 0.0001)
+	assert_almost_eq(result.z, expected.z, 0.0001)
+
+
+func test_camera_relative_dir_preserves_input_magnitude() -> void:
+	var input_dir: Vector2 = Vector2(0.5, -0.5)
+	var result: Vector3 = PlayerScript.camera_relative_dir(input_dir, 2.1)
+	assert_almost_eq(result.length(), input_dir.length(), 0.0001,
+		"rotation must not change the magnitude of the input direction")
+
+
+# --- compute_velocity fed a pre-rotated (camera-relative) direction -----------
+
+func test_compute_velocity_after_camera_relative_rotation_quarter_turn() -> void:
+	# Regression for the _physics_process wiring: forward input (0,-1),
+	# rotated 90 degrees of yaw, then scaled by walk_speed, must match doing
+	# the rotation and scaling in either order.
+	var yaw: float = PI / 2.0
+	var input_dir: Vector2 = Vector2(0.0, -1.0)
+	var rotated: Vector3 = PlayerScript.camera_relative_dir(input_dir, yaw)
+	var result: Vector3 = PlayerScript.compute_velocity(
+		Vector2(rotated.x, rotated.z), WALK_SPEED, SPRINT_MULTIPLIER, false
+	)
+	assert_almost_eq(result.x, -sin(yaw) * WALK_SPEED, 0.0001)
+	assert_almost_eq(result.z, -cos(yaw) * WALK_SPEED, 0.0001)
+	assert_eq(result.y, 0.0)
 
 
 # --- apply_gravity --------------------------------------------------------------
