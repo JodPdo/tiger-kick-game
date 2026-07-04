@@ -3,6 +3,10 @@
 บันทึกการเปลี่ยนแปลงสำคัญของโปรเจกต์และเอกสาร (รูปแบบ Keep a Changelog)
 เวอร์ชันล่าสุดอยู่บนสุด
 
+## [0.27] — 2026-07-05 — Phase 1 code ครบ: synchronizer tuning + remote-physics guard
+- `TK-P1-06`: MultiplayerSynchronizer sync เฉพาะ position+rotation, mode ALWAYS→ON_CHANGE (ไม่ส่ง packet ตอนนิ่ง, spawn=true คง seed แรก), non-authority peer skip move_and_slide/gravity (puppet ขับด้วย sync ล้วน กัน jitter), guard is_valid_int ใน _on_spawned
+- **Phase 1 (M1 Movement) code ครบ 6/6** — เหลือ Exit Gate: มนุษย์ทดสอบ GUI 2 หน้าต่าง (เดิน/กล้อง/no-jitter) + merge PR #3
+
 ## [0.26] — 2026-07-05 — Phase 1: spawner + camera rig + per-player authority
 - `TK-P1-04` MultiplayerSpawner: spawn Player ต่อ peer id (host-authoritative), despawn on disconnect, กล้อง current เฉพาะ local (host-local path + client replicated)
 - `TK-P1-03` third-person camera rig: `Player→CameraRig→SpringArm3D→Camera3D`, mouse-look (yaw/pitch clamp -60..+30), camera-relative movement, contract `get_view_camera()`

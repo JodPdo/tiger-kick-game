@@ -56,7 +56,19 @@ extends CharacterBody3D
 ## match the camera (so replicated rotation means something) or whether a
 ## separate replicated "facing" property is needed.
 ##
-## ASSUMPTION (flag for TK-P1-04/05/06, network-engineer): per the card,
+## RESOLVED (TK-P1-06, network-engineer): the ASSUMPTION below (kept for
+## history) predicted that running gravity + move_and_slide() on every peer's
+## Player instance, even non-authority copies, would fight the
+## MultiplayerSynchronizer's incoming position/rotation writes every physics
+## tick and jitter. Confirmed -- fixed by making _physics_process() return
+## immediately for any Player that is NOT the local multiplayer authority
+## (see below): non-authority instances now run zero local physics; their
+## `position`/`rotation` are driven ENTIRELY by the synchronizer's replicated
+## writes, which land outside of and are not overwritten by
+## _physics_process(). Only the owning peer's own copy still simulates
+## input -> velocity -> gravity -> move_and_slide(), exactly as before.
+##
+## Historical ASSUMPTION (TK-P1-04/05/06, network-engineer): per the card,
 ## input-driven horizontal movement is gated on `is_multiplayer_authority()`,
 ## but gravity + move_and_slide() run every frame on every peer's Player
 ## instance regardless of authority. Once MultiplayerSynchronizer is
@@ -161,25 +173,35 @@ func get_view_camera() -> Camera3D:
 ## CameraRig's current yaw (see camera_relative_dir() below) so WASD is
 ## relative to where the camera/rig is looking, drives horizontal velocity,
 ## applies gravity so the body stays grounded, and calls move_and_slide().
-## Horizontal input is gated on is_multiplayer_authority() so only the
-## owning peer drives their own Player once TK-P1-05 assigns per-player
-## authority; with no multiplayer peer set up (offline/solo test),
-## is_multiplayer_authority() is true for everyone, so this still works
-## standalone. Gravity applies regardless of authority (see network-engineer
-## ASSUMPTION above).
+##
+## TK-P1-06 (network-engineer): the ENTIRE function is now gated on
+## is_multiplayer_authority() -- non-authority Player instances (every
+## remote peer's copy of a Player they don't own) return immediately and run
+## NO local physics at all. Their `position`/`rotation` are instead written
+## directly by MultiplayerSynchronizer (Player.tscn's
+## SceneReplicationConfig replicates exactly those two properties, TK-P1-01)
+## outside of _physics_process. Before this fix, gravity + move_and_slide()
+## ran unconditionally on every peer's copy regardless of authority, so a
+## non-authority instance's own local gravity/collision would fight the
+## synchronizer's incoming writes every physics tick -- jitter (flagged
+## since TK-P1-02, see RESOLVED note in the file header above). With no
+## multiplayer peer set up at all (offline/solo test), is_multiplayer_authority()
+## is true for everyone, so the authority path below still runs standalone.
 func _physics_process(delta: float) -> void:
-	if is_multiplayer_authority():
-		var input_dir: Vector2 = Input.get_vector(
-			"move_left", "move_right", "move_forward", "move_back"
-		)
-		var sprinting: bool = Input.is_action_pressed("sprint")
-		var rig_yaw: float = camera_rig.rotation.y
-		var relative_dir: Vector3 = camera_relative_dir(input_dir, rig_yaw)
-		var horizontal: Vector3 = compute_velocity(
-			Vector2(relative_dir.x, relative_dir.z), walk_speed, sprint_multiplier, sprinting
-		)
-		velocity.x = horizontal.x
-		velocity.z = horizontal.z
+	if not is_multiplayer_authority():
+		return
+
+	var input_dir: Vector2 = Input.get_vector(
+		"move_left", "move_right", "move_forward", "move_back"
+	)
+	var sprinting: bool = Input.is_action_pressed("sprint")
+	var rig_yaw: float = camera_rig.rotation.y
+	var relative_dir: Vector3 = camera_relative_dir(input_dir, rig_yaw)
+	var horizontal: Vector3 = compute_velocity(
+		Vector2(relative_dir.x, relative_dir.z), walk_speed, sprint_multiplier, sprinting
+	)
+	velocity.x = horizontal.x
+	velocity.z = horizontal.z
 
 	velocity.y = apply_gravity(velocity.y, gravity, delta, is_on_floor())
 

@@ -20,10 +20,17 @@ Single source of truth for "where are we now". **Update this whenever the phase/
 - [x] ≥1 unit-test suite passing (GUT 88/88, 1135 asserts), Regression + NET SMOKE PASS, no S0/S1
 - Cards `TK-PX-01`…`TK-PX-07`. Autoloads: GameLog, ConfigManager, NetworkManager, ErrorHandler, DebugOverlay, PerfOverlay.
 
-## Active this phase (Phase 1)
-- **Lead agents:** `gameplay-engineer` (Player/movement/camera), `network-engineer` (spawn/authority/sync) · **Always on:** `producer`, `qa-engineer`, `code-reviewer`, `documentation-manager`
-- **Doing:** `TK-P1-01` Player.tscn (CharacterBody3D + Camera3D + MultiplayerSynchronizer)
-- **Queued:** `TK-P1-02` movement+sprint, `TK-P1-03` third-person camera rig (dep P1-01); `TK-P1-04` MultiplayerSpawner (dep P1-01) → `TK-P1-05` authority → `TK-P1-06` synchronizer tuning
+## Phase 1 — code complete (6/6 cards done, on `develop`) — HUMAN QA PENDING
+- `TK-P1-01` Player.tscn · `TK-P1-02` movement+sprint · `TK-P1-03` third-person camera rig · `TK-P1-04` MultiplayerSpawner · `TK-P1-05` per-player authority · `TK-P1-06` synchronizer tuning + remote-physics guard
+- Automated verified: import clean, **GUT 116/116** (1201 asserts), NET SMOKE PASS, host-spawn/authority/camera probes PASS, no S0/S1.
+
+### Phase 1 Exit Gate (from Phase1_QA/03_Exit_Gate) — automated met, human pending
+- [x] Regression passes (GUT 116/116 + net_smoke), no open S0/S1
+- [x] each peer spawns + is authority of its own player (host-side probe verified)
+- [ ] **HUMAN: play-test in editor** — WASD/mouse/sprint move; F3/F4 overlays; Settings save/reload
+- [ ] **HUMAN: 2-window** — Host/Join, see each other, movement syncs smoothly (no jitter/drift), each controls only its own player
+- [ ] Merge `develop` → `main` (PR #3)
+- ⏸️ **Producer HALTED at user request for hands-on quality review before Phase 2.**
 
 ## Open cross-phase items (not blocking)
 - `TK-P2-09` TigerSelector helper landed early (partial); full card OPEN pending `TK-P2-04` (Phase 2). Architect ack on `managers/` placement deferred to Phase 2.

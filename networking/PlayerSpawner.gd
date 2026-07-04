@@ -171,6 +171,19 @@ func _spawn_player(id: int) -> void:
 ## ever replicated). Runs before anything else touches this node this
 ## frame, so it's in place before the node's first _physics_process().
 func _on_spawned(node: Node) -> void:
+	# TK-P1-06 (code-review nit): guard against a non-numeric node.name before
+	# int()-parsing it -- `_spawn_player()` always sets it to str(peer_id),
+	# but a defensive check here costs nothing and prevents int("garbage")
+	# silently coercing to 0 (which would hand this node's authority to peer
+	# id 0 -- not a real peer id, since Godot peer ids start at 1) if this
+	# node ever arrived with an unexpected name. Same check SpawnPointUtil.
+	# is_local_peer_name() already relies on for its own String.is_valid_int()
+	# guard, kept in sync here for the authority-assignment path.
+	if not node.name.is_valid_int():
+		GameLog.error(
+			"[SPAWN] replicated node with non-numeric name '%s' -- refusing to assign authority" % node.name
+		)
+		return
 	var owner_peer_id: int = int(node.name)
 	node.set_multiplayer_authority(owner_peer_id)
 	_activate_local_camera_if_own(node)
