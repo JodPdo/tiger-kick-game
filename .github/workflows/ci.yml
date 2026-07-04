@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+jobs:
+  ci:
+    name: Godot 4.7 headless — smoke + tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Godot 4.7 (linux headless)
+        run: |
+          wget -q https://github.com/godotengine/godot/releases/download/4.7-stable/Godot_v4.7-stable_linux.x86_64.zip
+          unzip -q Godot_v4.7-stable_linux.x86_64.zip
+          mv Godot_v4.7-stable_linux.x86_64 godot
+          chmod +x godot
+          ./godot --version
+
+      - name: Import project (headless)
+        run: ./godot --headless --import 2>&1 | tee import.log
+
+      - name: Smoke — project opens with no script/parse errors
+        run: |
+          if grep -E "SCRIPT ERROR|Parse Error|Failed to load|ERROR: Cannot open" import.log; then
+            echo "::error::Import produced errors — see log above"
+            exit 1
+          fi
+          echo "Smoke OK: project imported clean"
+
+      - name: GUT unit tests (skips gracefully if GUT not installed yet)
+        run: |
+          if [ -f addons/gut/gut_cmdln.gd ]; then
+            ./godot --headless -s addons/gut/gut_cmdln.gd -gdir=res://tests -ginclude_subdirs -gexit
+          else
+            echo "GUT not installed yet (addons/gut/) — skipping unit tests. Add in Phase X."
+          fi

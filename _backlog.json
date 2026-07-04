@@ -3,11 +3,11 @@
     "id": "TK-P0-01",
     "phase": "Phase 0",
     "milestone": "M0 Networking",
-    "title": "ติดตั้ง Godot 4.6 (เลือก build มาตรฐาน หรือ .NET หากใช้ C#)",
+    "title": "ติดตั้ง Godot 4.7 (เลือก build มาตรฐาน หรือ .NET หากใช้ C#)",
     "type": "task",
     "priority": "High",
     "owner_agent": "tools-devops",
-    "status": "todo",
+    "status": "done",
     "depends_on": [],
     "labels": "task, phase-0, prio-high"
   },
@@ -19,7 +19,7 @@
     "type": "task",
     "priority": "High",
     "owner_agent": "tools-devops",
-    "status": "todo",
+    "status": "done",
     "depends_on": [
       "TK-P0-01"
     ],

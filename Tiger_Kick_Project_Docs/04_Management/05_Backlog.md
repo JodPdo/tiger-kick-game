@@ -8,7 +8,7 @@
 ## Phase 0 — Setup & Networking Foundation
 Milestone: **M0 Networking** · Priority เริ่มต้น: **High**
 
-- [ ] `TK-P0-01` ติดตั้ง Godot 4.6 (เลือก build มาตรฐาน หรือ .NET หากใช้ C#)
+- [ ] `TK-P0-01` ติดตั้ง Godot 4.7 (เลือก build มาตรฐาน หรือ .NET หากใช้ C#)
 - [ ] `TK-P0-02` สร้าง GitHub repo + เพิ่ม .gitignore ของ Godot และตั้งโครงโฟลเดอร์ (scenes/, scripts/, assets/)
 - [ ] `TK-P0-03` สร้าง MainMenu.tscn พร้อมปุ่ม Host / Join และช่องกรอก IP:Port
 - [ ] `TK-P0-04` เขียน NetworkManager (autoload) สร้าง ENetMultiplayerPeer สำหรับ host และ client

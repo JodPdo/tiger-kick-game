@@ -3,6 +3,12 @@
 บันทึกการเปลี่ยนแปลงสำคัญของโปรเจกต์และเอกสาร (รูปแบบ Keep a Changelog)
 เวอร์ชันล่าสุดอยู่บนสุด
 
+## [0.12] — 2026-07-04 — อัปเกรด Engine Godot 4.6 → 4.7
+- เปลี่ยนเวอร์ชัน Engine จาก Godot 4.6 เป็น Godot 4.7 (เป็น stable build ใหม่กว่า ไม่มี breaking change ต่อ High-Level Multiplayer/ENet ที่ใช้ใน Phase 0 และตรงกับ build ที่ติดตั้งจริงบนเครื่อง — `Godot_v4.7-stable_win64_console.exe`, verified `4.7.stable.official`)
+- อนุมัติโดย: producer
+- อัปเดตทุกจุดที่อ้างอิงเวอร์ชัน Engine: CLAUDE.md, WORKSPACE_SETUP.md, _backlog.json (TK-P0-01), 05_Backlog.md/.csv, _AGENT_CONTRACT_TEMPLATE.md, .claude/agents/{gameplay-engineer, network-engineer, tools-devops}.md
+- หมายเหตุ: รายการ [0.2] ด้านล่างเป็นบันทึกประวัติศาสตร์ (Unity → Godot 4.6 ตอนนั้น) คงไว้ตามเดิมเพื่อความถูกต้องของประวัติ ไม่แก้ไขย้อนหลัง
+
 ## [0.11] — เพิ่ม Character & Art Bible
 - เพิ่ม 01_Design/Character_Art_Bible.md (สไตล์/สี/Tiger indicator/animation set) — designer เป็นเจ้าของ, polish-agent ต้องทำตาม
 - เดินสาย: DOCUMENT_ROUTING (design.character_art_bible) + Required Reading ของ designer และ polish-agent

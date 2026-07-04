@@ -5,7 +5,7 @@ Shared project context. **Every agent loads this first.** Keep it short; link ou
 ## Project
 Tiger Kick (เสือเตะตูด) — a multiplayer party game for 4–8 players, inspired by a Thai folk game. Goal of the whole project: **prove Phase 2 (Core Loop) is fun first, then expand.**
 
-- **Engine:** Godot 4.6, GDScript (C# optional), High-Level Multiplayer, target Steam (PC)
+- **Engine:** Godot 4.7, GDScript (C# optional), High-Level Multiplayer, target Steam (PC)
 - **Team:** 2 humans + a team of AI agents (see `AGENT_INDEX.md`)
 - **Status:** see `CURRENT_PHASE.md` (single source of truth for phase/milestone/sprint)
 

@@ -44,7 +44,7 @@ Tiger-Kick/                       ← repo root (จะเป็น Godot res://
    git remote add origin <your-github-repo-url>
    git push -u origin main
    ```
-3. เริ่ม Phase 0: สร้างโปรเจกต์ Godot 4.6 ที่โฟลเดอร์นี้ (project.godot จะถูกสร้างที่ root)
+3. เริ่ม Phase 0: สร้างโปรเจกต์ Godot 4.7 ที่โฟลเดอร์นี้ (project.godot จะถูกสร้างที่ root)
    ตั้งโครง res:// ตาม TDD §3 (scenes/, scripts/, managers/ ...)
 4. ติดตั้ง GUT ใน `addons/` แล้วเริ่มการ์ด `TK-P0-01`
 
