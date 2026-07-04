@@ -16,7 +16,12 @@ config/features=PackedStringArray("4.7", "Forward Plus")
 
 [autoload]
 
+GameLog="*res://managers/Logger.gd"
+ConfigManager="*res://managers/ConfigManager.gd"
 NetworkManager="*res://networking/NetworkManager.gd"
+ErrorHandler="*res://managers/ErrorHandler.gd"
+DebugOverlay="*res://ui/DebugOverlay.gd"
+PerfOverlay="*res://ui/PerfOverlay.gd"
 
 [rendering]
 

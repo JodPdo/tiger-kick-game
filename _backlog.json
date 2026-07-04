@@ -93,7 +93,7 @@
     "type": "task",
     "priority": "Medium",
     "owner_agent": "tools-devops",
-    "status": "todo",
+    "status": "done",
     "depends_on": [
       "TK-P0-06"
     ],
@@ -107,7 +107,7 @@
     "type": "task",
     "priority": "Medium",
     "owner_agent": "tools-devops",
-    "status": "todo",
+    "status": "done",
     "depends_on": [
       "TK-PX-01"
     ],
@@ -121,7 +121,7 @@
     "type": "task",
     "priority": "Medium",
     "owner_agent": "tools-devops",
-    "status": "todo",
+    "status": "done",
     "depends_on": [
       "TK-PX-02"
     ],
@@ -135,7 +135,7 @@
     "type": "task",
     "priority": "Medium",
     "owner_agent": "tools-devops",
-    "status": "todo",
+    "status": "done",
     "depends_on": [
       "TK-P0-06"
     ],
@@ -149,7 +149,7 @@
     "type": "task",
     "priority": "Medium",
     "owner_agent": "tools-devops",
-    "status": "todo",
+    "status": "done",
     "depends_on": [
       "TK-PX-04"
     ],
@@ -163,7 +163,7 @@
     "type": "task",
     "priority": "Medium",
     "owner_agent": "tools-devops",
-    "status": "todo",
+    "status": "done",
     "depends_on": [
       "TK-PX-01"
     ],
@@ -177,7 +177,7 @@
     "type": "task",
     "priority": "Medium",
     "owner_agent": "tools-devops",
-    "status": "review",
+    "status": "done",
     "depends_on": [
       "TK-P0-04"
     ],

@@ -18,9 +18,15 @@ const DEFAULT_ADDRESS_PORT: String = "%s:%d" % [DEFAULT_ADDRESS, DEFAULT_PORT]
 ## Path per TDD §3 Folder Structure: res://world/ -- Arena, SafeCircle.
 const TEST_ARENA_SCENE: String = "res://world/TestArena.tscn"
 
+## Settings screen (TK-PX-05): Graphics/Audio/Controls, backed by
+## ConfigManager. Reachable from a single "Settings" button below -- does not
+## interrupt Host/Join flow, and does not touch NetworkManager.
+const SETTINGS_MENU_SCENE: String = "res://ui/SettingsMenu.tscn"
+
 @onready var address_port_edit: LineEdit = $CenterContainer/VBoxContainer/AddressPortEdit
 @onready var host_button: Button = $CenterContainer/VBoxContainer/ButtonRow/HostButton
 @onready var join_button: Button = $CenterContainer/VBoxContainer/ButtonRow/JoinButton
+@onready var settings_button: Button = $CenterContainer/VBoxContainer/SettingsButton
 @onready var status_label: Label = $CenterContainer/VBoxContainer/StatusLabel
 
 
@@ -30,6 +36,7 @@ func _ready() -> void:
 
 	host_button.pressed.connect(_on_host_pressed)
 	join_button.pressed.connect(_on_join_pressed)
+	settings_button.pressed.connect(_on_settings_pressed)
 
 	# NetworkManager is an autoload registered by the producer (TK-P0-04).
 	# It is not registered yet while this card is authored; the connections
@@ -100,6 +107,16 @@ func _on_connection_succeeded() -> void:
 
 func _on_connection_failed() -> void:
 	status_label.text = "Connection failed."
+
+
+## Opens the Settings screen (TK-PX-05). Runtime-only scene switch, same
+## pattern as _switch_to_test_arena() below -- does not touch project.godot's
+## run/main_scene, and does not affect NetworkManager/Host/Join state.
+func _on_settings_pressed() -> void:
+	var err: Error = get_tree().change_scene_to_file(SETTINGS_MENU_SCENE)
+	if err != OK:
+		push_warning("[MENU] failed to switch to %s (error %d)" % [SETTINGS_MENU_SCENE, err])
+		status_label.text = "Failed to open settings (error %d)" % err
 
 
 ## Switches from MainMenu to the TestArena once a connection is confirmed.
