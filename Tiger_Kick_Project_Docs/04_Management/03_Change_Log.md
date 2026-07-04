@@ -3,6 +3,12 @@
 บันทึกการเปลี่ยนแปลงสำคัญของโปรเจกต์และเอกสาร (รูปแบบ Keep a Changelog)
 เวอร์ชันล่าสุดอยู่บนสุด
 
+## [0.13] — 2026-07-04 — แก้ path NetworkManager ให้ตรง TDD §3 (managers/ → networking/)
+- ย้าย `NetworkManager.gd` จาก `res://managers/` ไป `res://networking/` เพื่อให้ตรงกับ TDD §3 (Folder Structure) ที่กำหนด `networking/` เป็นที่อยู่ของ NetworkManager/RPC/sync ส่วน `managers/` สงวนให้ GameManager/RoundManager/ConfigManager/Logger
+- เหตุ: การ์ด TK-P0-04 ระบุ path `managers/` ซึ่งขัดกับ TDD; TDD คือ source of truth ด้านสถาปัตย์ (ตาม DOCUMENT_ROUTING) จึงทำโค้ดให้ตรง TDD — ถือเป็นการ *conform* ไม่ใช่ *เปลี่ยน* สถาปัตย์
+- อัปเดต: `project.godot` [autoload] → `res://networking/NetworkManager.gd`, preload path ใน `tests/test_network_manager.gd`
+- อนุมัติโดย: producer (ไม่ต้องขอ architect เพราะเป็นการทำตาม TDD เดิม ไม่ได้แก้ TDD)
+
 ## [0.12] — 2026-07-04 — อัปเกรด Engine Godot 4.6 → 4.7
 - เปลี่ยนเวอร์ชัน Engine จาก Godot 4.6 เป็น Godot 4.7 (เป็น stable build ใหม่กว่า ไม่มี breaking change ต่อ High-Level Multiplayer/ENet ที่ใช้ใน Phase 0 และตรงกับ build ที่ติดตั้งจริงบนเครื่อง — `Godot_v4.7-stable_win64_console.exe`, verified `4.7.stable.official`)
 - อนุมัติโดย: producer

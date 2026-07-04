@@ -33,7 +33,7 @@
     "type": "task",
     "priority": "High",
     "owner_agent": "gameplay-engineer",
-    "status": "todo",
+    "status": "done",
     "depends_on": [
       "TK-P0-02"
     ],
@@ -47,11 +47,12 @@
     "type": "task",
     "priority": "High",
     "owner_agent": "network-engineer",
-    "status": "todo",
+    "status": "done",
     "depends_on": [
       "TK-P0-02"
     ],
-    "labels": "task, phase-0, prio-high"
+    "labels": "task, phase-0, prio-high",
+    "handoff": "HANDOFF -> code-reviewer\n- What: Added managers/NetworkManager.gd autoload (not yet registered in project.godot) implementing host()/join()/disconnect_from_game() over ENetMultiplayerPeer, server-authoritative, with the exact signal/const contract required by MainMenu (TK-P0-03).\n- Files: managers/NetworkManager.gd, tests/test_network_manager.gd (GUT-style, requires TK-PX-07 GUT install to execute)\n- How to test (2 machines / 2 instances): 1) Producer adds `NetworkManager=\"*res://managers/NetworkManager.gd\"` to project.godot [autoload]. 2) Instance A calls NetworkManager.host() -> expect log `[NET] server started on port 7777 (max clients: 8)`. 3) Instance B calls NetworkManager.join(\"<A's LAN IP>\") -> expect `[NET] connecting to ...` on B and `[NET] peer joined: <id>` on A, `[NET] connection succeeded (client connected to host)` on B. 4) Close B -> expect `[NET] peer left: <id>` on A.\n- Risks/limits: project.godot NOT edited per instructions (producer must add autoload line, see report). host()/join() input validation verified headlessly (invalid port / empty address both return ERR_INVALID_PARAMETER); live 2-instance connectivity still needs manual/QA verification under TK-P0-06. GUT unit test cannot run until GUT addon (TK-PX-07) is installed."
   },
   {
     "id": "TK-P0-05",
@@ -61,7 +62,7 @@
     "type": "task",
     "priority": "High",
     "owner_agent": "gameplay-engineer",
-    "status": "todo",
+    "status": "done",
     "depends_on": [
       "TK-P0-02"
     ],
@@ -75,13 +76,14 @@
     "type": "task",
     "priority": "High",
     "owner_agent": "network-engineer",
-    "status": "todo",
+    "status": "done",
     "depends_on": [
       "TK-P0-03",
       "TK-P0-04",
       "TK-P0-05"
     ],
-    "labels": "task, phase-0, prio-high"
+    "labels": "task, phase-0, prio-high",
+    "handoff": "HANDOFF -> code-reviewer\n- What: Added a headless, repeatable 2-instance network smoke test that launches one host + one client Godot process on localhost via NetworkManager.host()/join(), and asserts from their logs that the connection succeeded (automated proof for the Exit Gate item 'two instances connect + log confirms peer joined'). Only new files added; NetworkManager.gd/project.godot/MainMenu.gd untouched.\n- Files: tests/net/net_smoke_peer.gd (standalone SceneTree `-s` entrypoint, role via --role=host|client), tests/net/run_net_smoke.sh (bash driver; GODOT_BIN env override, ubuntu-CI compatible)\n- How to test (2 machines / 2 instances, manual GUI equivalent): Machine/Window A: MainMenu -> Host (port 7777). Machine/Window B: MainMenu -> Join 127.0.0.1:7777 (or A's LAN IP). Expect A's console: `[NET] peer joined: <id>`; B's console: `[NET] connection succeeded (client connected to host)`. Automated equivalent: `GODOT_BIN=\"C:/Tools/Godot/Godot_v4.7-stable_win64_console.exe\" bash tests/net/run_net_smoke.sh` -> prints both logs + `NET SMOKE: PASS`. Ran locally 4x in a row, 4/4 PASS (see report for captured output).\n- Risks/limits: Automated test proves localhost (2 processes, 1 machine) connectivity only; true 2-machine LAN test is still a human/QA follow-up per the card's note. Client-side has a fixed 1.5s post-connect grace period before quitting (found during testing: the client's own connection_succeeded fires before the host finishes its side of the handshake; quitting instantly tore down the socket before the host's peer_connected packet was received/processed) -- bounded and deterministic, not a flaky sleep. Not wired into CI (see report recommendation to producer/tools-devops). Logs are written to the OS temp dir, gitignored, never into the repo tree."
   },
   {
     "id": "TK-PX-01",
@@ -175,11 +177,13 @@
     "type": "task",
     "priority": "Medium",
     "owner_agent": "tools-devops",
-    "status": "todo",
+    "status": "review",
     "depends_on": [
       "TK-P0-04"
     ],
-    "labels": "task, phase-x, prio-medium"
+    "labels": "task, phase-x, prio-medium",
+    "handoff": "HANDOFF -> code-reviewer\n- What: Installed GUT 9.7.0 into addons/gut/ (committed; .gitignore already allows it) and wired CI to run it for real. Removed the 'skip if GUT missing' branch in .github/workflows/ci.yml so GUT runs on every push/PR and fails the build on any failing/erroring test (-gexit, non-zero exit).\n- Files: addons/gut/** (vendored GUT 9.7.0), .github/workflows/ci.yml (GUT step now mandatory), tests/test_tiger_assignment.gd (10 GUT cases for TK-P2-09 first-Tiger logic), managers/TigerSelector.gd (pure node-independent helper the tests target). Existing tests/test_network_manager.gd now also executes in CI.\n- How to verify: `godot --headless --import` then `godot --headless -s addons/gut/gut_cmdln.gd -gdir=res://tests -ginclude_subdirs -gexit` (expect all green). Could not run Godot in the Cowork sandbox (network allowlist blocks the Godot binary CDN); logic cross-checked via a Python port of TigerSelector (9/9 scenarios pass), files tab-indented + statically reviewed. Real green comes from the CI run on push.\n- Risks/limits: GUT 9.7.0 vs Godot 4.7 compat to be confirmed by first CI run; '--import' step must run before GUT (it does) so class cache resolves 'extends GutTest'. Editor plugin intentionally not enabled (cmdln runner doesn't need it).",
+    "notes": "GUT installed + CI mandatory. Example tests: NetworkManager (existing) + TigerSelector/first-Tiger (TK-P2-09). State-machine tests to add when TK-P2-04 lands."
   },
   {
     "id": "TK-P1-01",
@@ -378,6 +382,21 @@
     "labels": "task, phase-2, prio-high"
   },
   {
+    "id": "TK-P2-09",
+    "phase": "Phase 2",
+    "milestone": "M2 Core Gameplay",
+    "title": "สุ่มเสือตัวแรกตอนเริ่มรอบ (host-authoritative): host สุ่ม 1 peer จากผู้เล่นทั้งหมด แล้ว broadcast ผลให้ทุกเครื่อง (assign_first_tiger / GameManager.assign_tiger)",
+    "type": "task",
+    "priority": "High",
+    "owner_agent": "gameplay-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P2-04"
+    ],
+    "labels": "task, phase-2, prio-high, network",
+    "notes": "เรียกโดย RoundManager (TK-P2-07) ตอนสถานะ Random Tiger ใน Round Flow · pair กับ network-engineer สำหรับ RPC/authority · กติกา: HOST สุ่มคนเดียว (randomize() ครั้งเดียวตอนเริ่ม) แล้ว broadcast ผ่าน @rpc(authority, call_local, reliable) — client ห้ามสุ่มเอง กัน desync (S1) · รวม host (peer id 1) ในการสุ่มด้วย · edge: ถ้าคนที่ถูกสุ่มหลุดพอดี → สุ่มใหม่, กรณีผู้เล่นเหลือ 1 คนจัดการได้ · ทุกรอบใหม่สุ่มใหม่ (NextRound→RandomTiger) · optional anti-repeat (ไม่ให้เป็นเสือซ้ำติดกัน) = ปรับใน Phase 3 Balance · DoD: เปิด 2+ อินสแตนซ์แล้วทุกเครื่องเห็นเสือคนเดียวกันเสมอ, ไม่มีเสือซ้อน/เสือหาย · UNIT TEST SPEC พร้อมแล้ว: tests/test_tiger_assignment.gd (mock 4 peers → เช็คมีเสือ 1 ตัวเสมอ, fairness, edge, anti-repeat, determinism) + pure helper managers/TigerSelector.gd (แยก logic ให้ testable) — รันได้เมื่อ GUT ลง (TK-PX-07)"
+  },
+  {
     "id": "TK-P3-01",
     "phase": "Phase 3",
     "milestone": "M3 First Playtest",
@@ -484,6 +503,63 @@
       "TK-P4-03"
     ],
     "labels": "task, phase-4, prio-medium"
+  },
+  {
+    "id": "TK-P4-05",
+    "phase": "Phase 4",
+    "milestone": "M4 Polish",
+    "title": "ทำโมเดล + rig เสือ ตาม Character Art Bible §3 (low-poly ~1K–2K tris, ส้ม+ลายดำ+พุงครีม+รอยเท้าแมว, สูง ~2.0m) พร้อม rig สำหรับ Animation Set §7",
+    "type": "task",
+    "priority": "Medium",
+    "owner_agent": "polish-agent",
+    "status": "todo",
+    "depends_on": [],
+    "labels": "task, phase-4, prio-medium, art",
+    "notes": "ref: 01_Design/refs/tiger_style_ref.png + Character_Art_Bible.md §3/§7 · asset จัดหาโดยมนุษย์ (§9) · DoD: turnaround ตรง sheet, silhouette แยกจากผู้เล่นได้ (เสือใหญ่+มีหู+ลาย), rig เล่น Idle/Walk/Run/Jump/Kick/Tag Sequence/Caught ได้"
+  },
+  {
+    "id": "TK-P4-06",
+    "phase": "Phase 4",
+    "milestone": "M4 Polish",
+    "title": "ทำโมเดล + rig ผู้เล่น (base เปล่า) ตาม Art Bible §4 (low-poly ~1K–2K tris, สูง 1.2–1.4m) + แยก material slot (base color + decal layer) รองรับการแต่งตัว",
+    "type": "task",
+    "priority": "Medium",
+    "owner_agent": "polish-agent",
+    "status": "todo",
+    "depends_on": [],
+    "labels": "task, phase-4, prio-medium, art",
+    "notes": "ref: 01_Design/refs/player_style_ref.png + Character_Art_Bible.md §4/§9 · DoD: เปลี่ยนสีฐาน 8 สีได้, ซ้อน decal ได้, มี accessory slot (หมวก/แว่น/ผ้าพันคอ/กระเป๋า), rig ใช้ชุดแอนิเมชันเดียวกับเสือได้"
+  },
+  {
+    "id": "TK-P4-07",
+    "phase": "Phase 4",
+    "milestone": "M4 Polish",
+    "title": "ตั้ง Toon Shader + Rim Light pipeline (cel-shading + rim light + soft lighting/SSAO/subtle bloom) และใช้กับทั้งเสือและผู้เล่น",
+    "type": "task",
+    "priority": "Medium",
+    "owner_agent": "polish-agent",
+    "status": "todo",
+    "depends_on": [
+      "TK-P4-05",
+      "TK-P4-06"
+    ],
+    "labels": "task, phase-4, prio-medium, art",
+    "notes": "ref: Character_Art_Bible.md §1/§9 · DoD: ตัวละครขอบสว่างแยกจากฉาก, อ่านชัดในระยะไกล/แสงน้อย, perf ยังผ่าน (รันบน integrated GPU ได้), เข้าชุดสไตล์ MECCHA CHAMELEON"
+  },
+  {
+    "id": "TK-P4-08",
+    "phase": "Phase 4",
+    "milestone": "M4 Polish",
+    "title": "ทำระบบแต่งตัวที่ Lobby (เลือกสีฐาน/decal/accessory — Cosmetic Only) + sync ค่าแต่งตัวข้ามเครื่องตอนกด Ready (broadcast ครั้งเดียว ไม่ real-time)",
+    "type": "task",
+    "priority": "Medium",
+    "owner_agent": "gameplay-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P4-06"
+    ],
+    "labels": "task, phase-4, prio-medium, art, network",
+    "notes": "ref: Character_Art_Bible.md §4B · ส่วน network sync ให้ handoff/ร่วมกับ network-engineer · guardrail: ล็อก palette+ลายเสือ กันปลอมเป็นเสือ + บังคับ contrast ขั้นต่ำ · DoD: แต่งที่ Lobby เท่านั้น (ล็อกตอนแมตช์), ทุกเครื่องเห็นตรงกัน, ไม่กระทบ gameplay / ไม่ทำ desync"
   },
   {
     "id": "TK-P5-01",
