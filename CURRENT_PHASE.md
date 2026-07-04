@@ -14,8 +14,8 @@ Single source of truth for "where are we now". **Update this whenever the phase/
 ## Active this phase
 - **Lead agents:** `tools-devops`, `network-engineer`, `gameplay-engineer`
 - **Always on:** `producer`, `qa-engineer`, `code-reviewer`, `documentation-manager`
-- **Done:** `TK-P0-01` (Godot 4.7 installed), `TK-P0-02` (project scaffold)
-- **Open cards:** `TK-P0-03` … `TK-P0-06` (see `_backlog.json`)
+- **Done:** `TK-P0-01` (Godot 4.7), `TK-P0-02` (scaffold), `TK-P0-03` (MainMenu), `TK-P0-04` (NetworkManager autoload)
+- **Open cards:** `TK-P0-05` (TestArena), `TK-P0-06` (2-instance Exit Gate test)
 
 ## Exit Gate — Phase 0 (from 03_QA/Phase0_QA/03_Exit_Gate)
 - [x] clone repo → opens in Godot with no errors (Godot 4.7; verified by CI headless import on push)

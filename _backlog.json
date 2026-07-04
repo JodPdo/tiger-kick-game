@@ -33,7 +33,7 @@
     "type": "task",
     "priority": "High",
     "owner_agent": "gameplay-engineer",
-    "status": "todo",
+    "status": "done",
     "depends_on": [
       "TK-P0-02"
     ],
@@ -47,11 +47,12 @@
     "type": "task",
     "priority": "High",
     "owner_agent": "network-engineer",
-    "status": "todo",
+    "status": "done",
     "depends_on": [
       "TK-P0-02"
     ],
-    "labels": "task, phase-0, prio-high"
+    "labels": "task, phase-0, prio-high",
+    "handoff": "HANDOFF -> code-reviewer\n- What: Added managers/NetworkManager.gd autoload (not yet registered in project.godot) implementing host()/join()/disconnect_from_game() over ENetMultiplayerPeer, server-authoritative, with the exact signal/const contract required by MainMenu (TK-P0-03).\n- Files: managers/NetworkManager.gd, tests/test_network_manager.gd (GUT-style, requires TK-PX-07 GUT install to execute)\n- How to test (2 machines / 2 instances): 1) Producer adds `NetworkManager=\"*res://managers/NetworkManager.gd\"` to project.godot [autoload]. 2) Instance A calls NetworkManager.host() -> expect log `[NET] server started on port 7777 (max clients: 8)`. 3) Instance B calls NetworkManager.join(\"<A's LAN IP>\") -> expect `[NET] connecting to ...` on B and `[NET] peer joined: <id>` on A, `[NET] connection succeeded (client connected to host)` on B. 4) Close B -> expect `[NET] peer left: <id>` on A.\n- Risks/limits: project.godot NOT edited per instructions (producer must add autoload line, see report). host()/join() input validation verified headlessly (invalid port / empty address both return ERR_INVALID_PARAMETER); live 2-instance connectivity still needs manual/QA verification under TK-P0-06. GUT unit test cannot run until GUT addon (TK-PX-07) is installed."
   },
   {
     "id": "TK-P0-05",
