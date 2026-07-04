@@ -3,6 +3,14 @@
 บันทึกการเปลี่ยนแปลงสำคัญของโปรเจกต์และเอกสาร (รูปแบบ Keep a Changelog)
 เวอร์ชันล่าสุดอยู่บนสุด
 
+## [0.24] — 2026-07-04 — Phase X ครบ: Settings menu + PerfOverlay (จบ MX Dev Infra)
+- `SettingsMenu` (`ui/SettingsMenu.gd/.tscn`, TK-PX-05): Graphics/Audio/Controls tabs → ConfigManager (get/set/save), apply DisplayServer/AudioServer แบบ guard headless + missing-bus; เข้าถึงจากปุ่ม Settings ใหม่ใน MainMenu (แก้ TK-P0-03 แบบ additive — NET SMOKE ยืนยันไม่ regress Host/Join)
+- `PerfOverlay` (`ui/PerfOverlay.gd`, TK-PX-03): overlay กด F4 ใช้ Performance singleton (memory/draw/objects/primitives/nodes/process/physics), แยกจาก DebugOverlay (F3, layer 100 vs 101)
+- Autoload set: GameLog, ConfigManager, NetworkManager, ErrorHandler, DebugOverlay, PerfOverlay
+- **Follow-ups (non-blocking, ยกไป Phase ถัดไป):** (1) Controls rebind รอ InputMap actions ของ Phase 1 (ตอนนี้ placeholder + เก็บใน config) + reconcile รูปแบบ string ("W"→"w"); (2) audio bus layout (Music/SFX) ยังไม่ตั้ง — slider warn+no-op จนกว่าจะเพิ่ม
+- verified: GUT 88/88 (1135 asserts) exit 0, ไม่มี rp_logger/leak, NET SMOKE PASS
+- **Phase X (MX Dev Infra) เสร็จครบ 7 การ์ด**
+
 ## [0.23] — 2026-07-04 — Phase X: เพิ่ม DebugOverlay + ErrorHandler autoloads
 - `DebugOverlay` (`ui/DebugOverlay.gd`, TK-PX-02): overlay กด F3 เปิด/ปิด แสดง FPS/ping/scene/role/peers, refresh 0.25s, ไม่ crash ตอน offline
 - `ErrorHandler` (`managers/ErrorHandler.gd`, TK-PX-06): `report()/report_if()` route ผ่าน GameLog.error — convention จับ error สำคัญแทน bare push_error (ไม่ hook engine logger เลี่ยงชน GUT error_tracker)
