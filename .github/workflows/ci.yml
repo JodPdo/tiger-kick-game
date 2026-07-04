@@ -14,6 +14,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate _backlog.json (integrity guard)
+        run: python3 tools/validate_backlog.py
+
       - name: Download Godot 4.7 (linux headless)
         run: |
           wget -q https://github.com/godotengine/godot/releases/download/4.7-stable/Godot_v4.7-stable_linux.x86_64.zip
@@ -33,10 +36,11 @@ jobs:
           fi
           echo "Smoke OK: project imported clean"
 
-      - name: GUT unit tests (skips gracefully if GUT not installed yet)
+      - name: GUT unit tests
         run: |
-          if [ -f addons/gut/gut_cmdln.gd ]; then
-            ./godot --headless -s addons/gut/gut_cmdln.gd -gdir=res://tests -ginclude_subdirs -gexit
-          else
-            echo "GUT not installed yet (addons/gut/) — skipping unit tests. Add in Phase X."
+          if [ ! -f addons/gut/gut_cmdln.gd ]; then
+            echo "::error::GUT not found at addons/gut/ — it must be committed to the repo (TK-PX-07)"
+            exit 1
           fi
+          ./godot --headless -s addons/gut/gut_cmdln.gd -gdir=res://tests -ginclude_subdirs -gexit
+          echo "GUT unit tests passed"
