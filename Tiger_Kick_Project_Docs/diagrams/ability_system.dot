@@ -1,0 +1,32 @@
+digraph G {
+  rankdir=TB; bgcolor="white"; nodesep=0.45; ranksep=0.7;
+  node [shape=box style="rounded,filled" fontname="Noto Sans Thai" fontsize=12 color="#555555" fillcolor="#F4F6F8"];
+  edge [fontname="Noto Sans Thai" fontsize=10 color="#555555" arrowhead=vee];
+
+  PC [label="PlayerController\n(root ต่อผู้เล่น)" fillcolor="#FDECEA" color="#C0392B" fontsize=13];
+
+  Movement [label="Movement\nเดิน/วิ่ง/กระโดด + sync"];
+  Camera   [label="Camera\nFP (เสือ) / TP (คน)"];
+  Ability  [label="Ability (host-authoritative)\nจัดการสกิลตามบทบาท" fillcolor="#FFF3E0" color="#E67E22"];
+
+  Base [label="{Ability (base class)|+ activate()\l+ can_use()\l+ cooldown\l+ rpc → host validate\l}" shape=record fillcolor="#EAF2FB" color="#2E5AA8" fontsize=10];
+
+  Human [label="HumanAbility" fillcolor="#EAF7EA" color="#2E7D32" fontsize=12];
+  Tiger [label="TigerAbility" fillcolor="#FDECEA" color="#C0392B" fontsize=12];
+
+  Kick [label="Kick"]; Hide [label="Hide"]; Emote [label="Emote"];
+  Crouch [label="Crouch"]; Lean [label="Lean L/R"]; Sprint [label="Sprint"]; Pounce [label="Pounce"]; Peek [label="Peek"];
+
+  { rank=same; Movement; Camera; Ability; }
+  { rank=same; Human; Tiger; }
+
+  PC->Movement; PC->Camera; PC->Ability;
+  Ability->Human [label=" role = คน"]; Ability->Tiger [label=" role = เสือ"];
+  Human->Base [style=dashed label=" extends" color="#2E5AA8" fontcolor="#2E5AA8"];
+  Tiger->Base [style=dashed label=" extends" color="#2E5AA8" fontcolor="#2E5AA8"];
+
+  Human->Kick; Human->Hide; Human->Emote;
+  Tiger->Crouch; Tiger->Lean; Tiger->Sprint; Tiger->Pounce; Tiger->Peek;
+
+  labelloc="b"; label="Ability System — เพิ่มสกิลใหม่ = สร้างไฟล์ 1 ไฟล์ (extends Human/TigerAbility) ไม่แตะ core (Phase 3–5 ขยายง่าย)"; fontname="Noto Sans Thai"; fontsize=10;
+}
