@@ -715,7 +715,7 @@
     "type": "task",
     "priority": "High",
     "owner_agent": "gameplay-engineer",
-    "status": "doing",
+    "status": "done",
     "depends_on": [],
     "labels": "task, phase-2, prio-high, architecture, ability",
     "notes": "APPROVED (architect+human, Change Log [0.33], design: 02_Technical/Ability_System_Design.md). Confirmed: Jump = movement primitive (not ability); Tag Sequence 7-step = GameManager (not ability); Sprint removed from Tiger -> TigerAbility = {Crouch, Lean, Pounce, Peek}. Build as 3 steps: 1 MovementComponent, 2 CameraComponent, 3 AbilityController(empty)+role plumbing. Kick = TK-P2-01 (step 4)."

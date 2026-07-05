@@ -82,6 +82,33 @@ extends CharacterBody3D
 @onready var mesh_instance: MeshInstance3D = $MeshInstance3D
 @onready var camera: Camera3D = $CameraRig/SpringArm3D/Camera3D
 @onready var synchronizer: MultiplayerSynchronizer = $MultiplayerSynchronizer
+@onready var ability_controller: Node = $AbilityController
+
+## TK-P2-16 Step 3 (Ability System scaffold, gameplay-engineer): role +
+## replicated pose plumbing. See
+## Tiger_Kick_Project_Docs/02_Technical/Ability_System_Design.md §5/§4.
+##
+## PlayerRoot is the single place `role` lives (design doc §2 table). Default
+## &"outer" -- everyone starts as a plain player until GameManager (later
+## card) says otherwise. Deliberately NOT part of MultiplayerSynchronizer /
+## SceneReplicationConfig (design doc §4 channel B): role is HOST-DECIDED and
+## must only ever arrive via GameManager's future apply_role_switch RPC --
+## never inferred from ordinary owner-sync state, or a client could simply
+## declare itself Tiger.
+var role: StringName = &"outer"
+
+## Replicated pose channel A (design doc §4): authored by the OWNING peer,
+## replicated ON_CHANGE via MultiplayerSynchronizer -- see this scene's
+## SceneReplicationConfig, same settings as position/rotation (spawn = false,
+## replication_mode = ON_CHANGE). Default 0 / 0.0 means zero replication
+## traffic until some future LOCAL_ONLY ability (Crouch/Lean -- TK-P3-05)
+## actually sets them; nothing writes these yet this step (scaffold only).
+## Cheating these only ever shows a remote a wrong pose, never a game-
+## deciding lie (design doc §3 resolution criterion), which is exactly why
+## they live in owner-sync state (channel A) and not host-RPC (channel B),
+## unlike `role` above.
+@export var stance: int = 0
+@export var lean: float = 0.0
 
 ## TK-P2-16 Step 1 (Ability System scaffold, gameplay-engineer): the movement
 ## Tunables (walk_speed/sprint_multiplier/gravity), _physics_process(), and
@@ -168,6 +195,27 @@ func _ready() -> void:
 ## CameraRig/SpringArm3D/Camera3D).
 func get_view_camera() -> Camera3D:
 	return camera
+
+
+## TK-P2-16 Step 3 (design doc §5 step 3): idempotent role setter. PlayerRoot
+## is the single place `role` lives; calling this with the role it already
+## has is a safe no-op rebuild (AbilityController.set_role() below always
+## fully rebuilds from AbilityCatalog rather than diffing, so re-applying
+## the same role is harmless, just wasteful).
+##
+## Distributes the new role to AbilityController now. CameraComponent's
+## FP/TP swap (TK-P2-05) and MovementComponent's per-role speed profile
+## (design doc §6 balance) are explicitly OUT of scope for this card/step --
+## neither component has role-handling code yet, so nothing is called here
+## for them; those later cards add their own handler and call it from here.
+##
+## Nobody calls this "for real" yet -- GameManager (TK-P2-04/09, later) is
+## the intended caller once the real Role state machine and role-swap RPC
+## (design doc §5 step 1: apply_role_switch) exist.
+func set_role(new_role: StringName) -> void:
+	role = new_role
+	if ability_controller:
+		ability_controller.set_role(new_role)
 
 
 ## TK-P2-16 Step 1: movement input handling (_physics_process) and the pure

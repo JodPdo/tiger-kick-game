@@ -16,8 +16,7 @@ extends Node
 ## TK-P1-02/03/06 history of WHY this code looks the way it does -- that
 ## history still applies unchanged, just relocated here).
 ##
-## Coupling to the parent Player (documented per the card; intended to be
-## cleaned up in Step 2 once CameraComponent exists):
+## Coupling to the parent Player (documented per the card):
 ##   - This component is added as a child of Player (a CharacterBody3D) in
 ##     Player.tscn. It does NOT own a body of its own -- `velocity`,
 ##     `move_and_slide()`, and `is_on_floor()` all belong to the PARENT body,
@@ -25,12 +24,18 @@ extends Node
 ##     them. `is_multiplayer_authority()` is likewise checked on the parent
 ##     body, not on `self` -- see the _physics_process doc below for why.
 ##   - CameraRig (yaw source for camera-relative movement) has NOT moved --
-##     it stays a sibling under Player this step. This script reaches
-##     SIDEWAYS via `get_parent().get_node("CameraRig")` purely to read its
-##     current `rotation.y` each tick. This raw node-path reach-around is a
-##     known, deliberate, temporary coupling: once CameraComponent exists
-##     (Step 2), it should own CameraRig and expose yaw properly (a getter or
-##     signal) instead of this component reaching past its sibling boundary.
+##     it stays a sibling under Player. This script reaches SIDEWAYS via
+##     `get_parent().get_node("CameraRig")` purely to read its current
+##     `rotation.y` each tick. This raw node-path reach-around is a known,
+##     deliberate, PERMANENT coupling, not a Step-1-only stopgap: CameraComponent
+##     (Step 2) now exists and also reaches CameraRig the same sideways way for
+##     its own mouse-look, but rerouting THIS read through CameraComponent (a
+##     getter/signal instead of both siblings reaching CameraRig directly) was
+##     considered during Step 2 and deliberately deferred as lower-risk to leave
+##     as-is -- see CameraComponent.gd's own class doc for that decision. Both
+##     components reading the same node's `rotation.y` directly is harmless
+##     (read-only, no ordering dependency), so there is no correctness reason to
+##     revisit this; it is a possible future cleanup only, not a bug.
 
 @onready var _body: CharacterBody3D = get_parent() as CharacterBody3D
 @onready var _camera_rig: Node3D = get_parent().get_node("CameraRig") as Node3D
