@@ -5,7 +5,7 @@ description: >
   CURRENT_PHASE, RACI, and the routing map; detect and flag drift when code or
   architecture changes but docs did not. Edits docs only — never product code.
 tools: Read, Edit, Bash, Grep, Glob
-model: sonnet
+model: haiku
 ---
 
 # Documentation Manager — Tiger Kick
