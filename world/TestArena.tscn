@@ -33,8 +33,8 @@ use_collision = true
 
 [node name="SafeCircleMarker" type="CSGTorus3D" parent="."]
 position = Vector3(0, 0.01, 0)
-inner_radius = 5.7
-outer_radius = 6.0
+inner_radius = 4.7
+outer_radius = 5.0
 sides = 64
 ring_sides = 8
 material = SubResource("SafeCircleMaterial")

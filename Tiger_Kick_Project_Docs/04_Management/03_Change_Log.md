@@ -3,6 +3,28 @@
 บันทึกการเปลี่ยนแปลงสำคัญของโปรเจกต์และเอกสาร (รูปแบบ Keep a Changelog)
 เวอร์ชันล่าสุดอยู่บนสุด
 
+## [0.34] — 2026-07-05 — บันทึก Game Balance / Physics + การ์ด Pounce/Kick-Stagger
+- สร้าง **`01_Design/Game_Balance.md`** = balance/physics source of truth (แทน GDD §Balance / TDD §Physics ที่เป็น PDF) + เดินสาย DOCUMENT_ROUTING (`design.game_balance`)
+- **บันทึกค่า (ค่าเสนอ จูน P3):** Kinematic CharacterBody3D server-auth · Human walk 4.0/sprint 6.0 · Tiger ≤4.0 (cap รวม sprint) · Pounce burst ~8 · Safe Circle radius 5.0m (locked — reconcile marker P0-05 ~6.0 ตอน TK-P2-06) · Kick range 1.5 · Sprint=primitive per-role
+- **กฎ locked:** เสือ = นักล่าซุ่ม จับด้วย Pounce+จังหวะคนเข้าเตะ ไม่วิ่งไล่
+- **การ์ดใหม่:** `TK-P2-17` Kick Stagger (เสือเซ ~0.3s + ดันถอยเล็กน้อย, host-auth, ห้าม stun เต็ม; dep TK-P2-01) · `TK-P2-18` Pounce (ดึงมา Phase 2, TigerAbility burst ~8 m/s = กลไกจับหลัก, host validate; dep TK-P2-16) — backlog 55→57
+- อัปเดต notes `TK-P2-16` ยืนยันทิศ architect (Jump=primitive, Tag=GameManager, Sprint ออกจาก Tiger)
+
+## [0.33] — 2026-07-05 — อนุมัติ Ability System (architecture + design + balance) → เริ่ม Phase 2
+- **architect เคาะ + มนุษย์อนุมัติ** design Ability System (`TK-P2-16`) — บันทึกเต็มใน `02_Technical/Ability_System_Design.md` (source of truth; TDD.pdf เป็น binary → regen ทีหลัง)
+- **โครง:** Player → MovementComponent / CameraComponent / AbilityController → [abilities]; base `Ability`/`HumanAbility`/`TigerAbility`; component = child Node
+- **server-authority:** แกน `HOST_AUTHORITATIVE` vs `LOCAL_ONLY` (default HOST); RPC รวมศูนย์ที่ AbilityController ไฟล์เดียว (ability subclass ห้ามมี @rpc); role มาจาก host RPC ห้ามเข้า synchronizer; 2-channel replication (owner-sync pose vs host-RPC result)
+- **architect ปรับทิศ (มนุษย์ยืนยัน):** Jump = movement primitive (ไม่ใช่ ability) · Tag Sequence 7 ขั้น = GameManager ไม่ใช่ ability · TagAbility จบแค่ "host ตัดสินว่าจับโดน"
+- **BALANCE (มนุษย์ตัดสิน — design/balance change):** Sprint = primitive ทุกคนมี **แต่ความเร็ว per-role**: Human walk 4.0/sprint 6.0, **Tiger รวม sprint ≤ 4.0** (เสือซุ่มไม่วิ่งไล่ จับด้วย Pounce+จังหวะคนเข้าเตะ) → TigerAbility เหลือ {Crouch, Lean, Pounce, Peek}. ค่าเดิม 5.0/×1.4 ใช้ต่อจน role profile wire (จูนจริง Phase 3)
+- **migration:** TK-P2-16 = Step1 แยก Movement → Step2 แยก Camera → Step3 AbilityController เปล่า (แต่ละ step no-regress: GUT+net_smoke+spawn probe); Kick = Step4 (TK-P2-01)
+- **doc impact ค้าง (มอบ documentation-manager/regen):** TDD §4/§6/§8.1/§9.1 + routing §10 conflict (แก้ให้ชี้ design doc แล้ว) + KickHitbox/TagArea ย้ายไปใต้ ability node
+
+## [0.32] — 2026-07-05 — Phase 1 (M1 Movement) CLOSED ✅
+- Exit Gate ผ่านครบ: **มนุษย์เทส 2 หน้าต่างผ่าน** (spawn ไม่ทับ, ESC-ESC Leave, host ปิด→client กลับเมนู, เดิน/กล้อง sync) + CI เขียว (GUT 119/119 + net_smoke + spawn probe เป็น gate แล้ว)
+- `TK-P1-07` done (CI wiring). การ์ด Phase 1 ครบ: TK-P1-01..07 + TK-BUG-P1-01/02
+- **บทเรียน:** "116/116 เขียว แต่เกมพัง" → เทส pure-function ล้วนมองไม่เห็น glue bug; แก้เชิงระบบด้วยการเพิ่ม 2-instance spawn probe เข้า CI (ไม่ให้เกิดซ้ำ)
+- เหลือ: merge PR #3 (มนุษย์) · **gate ก่อน Phase 2 = architect อนุมัติ design Ability System (TK-P2-16)**
+
 ## [0.31] — 2026-07-05 — แก้บั๊ก Phase 1 reopen เสร็จ (ผ่าน review 2 รอบ + qa)
 - `TK-BUG-P1-01` (S1): authority ย้ายไป `Player._enter_tree()` (จาก name contract + tripwire) และ spawner เปลี่ยนเป็น `MultiplayerSpawner.spawn_function` ส่ง `{id, position}` ถึงทุก peer โดยไม่พึ่ง authority-gated sync (`spawn=false` บน position/rotation; `_spawnable_scenes` ถอดออกกัน footgun) — spawn probe: client ลง slot ตัวเอง ไม่ทับ host ไม่ (0,0,0) ไม่มี pending-spawn error
 - `TK-BUG-P1-02` (S2): signal `NetworkManager.server_disconnected` → `world/TestArena.gd` (ใหม่) พากลับ MainMenu + คืนเมาส์; Leave = ESC-ESC (ESC แรก consume ใน Player ตอน CAPTURED — แก้ single-ESC race ที่ reviewer จับได้จากการยิง key จริง); guard `host()/join()` = ERR_ALREADY_IN_USE

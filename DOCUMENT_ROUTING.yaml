@@ -21,6 +21,7 @@ design:
   tag_sequence:        TKPD/01_Design/00_GDD.pdf        # GDD 2.3 (+ TDD 8.2)
   roadmap:             TKPD/01_Design/Roadmap/          # Phase0..5 + PhaseX
   character_art_bible: TKPD/01_Design/Character_Art_Bible.md   # visual/character rules (designer owns, polish obeys)
+  game_balance:        TKPD/01_Design/Game_Balance.md          # balance + physics source of truth (replaces GDD §Balance / TDD §Physics stubs until PDF regen)
 
 technical:
   tdd:                 TKPD/02_Technical/TDD.pdf
@@ -31,6 +32,8 @@ technical:
   player_state:        TKPD/02_Technical/TDD.pdf        # TDD 8.1
   network_flow:        TKPD/02_Technical/TDD.pdf        # TDD 9
   diagrams:            TKPD/diagrams/
+  ability_system:      TKPD/02_Technical/Ability_System_Design.md  # APPROVED design + source of truth (TK-P2-16); diagram: TKPD/diagrams/ability_system.png. NOTE: "TDD §10" was a conflict (§10 = Safe Circle) — use this doc, not the TDD stub, until TDD regen.
+  tiger_movement:      TKPD/diagrams/tiger_bodylanguage.png  # Tiger body-language ladder (hunt-not-chase, TK-P3-05)
 
 qa:
   master_test_plan:    TKPD/03_QA/_shared/00_Master_Test_Plan.md

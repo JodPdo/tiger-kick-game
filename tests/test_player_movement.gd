@@ -1,7 +1,13 @@
 extends GutTest
-## Unit tests for characters/Player.gd -- pure, node-independent movement
-## math only (TK-P1-02: walk/sprint speed, gravity integration; TK-P1-03:
-## camera-relative yaw rotation).
+## Unit tests for characters/components/MovementComponent.gd -- pure,
+## node-independent movement math only (TK-P1-02: walk/sprint speed, gravity
+## integration; TK-P1-03: camera-relative yaw rotation).
+##
+## TK-P2-16 Step 1 (gameplay-engineer): these pure statics used to live on
+## characters/Player.gd; they moved to MovementComponent.gd verbatim
+## (behavior-preserving code move only) as part of the Ability System
+## scaffold. Only the preload target below changed -- every assertion/
+## expected value is IDENTICAL to before.
 ##
 ## WHY THIS EXISTS (testability): CharacterBody3D.move_and_slide() needs a
 ## live scene tree/physics world, and Input.get_vector() needs real input
@@ -13,7 +19,7 @@ extends GutTest
 ##
 ## NOTE: Requires the GUT addon (TK-PX-07), same as tests/test_tiger_assignment.gd.
 
-const PlayerScript := preload("res://characters/Player.gd")
+const PlayerScript := preload("res://characters/components/MovementComponent.gd")
 
 const WALK_SPEED: float = 5.0       # TDD §11 Player Speed baseline
 const SPRINT_MULTIPLIER: float = 1.4  # TDD §11 Sprint Multiplier

@@ -1,0 +1,15 @@
+digraph G {
+  rankdir=LR; bgcolor="white"; nodesep=0.35;
+  node [shape=box style="rounded,filled" fontname="Noto Sans Thai" fontsize=12 fillcolor="#FDECEA" color="#C0392B"];
+  edge [fontname="Noto Sans Thai" fontsize=10 color="#555555" arrowhead=vee];
+
+  Walk   [label="Walk\nเดินปกติ" fillcolor="#F4F6F8" color="#555555"];
+  Sprint [label="Sprint\nเร่งไล่ (เสียงดัง)"];
+  Crouch [label="Crouch\nหมอบ (เงียบ+เตี้ย)" fillcolor="#FFF3E0" color="#E67E22"];
+  Lean   [label="Lean L/R\nชะโงกดูไม่ออกตัว" fillcolor="#FFF3E0" color="#E67E22"];
+  Peek   [label="Peek\nมองพ้นมุม" fillcolor="#FFF3E0" color="#E67E22"];
+
+  Walk->Sprint->Crouch->Lean->Peek;
+
+  labelloc="b"; label="Tiger Movement — เป้าหมาย: ให้เสือ \"ล่า\" ไม่ใช่ \"วิ่งไล่\" (ผูกกับมุมมอง First-Person + audio)"; fontname="Noto Sans Thai"; fontsize=10;
+}

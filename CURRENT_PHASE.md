@@ -4,12 +4,12 @@ Single source of truth for "where are we now". **Update this whenever the phase/
 
 | Field | Value |
 |---|---|
-| Docs Version | v0.24 |
-| Game Build | v0.2 — dev infra done (GameLog, ConfigManager, ErrorHandler, F3/F4 overlays, Settings); movement next |
-| Current Phase | **Phase 1 — Movement** |
-| Current Milestone | **M1 Movement** |
-| Current Sprint | Player scene + movement + third-person camera + network spawn/sync |
-| Exit Gate goal | Each peer spawns + controls its own player; movement syncs across 2 instances |
+| Docs Version | v0.31 |
+| Game Build | v0.3 — movement done (spawn/authority/camera/sync, 2-window verified); core loop next |
+| Current Phase | **Phase 2 — Core Loop** (started; Ability System design APPROVED) |
+| Current Milestone | **M2 Core Gameplay** |
+| Current Sprint | `TK-P2-16` Ability scaffold — Step 1 (extract MovementComponent) in progress |
+| Exit Gate goal | Kick + Tag + 7-step Tag Sequence + role swap on the ability scaffold; core loop playable |
 
 ## Phase 0 — CLOSED ✅ (Exit Gate PASS, PR #1 merged)
 - clone→opens · 2 instances connect · `[NET] peer joined` · GUT green, no S0/S1. Cards `TK-P0-01`…`TK-P0-06`.
@@ -20,27 +20,21 @@ Single source of truth for "where are we now". **Update this whenever the phase/
 - [x] ≥1 unit-test suite passing (GUT 88/88, 1135 asserts), Regression + NET SMOKE PASS, no S0/S1
 - Cards `TK-PX-01`…`TK-PX-07`. Autoloads: GameLog, ConfigManager, NetworkManager, ErrorHandler, DebugOverlay, PerfOverlay.
 
-## Phase 1 — ⚠️ REOPENED (audit [0.28] + human 2-window test found real bugs)
-- **Fixing now:** `TK-BUG-P1-01` (S1: client spawn stacks on host/(0,0,0) + engine error — authority set too late) · `TK-BUG-P1-02` (S2: host quits → client stuck, no Leave path) · then `TK-P1-07` (net smoke → ci.yml + 2-instance no-ERROR/no-stack probe)
-- S1-A "WASD dead (device:16)" = false alarm — human-verified movement works; project.godot untouched.
-- **Close order:** fix bugs → human 2-window test passes → close Phase 1 + PR #3 → architect approves Ability System (TK-P2-16 design) → Phase 2 starts at the scaffold.
-
-## Phase 1 — original build (6/6 cards code-done, on `develop`)
-- `TK-P1-01` Player.tscn · `TK-P1-02` movement+sprint · `TK-P1-03` third-person camera rig · `TK-P1-04` MultiplayerSpawner · `TK-P1-05` per-player authority · `TK-P1-06` synchronizer tuning + remote-physics guard
-- Automated verified: import clean, **GUT 116/116** (1201 asserts), NET SMOKE PASS, host-spawn/authority/camera probes PASS, no S0/S1.
-
-### Phase 1 Exit Gate (from Phase1_QA/03_Exit_Gate) — automated met, human pending
-- [x] Regression passes (GUT 116/116 + net_smoke), no open S0/S1
-- [x] each peer spawns + is authority of its own player (host-side probe verified)
-- [ ] **HUMAN: play-test in editor** — WASD/mouse/sprint move; F3/F4 overlays; Settings save/reload
-- [ ] **HUMAN: 2-window** — Host/Join, see each other, movement syncs smoothly (no jitter/drift), each controls only its own player
-- [ ] Merge `develop` → `main` (PR #3)
-- ⏸️ **Producer HALTED at user request for hands-on quality review before Phase 2.**
+## Phase 1 — CLOSED ✅ (Exit Gate PASS — human 2-window test + CI green)
+- 6 build cards `TK-P1-01`…`TK-P1-06` + audit reopen fixes `TK-BUG-P1-01` (spawn authority/position via spawn_function + `_enter_tree`), `TK-BUG-P1-02` (host-quit → MainMenu + ESC-ESC Leave), `TK-P1-07` (CI gates on net smoke + spawn probe).
+- [x] each peer spawns at its own slot (no stack/origin) + is authority of its own player
+- [x] host quits → client returns to MainMenu; ESC-ESC Leave works (single ESC does NOT disconnect)
+- [x] movement/camera sync across 2 windows — **human 2-window test PASSED**
+- [x] Regression: GUT 119/119 (1206 asserts) + net_smoke + spawn probe (now CI-gated), no open S0/S1
+- [ ] Merge `develop` → `main` (PR #3) — pending human
+- Audit note [0.28]: S1-A "WASD dead (device:16)" was a FALSE ALARM (human-verified); the 116/116-green-but-broken lesson → per-card pure-function tests missed glue bugs; fixed by adding the 2-instance spawn probe to CI.
 
 ## Open cross-phase items (not blocking)
 - `TK-P2-09` TigerSelector helper landed early (partial); full card OPEN pending `TK-P2-04` (Phase 2). Architect ack on `managers/` placement deferred to Phase 2.
 - Phase-1 wiring picks up deferred infra: define InputMap actions (move/kick/tag) — unblocks Settings→Controls rebind (+ reconcile rebind string format "W"→"w"); audio Music/SFX bus layout still pending.
 - Tech-debt: NetworkManager peer-teardown guard / MainMenu nits (task); PDF docs regen to 4.7.
 
-## Next
-Finish Phase 1 (Movement) → **Phase 2 (Core Loop)** — the "prove it's fun" milestone.
+## Next — Phase 2 (Core Loop), the "prove it's fun" milestone
+**Gate before any Phase 2 code:** `architect` must approve the **Ability System** design (`TK-P2-16`: refactor Player → Movement / Camera / Ability components + base HumanAbility/TigerAbility; Kick/Jump/Tag re-slot as abilities). Then Phase 2 starts at that scaffold.
+- Phase 2 card order (from `_backlog.json`, +8 new Cowork cards): `TK-P2-16` (Ability scaffold, first) → abilities (`TK-P2-01` Kick, `TK-P2-10/11` Jump/Jump-Kick) → `TK-P2-12..15` match flow (Waiting Room → Start → Countdown → GameManager state machine) → Tag Sequence (`TK-P2-02..08`) → `TK-P2-09` first-Tiger (TigerSelector ready). `TK-P3-05` Tiger body-language (Crouch→Lean→Peek) proves the ability system.
+- Ability catalog (Phase 3-5): Tiger{Crouch, Lean, Sprint, Pounce, Peek} · Human{Kick, Hide, Emote}.
