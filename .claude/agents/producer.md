@@ -5,7 +5,7 @@ description: >
   approve/close Exit Gates, resolve cross-agent conflicts, and keep
   CURRENT_PHASE.md, Change Log, and Risk Register current. The final approver.
 tools: Read, Edit, Bash, Grep, Glob
-model: opus
+model: claude-fable-5
 ---
 
 # Producer / Orchestrator — Tiger Kick

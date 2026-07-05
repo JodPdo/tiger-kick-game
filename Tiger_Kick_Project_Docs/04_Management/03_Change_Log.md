@@ -3,6 +3,26 @@
 บันทึกการเปลี่ยนแปลงสำคัญของโปรเจกต์และเอกสาร (รูปแบบ Keep a Changelog)
 เวอร์ชันล่าสุดอยู่บนสุด
 
+## [0.30] — 2026-07-05 — ปรับ model ทีม AI agent
+- `producer` / `architect` / `code-reviewer`: opus → **claude-fable-5** · `designer`: sonnet → **claude-opus-4-8** (7 ตัวที่เหลือคง sonnet) — แก้ทั้ง frontmatter `.claude/agents/*.md` และตาราง AGENT_INDEX.md
+- ตัดสินโดย: มนุษย์ (project owner)
+
+## [0.29] — 2026-07-05 — ทิศทางสถาปัตย์ใหม่: Ability System (รอ architect อนุมัติ design) + การ์ดใหม่ 8 ใบ
+- **adopt Ability System** — `TK-P2-16` scaffold: refactor PlayerController → Movement / Camera / Ability (+ base HumanAbility/TigerAbility) เป็น **งานแรกของ Phase 2** หลังปิด Phase 1; ของเดิม (Kick/Jump/Tag) re-slot เป็น ability — **ต้องให้ `architect` อนุมัติ design ก่อนลงมือ**
+- `TK-P3-05` Tiger Body-Language (Crouch → Lean L/R → Peek) = สกิลตัวอย่างพิสูจน์ระบบ (hunt-not-chase)
+- Ability catalog (แผน Phase 3-5): Tiger{Crouch, Lean, Sprint, Pounce, Peek} · Human{Kick, Hide, Emote}
+- การ์ดใหม่จาก Cowork 8 ใบ: `TK-P2-10/11` (Jump, Jump Kick), `TK-P2-12..15` (Waiting Room → Start Match → Countdown → Match state machine), `TK-P2-16`, `TK-P3-05` — backlog รวม 52→55 ใบ (รวม bug cards ด้านล่าง)
+- เสนอ/ตัดสินโดย: มนุษย์ (project owner)
+
+## [0.28] — 2026-07-05 — Audit อิสระ Phase 0-X-1 → REOPEN Phase 1 (แก้บั๊กก่อนเข้า Phase 2)
+- producer (Fable 5) ตรวจงานใหม่ทั้งหมดแบบ adversarial + มนุษย์ยืนยันด้วยการเทส 2 หน้าต่างจริง
+- **S1-A "เดินไม่ได้ (device:16)" = FALSE ALARM** — มนุษย์เทสจริง: WASD เดินได้ปกติ device:16 ไม่กระทบคีย์บอร์ด (ไม่แก้ project.godot)
+- **บั๊กจริงที่ยืนยัน → REOPEN Phase 1:**
+  - `TK-BUG-P1-01` (S1, blocker): client spawn ทับหัว host / โผล่ (0,0,0) + engine error "unable to process the pending spawn" ทุก join — สาเหตุ: `PlayerSpawner._on_spawned()` เซ็ต authority หลัง `_ready()` → แก้โดยย้ายไป `Player._enter_tree()`/spawn_function
+  - `TK-BUG-P1-02` (S2): host ปิดเกม → client ค้างในสนามว่าง ไม่มีทางออก — แก้: signal `server_disconnected` → กลับ MainMenu + ปุ่ม Leave (`disconnect_from_game()` ยังไม่มี caller เลย)
+  - `TK-P1-07`: net smoke เข้า `ci.yml` + 2-instance integration probe (เกณฑ์ no-ERROR + client ไม่ทับ host) — อุดช่องที่เทส pure-function ล้วนมองไม่เห็น glue bugs
+- ลำดับที่ตกลง: แก้บั๊ก → มนุษย์เทส 2 หน้าต่าง → ปิด Phase 1 / PR #3 → architect เคาะ Ability System → เริ่ม Phase 2 ที่ TK-P2-16
+
 ## [0.27] — 2026-07-05 — Phase 1 code ครบ: synchronizer tuning + remote-physics guard
 - `TK-P1-06`: MultiplayerSynchronizer sync เฉพาะ position+rotation, mode ALWAYS→ON_CHANGE (ไม่ส่ง packet ตอนนิ่ง, spawn=true คง seed แรก), non-authority peer skip move_and_slide/gravity (puppet ขับด้วย sync ล้วน กัน jitter), guard is_valid_int ใน _on_spawned
 - **Phase 1 (M1 Movement) code ครบ 6/6** — เหลือ Exit Gate: มนุษย์ทดสอบ GUI 2 หน้าต่าง (เดิน/กล้อง/no-jitter) + merge PR #3

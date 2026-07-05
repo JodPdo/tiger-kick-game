@@ -614,5 +614,164 @@
       "TK-P5-03"
     ],
     "labels": "task, phase-5, prio-medium"
+  },
+  {
+    "id": "TK-P2-10",
+    "phase": "Phase 2",
+    "milestone": "M2 Core Gameplay",
+    "title": "Jump (กระโดด): input + physics บนพื้น + ซิงก์แกน Y ข้ามเครื่อง",
+    "type": "task",
+    "priority": "High",
+    "owner_agent": "gameplay-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P1-02"
+    ],
+    "labels": "task, phase-2, prio-high, movement",
+    "notes": "prerequisite ของ Jump Kick (TK-P2-11) · จริง ๆ เป็น movement primitive แต่ตั้งใน Phase 2 เพราะ Phase 1 ปิด code แล้ว + เป็นฐานของ combat move · host ยังคุม state ที่ตัดสินเกม ส่วนการเด้งเป็น local physics + sync · DoD: กระโดดแล้วทุกเครื่องเห็นตรงกัน, ลงพื้นถูกต้อง ไม่ลอยค้าง/ไม่กระโดดซ้อนกลางอากาศ, ปรับ MultiplayerSynchronizer ให้รวมแกน Y/สถานะ airborne"
+  },
+  {
+    "id": "TK-P2-11",
+    "phase": "Phase 2",
+    "milestone": "M2 Core Gameplay",
+    "title": "Jump Kick (กระโดดเตะ): เตะขณะกระโดด/ลอยตัว — signature move สำหรับเตะเสือ",
+    "type": "task",
+    "priority": "High",
+    "owner_agent": "gameplay-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P2-10",
+      "TK-P2-01"
+    ],
+    "labels": "task, phase-2, prio-high, combat",
+    "notes": "ต่อยอดจาก Kick (TK-P2-01) + Jump (TK-P2-10) · host-authoritative: client ส่ง intent ผ่าน RPC, host ตัดสินว่าเตะโดนไหม (กันโกง) · เพิ่ม hitbox/หน้าต่างเวลาตอนลอยตัว (อาจต่างจากเตะพื้น เช่น ระยะ/แรงมากกว่า) · ผูกกับ Tag risk: ระหว่างกระโดดเตะ ผู้เล่นเสี่ยงโดนเสือ Tag ด้วย = เพิ่มความลุ้น · balance (jump height, air-kick range, เวลา active) จูน Phase 3 · ต้องบันทึกใน Change_Log + เพิ่มใน GDD/Balance"
+  },
+  {
+    "id": "TK-P2-12",
+    "phase": "Phase 2",
+    "milestone": "M2 Core Gameplay",
+    "title": "Waiting Room: หลัง Host/Join ไปห้องรอ (แทนเข้า arena ตรง) + แสดงรายชื่อผู้เล่นที่เชื่อมต่อ + host เห็นปุ่ม Start",
+    "type": "task",
+    "priority": "High",
+    "owner_agent": "gameplay-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P0-06"
+    ],
+    "labels": "task, phase-2, prio-high, match-flow",
+    "notes": "เปลี่ยนพฤติกรรม Phase 0 เดิม (MainMenu._switch_to_test_arena สลับเข้า TestArena ทันที) → ไป Waiting Room ก่อน · ใช้ NetworkManager.peer_connected/disconnected อัปเดตรายชื่อ real-time · เป็นจุดที่ผู้เล่นแต่งตัว (เชื่อม TK-P4-08 Lobby Customization) · DoD: ทุกเครื่องเห็นรายชื่อตรงกัน เข้า/ออกอัปเดตทันที, มีแต่ host ที่เห็นปุ่ม Start"
+  },
+  {
+    "id": "TK-P2-13",
+    "phase": "Phase 2",
+    "milestone": "M2 Core Gameplay",
+    "title": "Host กด Start Match (host-authoritative): เฉพาะ host เริ่มได้ → broadcast เริ่มแมตช์ให้ทุกเครื่อง",
+    "type": "task",
+    "priority": "High",
+    "owner_agent": "gameplay-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P2-12"
+    ],
+    "labels": "task, phase-2, prio-high, match-flow, network",
+    "notes": "เฉพาะ host เรียกได้ (client ไม่มีปุ่ม/กดไม่ได้) · guard จำนวนผู้เล่นขั้นต่ำ (เช่น >=2 ตอนเทส, ค่าจริงจูน Phase 3) · @rpc(authority, call_local, reliable) · DoD: client กด Start ไม่ได้, host กดแล้วทุกเครื่องเข้า Countdown พร้อมกัน"
+  },
+  {
+    "id": "TK-P2-14",
+    "phase": "Phase 2",
+    "milestone": "M2 Core Gameplay",
+    "title": "Countdown ก่อนเริ่มแมตช์ (synced 3→2→1, host-authoritative)",
+    "type": "task",
+    "priority": "High",
+    "owner_agent": "gameplay-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P2-13"
+    ],
+    "labels": "task, phase-2, prio-high, match-flow",
+    "notes": "host คุมเวลานับถอยหลังแล้ว sync ให้ทุกเครื่องแสดงเลขตรงกัน (client ไม่นับเอง กัน desync) · จบ 0 → Match Start · DoD: ทุกเครื่องเห็นเลขตรงกัน จบพร้อมกันเข้าสู่ Playing"
+  },
+  {
+    "id": "TK-P2-15",
+    "phase": "Phase 2",
+    "milestone": "M2 Core Gameplay",
+    "title": "Match state machine (GameManager): WaitingRoom → Countdown → Playing → MatchEnd + ต่อเข้า Round Flow",
+    "type": "task",
+    "priority": "High",
+    "owner_agent": "gameplay-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P2-14",
+      "TK-P2-09"
+    ],
+    "labels": "task, phase-2, prio-high, match-flow",
+    "notes": "โครง state ระดับแมตช์ ครอบ Round Flow เดิม · เข้า Playing → เรียก assign_first_tiger (TK-P2-09) · เชื่อม RoundManager (TK-P2-07) สำหรับลูปรอบ · host-authoritative · DoD: ไหลครบ WaitingRoom→Countdown→Playing, สลับ state ตรงกันทุกเครื่อง, จบแมตช์กลับ Waiting Room ได้"
+  },
+  {
+    "id": "TK-P2-16",
+    "phase": "Phase 2",
+    "milestone": "M2 Core Gameplay",
+    "title": "Ability System scaffold: refactor PlayerController → Movement / Camera / Ability (+ base HumanAbility / TigerAbility)",
+    "type": "task",
+    "priority": "High",
+    "owner_agent": "gameplay-engineer",
+    "status": "todo",
+    "depends_on": [],
+    "labels": "task, phase-2, prio-high, architecture, ability",
+    "notes": "⚠️ ARCHITECTURE CHANGE — architect ต้องอนุมัติก่อนลงมือ (CLAUDE.md) · แตก Player.gd (monolith) → PlayerController มี child: Movement, Camera, Ability · Ability base class (activate/cooldown/can_use) + 2 subclass: HumanAbility, TigerAbility · re-slot ของเดิม: Kick(TK-P2-01)→HumanAbility, Jump/JumpKick(TK-P2-10/11), Tag Sequence(TK-P2-03)→TigerAbility · Ability catalog (Phase 3-5 เพิ่มง่าย): TigerAbility={Crouch, Lean L/R, Sprint, Pounce, Peek} · HumanAbility={Kick, Hide, Emote} · host-authoritative: ability ที่ตัดสินเกม (kick/tag/pounce) ยิง RPC ให้ host validate · เริ่มหลังแก้บั๊ก Phase 1 (S1-B/S2) · DoD: เพิ่ม ability ใหม่ = สร้างไฟล์เดียว register ได้ ไม่แตะ core"
+  },
+  {
+    "id": "TK-P3-05",
+    "phase": "Phase 3",
+    "milestone": "M3 First Playtest",
+    "title": "Tiger Body-Language movement (hunt-not-chase): Crouch → Lean L/R → Peek Around Corner",
+    "type": "task",
+    "priority": "Medium",
+    "owner_agent": "gameplay-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P2-16"
+    ],
+    "labels": "task, phase-3, prio-medium, ability, tiger",
+    "notes": "ทำให้เสือ 'ล่า' ไม่ใช่ 'วิ่งไล่' · ผูกกับมุมมอง First-Person + audio design (เสือเห็นเฉพาะหน้า ต้องหมอบ/ชะโงก/โผล่มองมุม) · Crouch=ลดเสียง+โปรไฟล์, Lean=ชะโงกดูโดยไม่ออกตัว, Peek=มองพ้นมุม · เป็นสกิลตัวอย่างที่พิสูจน์ว่า Ability System (TK-P2-16) เพิ่มของใหม่ได้ง่าย · balance (speed/noise/vision cone) จูน Phase 3 · abilities อื่นที่ค้าง Phase 3-5: Pounce, Hide, Emote (แตกการ์ดเมื่อถึง)"
+  },
+  {
+    "id": "TK-BUG-P1-01",
+    "phase": "Phase 1",
+    "milestone": "M1 Movement",
+    "title": "[S1] client spawn ทับหัว host / (0,0,0) + engine error ทุก join — ย้าย set_multiplayer_authority ออกจาก _on_spawned (หลัง _ready) ไป Player._enter_tree/spawn_function",
+    "type": "bug",
+    "priority": "High",
+    "owner_agent": "network-engineer",
+    "status": "doing",
+    "depends_on": [],
+    "labels": "bug, phase-1, prio-high, S1"
+  },
+  {
+    "id": "TK-BUG-P1-02",
+    "phase": "Phase 1",
+    "milestone": "M1 Movement",
+    "title": "[S2] host ปิดเกม → client ค้างในสนามว่าง — เพิ่ม signal server_disconnected ใน NetworkManager → กลับ MainMenu + ปุ่ม/คีย์ Leave ที่เรียก disconnect_from_game()",
+    "type": "bug",
+    "priority": "High",
+    "owner_agent": "network-engineer",
+    "status": "doing",
+    "depends_on": [],
+    "labels": "bug, phase-1, prio-high, S2"
+  },
+  {
+    "id": "TK-P1-07",
+    "phase": "Phase 1",
+    "milestone": "M1 Movement",
+    "title": "เพิ่ม net smoke เข้า ci.yml + 2-instance integration probe (เกณฑ์: no ERROR in log + client ไม่ spawn ทับ host/origin)",
+    "type": "task",
+    "priority": "High",
+    "owner_agent": "network-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-BUG-P1-01",
+      "TK-BUG-P1-02"
+    ],
+    "labels": "task, phase-1, prio-high, test"
   }
 ]

@@ -5,7 +5,7 @@ description: >
   playtest sessions, and deciding whether the Core Loop is fun. Owns TK-P3-03/04.
   Does not write engine code; owns intent and balance.
 tools: Read, Edit, Bash, Grep, Glob
-model: sonnet
+model: claude-opus-4-8
 ---
 
 # Designer — Tiger Kick

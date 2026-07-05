@@ -20,7 +20,12 @@ Single source of truth for "where are we now". **Update this whenever the phase/
 - [x] ≥1 unit-test suite passing (GUT 88/88, 1135 asserts), Regression + NET SMOKE PASS, no S0/S1
 - Cards `TK-PX-01`…`TK-PX-07`. Autoloads: GameLog, ConfigManager, NetworkManager, ErrorHandler, DebugOverlay, PerfOverlay.
 
-## Phase 1 — code complete (6/6 cards done, on `develop`) — HUMAN QA PENDING
+## Phase 1 — ⚠️ REOPENED (audit [0.28] + human 2-window test found real bugs)
+- **Fixing now:** `TK-BUG-P1-01` (S1: client spawn stacks on host/(0,0,0) + engine error — authority set too late) · `TK-BUG-P1-02` (S2: host quits → client stuck, no Leave path) · then `TK-P1-07` (net smoke → ci.yml + 2-instance no-ERROR/no-stack probe)
+- S1-A "WASD dead (device:16)" = false alarm — human-verified movement works; project.godot untouched.
+- **Close order:** fix bugs → human 2-window test passes → close Phase 1 + PR #3 → architect approves Ability System (TK-P2-16 design) → Phase 2 starts at the scaffold.
+
+## Phase 1 — original build (6/6 cards code-done, on `develop`)
 - `TK-P1-01` Player.tscn · `TK-P1-02` movement+sprint · `TK-P1-03` third-person camera rig · `TK-P1-04` MultiplayerSpawner · `TK-P1-05` per-player authority · `TK-P1-06` synchronizer tuning + remote-physics guard
 - Automated verified: import clean, **GUT 116/116** (1201 asserts), NET SMOKE PASS, host-spawn/authority/camera probes PASS, no S0/S1.
 
