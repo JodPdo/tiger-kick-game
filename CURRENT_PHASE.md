@@ -6,10 +6,10 @@ Single source of truth for "where are we now". **Update this whenever the phase/
 |---|---|
 | Docs Version | v0.31 |
 | Game Build | v0.3 — movement done (spawn/authority/camera/sync, 2-window verified); core loop next |
-| Current Phase | **Phase 1 — CLOSED → Phase 2 gate: architect must approve Ability System design first** |
-| Current Milestone | **M1 Movement — DONE** |
-| Current Sprint | (between phases) architect design review of Ability System (TK-P2-16) |
-| Exit Gate goal | — (M1 met) — |
+| Current Phase | **Phase 2 — Core Loop** (started; Ability System design APPROVED) |
+| Current Milestone | **M2 Core Gameplay** |
+| Current Sprint | `TK-P2-16` Ability scaffold — Step 1 (extract MovementComponent) in progress |
+| Exit Gate goal | Kick + Tag + 7-step Tag Sequence + role swap on the ability scaffold; core loop playable |
 
 ## Phase 0 — CLOSED ✅ (Exit Gate PASS, PR #1 merged)
 - clone→opens · 2 instances connect · `[NET] peer joined` · GUT green, no S0/S1. Cards `TK-P0-01`…`TK-P0-06`.

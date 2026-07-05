@@ -31,6 +31,8 @@ technical:
   player_state:        TKPD/02_Technical/TDD.pdf        # TDD 8.1
   network_flow:        TKPD/02_Technical/TDD.pdf        # TDD 9
   diagrams:            TKPD/diagrams/
+  ability_system:      TKPD/02_Technical/Ability_System_Design.md  # APPROVED design + source of truth (TK-P2-16); diagram: TKPD/diagrams/ability_system.png. NOTE: "TDD §10" was a conflict (§10 = Safe Circle) — use this doc, not the TDD stub, until TDD regen.
+  tiger_movement:      TKPD/diagrams/tiger_bodylanguage.png  # Tiger body-language ladder (hunt-not-chase, TK-P3-05)
 
 qa:
   master_test_plan:    TKPD/03_QA/_shared/00_Master_Test_Plan.md

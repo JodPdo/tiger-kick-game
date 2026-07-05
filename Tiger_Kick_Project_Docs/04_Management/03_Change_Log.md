@@ -3,6 +3,15 @@
 บันทึกการเปลี่ยนแปลงสำคัญของโปรเจกต์และเอกสาร (รูปแบบ Keep a Changelog)
 เวอร์ชันล่าสุดอยู่บนสุด
 
+## [0.33] — 2026-07-05 — อนุมัติ Ability System (architecture + design + balance) → เริ่ม Phase 2
+- **architect เคาะ + มนุษย์อนุมัติ** design Ability System (`TK-P2-16`) — บันทึกเต็มใน `02_Technical/Ability_System_Design.md` (source of truth; TDD.pdf เป็น binary → regen ทีหลัง)
+- **โครง:** Player → MovementComponent / CameraComponent / AbilityController → [abilities]; base `Ability`/`HumanAbility`/`TigerAbility`; component = child Node
+- **server-authority:** แกน `HOST_AUTHORITATIVE` vs `LOCAL_ONLY` (default HOST); RPC รวมศูนย์ที่ AbilityController ไฟล์เดียว (ability subclass ห้ามมี @rpc); role มาจาก host RPC ห้ามเข้า synchronizer; 2-channel replication (owner-sync pose vs host-RPC result)
+- **architect ปรับทิศ (มนุษย์ยืนยัน):** Jump = movement primitive (ไม่ใช่ ability) · Tag Sequence 7 ขั้น = GameManager ไม่ใช่ ability · TagAbility จบแค่ "host ตัดสินว่าจับโดน"
+- **BALANCE (มนุษย์ตัดสิน — design/balance change):** Sprint = primitive ทุกคนมี **แต่ความเร็ว per-role**: Human walk 4.0/sprint 6.0, **Tiger รวม sprint ≤ 4.0** (เสือซุ่มไม่วิ่งไล่ จับด้วย Pounce+จังหวะคนเข้าเตะ) → TigerAbility เหลือ {Crouch, Lean, Pounce, Peek}. ค่าเดิม 5.0/×1.4 ใช้ต่อจน role profile wire (จูนจริง Phase 3)
+- **migration:** TK-P2-16 = Step1 แยก Movement → Step2 แยก Camera → Step3 AbilityController เปล่า (แต่ละ step no-regress: GUT+net_smoke+spawn probe); Kick = Step4 (TK-P2-01)
+- **doc impact ค้าง (มอบ documentation-manager/regen):** TDD §4/§6/§8.1/§9.1 + routing §10 conflict (แก้ให้ชี้ design doc แล้ว) + KickHitbox/TagArea ย้ายไปใต้ ability node
+
 ## [0.32] — 2026-07-05 — Phase 1 (M1 Movement) CLOSED ✅
 - Exit Gate ผ่านครบ: **มนุษย์เทส 2 หน้าต่างผ่าน** (spawn ไม่ทับ, ESC-ESC Leave, host ปิด→client กลับเมนู, เดิน/กล้อง sync) + CI เขียว (GUT 119/119 + net_smoke + spawn probe เป็น gate แล้ว)
 - `TK-P1-07` done (CI wiring). การ์ด Phase 1 ครบ: TK-P1-01..07 + TK-BUG-P1-01/02
