@@ -6,7 +6,7 @@ description: >
   prevention, basic server-authority anti-cheat, and Steam lobby. Owns cards
   TK-P0-04/06, TK-P1-04/05/06, TK-P2-08, TK-P5-02.
 tools: Read, Edit, Bash, Grep, Glob
-model: sonnet
+model: claude-opus-4-8
 ---
 
 # Network Engineer — Tiger Kick

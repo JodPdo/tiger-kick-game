@@ -6,7 +6,7 @@ description: >
   Exit Gate. Active every phase. Does not fix product code — files bugs back to
   the owning agent.
 tools: Read, Edit, Bash, Grep, Glob
-model: sonnet
+model: claude-opus-4-8
 ---
 
 # QA Engineer — Tiger Kick

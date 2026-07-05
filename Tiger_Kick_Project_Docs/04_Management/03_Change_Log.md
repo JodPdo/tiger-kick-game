@@ -3,6 +3,48 @@
 บันทึกการเปลี่ยนแปลงสำคัญของโปรเจกต์และเอกสาร (รูปแบบ Keep a Changelog)
 เวอร์ชันล่าสุดอยู่บนสุด
 
+## [0.31] — 2026-07-05 — แก้บั๊ก Phase 1 reopen เสร็จ (ผ่าน review 2 รอบ + qa)
+- `TK-BUG-P1-01` (S1): authority ย้ายไป `Player._enter_tree()` (จาก name contract + tripwire) และ spawner เปลี่ยนเป็น `MultiplayerSpawner.spawn_function` ส่ง `{id, position}` ถึงทุก peer โดยไม่พึ่ง authority-gated sync (`spawn=false` บน position/rotation; `_spawnable_scenes` ถอดออกกัน footgun) — spawn probe: client ลง slot ตัวเอง ไม่ทับ host ไม่ (0,0,0) ไม่มี pending-spawn error
+- `TK-BUG-P1-02` (S2): signal `NetworkManager.server_disconnected` → `world/TestArena.gd` (ใหม่) พากลับ MainMenu + คืนเมาส์; Leave = ESC-ESC (ESC แรก consume ใน Player ตอน CAPTURED — แก้ single-ESC race ที่ reviewer จับได้จากการยิง key จริง); guard `host()/join()` = ERR_ALREADY_IN_USE
+- เทสใหม่: NetworkManager 3 เคส + `tests/net/spawn_probe_peer.gd`/`run_spawn_probe.sh` (เช็ค XZ-tolerance กัน false-pass จาก gravity settle) — GUT 119/119, net_smoke + spawn probe + windowed ESC probe ผ่านหมด
+- late-join ตรวจแล้ว**ไม่ใช่ปัญหา** (reviewer ทดลอง 3-instance: late joiner เห็นตำแหน่งปัจจุบันทันที)
+- เหลือ: `TK-P1-07` (net smoke + spawn probe เข้า ci.yml) + **มนุษย์เทส 2 หน้าต่าง** = เงื่อนไขปิด Phase 1
+
+## [0.30] — 2026-07-05 — ปรับ model ทีม AI agent
+- `producer` / `architect` / `code-reviewer`: opus → **claude-fable-5** · `designer`: sonnet → **claude-opus-4-8** (7 ตัวที่เหลือคง sonnet) — แก้ทั้ง frontmatter `.claude/agents/*.md` และตาราง AGENT_INDEX.md
+- ตัดสินโดย: มนุษย์ (project owner)
+
+## [0.29] — 2026-07-05 — ทิศทางสถาปัตย์ใหม่: Ability System (รอ architect อนุมัติ design) + การ์ดใหม่ 8 ใบ
+- **adopt Ability System** — `TK-P2-16` scaffold: refactor PlayerController → Movement / Camera / Ability (+ base HumanAbility/TigerAbility) เป็น **งานแรกของ Phase 2** หลังปิด Phase 1; ของเดิม (Kick/Jump/Tag) re-slot เป็น ability — **ต้องให้ `architect` อนุมัติ design ก่อนลงมือ**
+- `TK-P3-05` Tiger Body-Language (Crouch → Lean L/R → Peek) = สกิลตัวอย่างพิสูจน์ระบบ (hunt-not-chase)
+- Ability catalog (แผน Phase 3-5): Tiger{Crouch, Lean, Sprint, Pounce, Peek} · Human{Kick, Hide, Emote}
+- การ์ดใหม่จาก Cowork 8 ใบ: `TK-P2-10/11` (Jump, Jump Kick), `TK-P2-12..15` (Waiting Room → Start Match → Countdown → Match state machine), `TK-P2-16`, `TK-P3-05` — backlog รวม 52→55 ใบ (รวม bug cards ด้านล่าง)
+- เสนอ/ตัดสินโดย: มนุษย์ (project owner)
+
+## [0.28] — 2026-07-05 — Audit อิสระ Phase 0-X-1 → REOPEN Phase 1 (แก้บั๊กก่อนเข้า Phase 2)
+- producer (Fable 5) ตรวจงานใหม่ทั้งหมดแบบ adversarial + มนุษย์ยืนยันด้วยการเทส 2 หน้าต่างจริง
+- **S1-A "เดินไม่ได้ (device:16)" = FALSE ALARM** — มนุษย์เทสจริง: WASD เดินได้ปกติ device:16 ไม่กระทบคีย์บอร์ด (ไม่แก้ project.godot)
+- **บั๊กจริงที่ยืนยัน → REOPEN Phase 1:**
+  - `TK-BUG-P1-01` (S1, blocker): client spawn ทับหัว host / โผล่ (0,0,0) + engine error "unable to process the pending spawn" ทุก join — สาเหตุ: `PlayerSpawner._on_spawned()` เซ็ต authority หลัง `_ready()` → แก้โดยย้ายไป `Player._enter_tree()`/spawn_function
+  - `TK-BUG-P1-02` (S2): host ปิดเกม → client ค้างในสนามว่าง ไม่มีทางออก — แก้: signal `server_disconnected` → กลับ MainMenu + ปุ่ม Leave (`disconnect_from_game()` ยังไม่มี caller เลย)
+  - `TK-P1-07`: net smoke เข้า `ci.yml` + 2-instance integration probe (เกณฑ์ no-ERROR + client ไม่ทับ host) — อุดช่องที่เทส pure-function ล้วนมองไม่เห็น glue bugs
+- ลำดับที่ตกลง: แก้บั๊ก → มนุษย์เทส 2 หน้าต่าง → ปิด Phase 1 / PR #3 → architect เคาะ Ability System → เริ่ม Phase 2 ที่ TK-P2-16
+
+## [0.27] — 2026-07-05 — Phase 1 code ครบ: synchronizer tuning + remote-physics guard
+- `TK-P1-06`: MultiplayerSynchronizer sync เฉพาะ position+rotation, mode ALWAYS→ON_CHANGE (ไม่ส่ง packet ตอนนิ่ง, spawn=true คง seed แรก), non-authority peer skip move_and_slide/gravity (puppet ขับด้วย sync ล้วน กัน jitter), guard is_valid_int ใน _on_spawned
+- **Phase 1 (M1 Movement) code ครบ 6/6** — เหลือ Exit Gate: มนุษย์ทดสอบ GUI 2 หน้าต่าง (เดิน/กล้อง/no-jitter) + merge PR #3
+
+## [0.26] — 2026-07-05 — Phase 1: spawner + camera rig + per-player authority
+- `TK-P1-04` MultiplayerSpawner: spawn Player ต่อ peer id (host-authoritative), despawn on disconnect, กล้อง current เฉพาะ local (host-local path + client replicated)
+- `TK-P1-03` third-person camera rig: `Player→CameraRig→SpringArm3D→Camera3D`, mouse-look (yaw/pitch clamp -60..+30), camera-relative movement, contract `get_view_camera()`
+- `TK-P1-05` per-player authority: `set_multiplayer_authority(peer_id)` (host+client path), synchronizer follows recursive → แต่ละ peer คุม player ตัวเอง
+- ค้าง (TK-P1-06): skip move_and_slide/gravity บน non-authority peer (กัน jitter) + synchronizer property tuning + guard `int(node.name)` ใน _on_spawned
+
+## [0.25] — 2026-07-05 — Phase 1: movement + InputMap actions
+- `TK-P1-02` movement: WASD + gravity + Sprint (Shift) ใน `characters/Player.gd`, ค่า walk 5.0 m/s / sprint ×1.4 จาก TDD §11 (export ปรับได้), input gate `is_multiplayer_authority()`
+- เพิ่ม **InputMap actions** ใน `project.godot` `[input]`: `move_forward`(W)/`move_back`(S)/`move_left`(A)/`move_right`(D)/`sprint`(Shift) — ปลดล็อกงาน Controls-rebind ที่ค้างจาก TK-PX-05 ด้วย (ชื่อ action ตรงกับ REBIND_KEYS)
+- ค้าง (ผูกไว้ TK-P1-05/06): non-authority peer ยังรัน move_and_slide → ต้อง skip บน remote กัน jitter ตอน authority per-player + synchronizer active
+
 ## [0.24] — 2026-07-04 — Phase X ครบ: Settings menu + PerfOverlay (จบ MX Dev Infra)
 - `SettingsMenu` (`ui/SettingsMenu.gd/.tscn`, TK-PX-05): Graphics/Audio/Controls tabs → ConfigManager (get/set/save), apply DisplayServer/AudioServer แบบ guard headless + missing-bus; เข้าถึงจากปุ่ม Settings ใหม่ใน MainMenu (แก้ TK-P0-03 แบบ additive — NET SMOKE ยืนยันไม่ regress Host/Join)
 - `PerfOverlay` (`ui/PerfOverlay.gd`, TK-PX-03): overlay กด F4 ใช้ Performance singleton (memory/draw/objects/primitives/nodes/process/physics), แยกจาก DebugOverlay (F3, layer 100 vs 101)

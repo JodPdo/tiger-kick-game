@@ -1,4 +1,7 @@
-[gd_scene load_steps=3 format=3 uid="uid://c8k3n1p6qr2ws"]
+[gd_scene load_steps=5 format=3 uid="uid://c8k3n1p6qr2ws"]
+
+[ext_resource type="Script" path="res://networking/PlayerSpawner.gd" id="1_spawner_script"]
+[ext_resource type="Script" path="res://world/TestArena.gd" id="2_arena_script"]
 
 [sub_resource type="StandardMaterial3D" id="SafeCircleMaterial"]
 albedo_color = Color(1, 0.6, 0.1, 1)
@@ -14,6 +17,7 @@ ambient_light_color = Color(1, 1, 1, 1)
 ambient_light_energy = 0.5
 
 [node name="TestArena" type="Node3D"]
+script = ExtResource("2_arena_script")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_1")
@@ -39,3 +43,9 @@ material = SubResource("SafeCircleMaterial")
 position = Vector3(0, 12, 16)
 rotation_degrees = Vector3(-35, 0, 0)
 current = true
+
+[node name="Players" type="Node3D" parent="."]
+
+[node name="PlayerSpawner" type="MultiplayerSpawner" parent="."]
+script = ExtResource("1_spawner_script")
+spawn_path = NodePath("../Players")

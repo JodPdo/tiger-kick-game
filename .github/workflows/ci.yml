@@ -10,6 +10,7 @@ jobs:
   ci:
     name: Godot 4.7 headless — smoke + tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,3 +45,11 @@ jobs:
           fi
           ./godot --headless -s addons/gut/gut_cmdln.gd -gdir=res://tests -ginclude_subdirs -gexit
           echo "GUT unit tests passed"
+
+      - name: Net smoke — 2-instance connect (TK-P0-06 Exit Gate proof)
+        timeout-minutes: 3
+        run: GODOT_BIN=./godot bash tests/net/run_net_smoke.sh
+
+      - name: Spawn probe — 2-instance regression gate (TK-BUG-P1-01/02)
+        timeout-minutes: 3
+        run: GODOT_BIN=./godot bash tests/net/run_spawn_probe.sh

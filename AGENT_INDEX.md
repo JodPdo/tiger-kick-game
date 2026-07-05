@@ -6,14 +6,14 @@ The AI team. Read this to know **who exists** and **which agent to call**. Full 
 
 | Agent | Role | Model | Writes code? | Call it when… |
 |---|---|---|---|---|
-| `producer` | Orchestrator / PM + Tech Lead | opus | No | Assign cards, track milestones, approve Exit Gate, resolve conflicts |
-| `architect` | Architecture authority | opus | No | Approve/deny changes to TDD, architecture, dependencies, refactors |
+| `producer` | Orchestrator / PM + Tech Lead | Fable 5 | No | Assign cards, track milestones, approve Exit Gate, resolve conflicts |
+| `architect` | Architecture authority | Fable 5 | No | Approve/deny changes to TDD, architecture, dependencies, refactors |
 | `network-engineer` | Networking | sonnet | Yes | NetworkManager, RPC, sync, MultiplayerSpawner, anti-desync, Steam lobby |
 | `gameplay-engineer` | Gameplay | sonnet | Yes | Movement, Kick, Tag, Tag Sequence, Role state machine, RoundManager, menus |
 | `tools-devops` | Tooling / CI | sonnet | Yes | Repo setup, CI, GUT harness, Logger, debug/perf overlay, Settings, builds |
 | `qa-engineer` | QA | sonnet | Yes (tests) | Test cases, checklists, regression, file bugs, judge phase DoD |
-| `code-reviewer` | Reviewer | opus | No | Review any diff before it reaches Done |
-| `designer` | Game/systems design | sonnet | No | GDD, balance, playtest sessions, tuning, fun analysis |
+| `code-reviewer` | Reviewer | Fable 5 | No | Review any diff before it reaches Done |
+| `designer` | Game/systems design | Opus 4.8 | No | GDD, balance, playtest sessions, tuning, fun analysis |
 | `polish-agent` | Art / audio / UX | sonnet | Yes | Models, animation, SFX, VFX, HUD, feedback (mostly Phase 4) |
 | `documentation-manager` | Docs integrity | sonnet | No (docs only) | Keep README/TDD/GDD/Change Log in sync with code; flag drift |
 

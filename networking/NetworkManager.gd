@@ -28,6 +28,15 @@ signal connection_succeeded           # client connected to server
 signal connection_failed              # client failed to connect
 signal peer_connected(id: int)        # a peer joined (host & clients)
 signal peer_disconnected(id: int)     # a peer left (host & clients)
+signal server_disconnected            # TK-BUG-P1-02: fires on a CLIENT when
+                                       # its connection to the host is lost
+                                       # (host quit / crashed / kicked). Local
+                                       # state is already torn down by the
+                                       # time this fires (see
+                                       # _on_server_disconnected below) --
+                                       # listeners just need to react (e.g.
+                                       # TestArena.gd returns to MainMenu).
+                                       # Never fires on the host itself.
 
 var _peer: ENetMultiplayerPeer = null
 
@@ -44,6 +53,10 @@ func _ready() -> void:
 ## Returns OK on success, or an Error code (e.g. ERR_INVALID_PARAMETER,
 ## ERR_ALREADY_IN_USE, ERR_CANT_CREATE) on failure. Never crashes on bad input.
 func host(port: int = DEFAULT_PORT) -> Error:
+	if _peer != null:
+		push_warning("[NET] host() rejected: a peer is already active (call disconnect_from_game() first)")
+		print("[NET] host() rejected: a peer is already active")
+		return ERR_ALREADY_IN_USE
 	if not _is_valid_port(port):
 		push_warning("[NET] host() rejected: invalid port %s" % [port])
 		print("[NET] host() rejected: invalid port %s" % [port])
@@ -69,6 +82,10 @@ func host(port: int = DEFAULT_PORT) -> Error:
 ## failure of the connection itself arrives asynchronously via the
 ## `connection_succeeded` / `connection_failed` signals.
 func join(address: String = DEFAULT_ADDRESS, port: int = DEFAULT_PORT) -> Error:
+	if _peer != null:
+		push_warning("[NET] join() rejected: a peer is already active (call disconnect_from_game() first)")
+		print("[NET] join() rejected: a peer is already active")
+		return ERR_ALREADY_IN_USE
 	if address.is_empty():
 		push_warning("[NET] join() rejected: empty address")
 		print("[NET] join() rejected: empty address")
@@ -133,3 +150,4 @@ func _on_server_disconnected() -> void:
 	print("[NET] server disconnected, returning to offline state")
 	multiplayer.multiplayer_peer = null
 	_peer = null
+	server_disconnected.emit()
