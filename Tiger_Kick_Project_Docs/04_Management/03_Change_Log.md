@@ -3,6 +3,13 @@
 บันทึกการเปลี่ยนแปลงสำคัญของโปรเจกต์และเอกสาร (รูปแบบ Keep a Changelog)
 เวอร์ชันล่าสุดอยู่บนสุด
 
+## [0.34] — 2026-07-05 — บันทึก Game Balance / Physics + การ์ด Pounce/Kick-Stagger
+- สร้าง **`01_Design/Game_Balance.md`** = balance/physics source of truth (แทน GDD §Balance / TDD §Physics ที่เป็น PDF) + เดินสาย DOCUMENT_ROUTING (`design.game_balance`)
+- **บันทึกค่า (ค่าเสนอ จูน P3):** Kinematic CharacterBody3D server-auth · Human walk 4.0/sprint 6.0 · Tiger ≤4.0 (cap รวม sprint) · Pounce burst ~8 · Safe Circle radius 5.0m (locked — reconcile marker P0-05 ~6.0 ตอน TK-P2-06) · Kick range 1.5 · Sprint=primitive per-role
+- **กฎ locked:** เสือ = นักล่าซุ่ม จับด้วย Pounce+จังหวะคนเข้าเตะ ไม่วิ่งไล่
+- **การ์ดใหม่:** `TK-P2-17` Kick Stagger (เสือเซ ~0.3s + ดันถอยเล็กน้อย, host-auth, ห้าม stun เต็ม; dep TK-P2-01) · `TK-P2-18` Pounce (ดึงมา Phase 2, TigerAbility burst ~8 m/s = กลไกจับหลัก, host validate; dep TK-P2-16) — backlog 55→57
+- อัปเดต notes `TK-P2-16` ยืนยันทิศ architect (Jump=primitive, Tag=GameManager, Sprint ออกจาก Tiger)
+
 ## [0.33] — 2026-07-05 — อนุมัติ Ability System (architecture + design + balance) → เริ่ม Phase 2
 - **architect เคาะ + มนุษย์อนุมัติ** design Ability System (`TK-P2-16`) — บันทึกเต็มใน `02_Technical/Ability_System_Design.md` (source of truth; TDD.pdf เป็น binary → regen ทีหลัง)
 - **โครง:** Player → MovementComponent / CameraComponent / AbilityController → [abilities]; base `Ability`/`HumanAbility`/`TigerAbility`; component = child Node

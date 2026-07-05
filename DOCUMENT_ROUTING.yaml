@@ -21,6 +21,7 @@ design:
   tag_sequence:        TKPD/01_Design/00_GDD.pdf        # GDD 2.3 (+ TDD 8.2)
   roadmap:             TKPD/01_Design/Roadmap/          # Phase0..5 + PhaseX
   character_art_bible: TKPD/01_Design/Character_Art_Bible.md   # visual/character rules (designer owns, polish obeys)
+  game_balance:        TKPD/01_Design/Game_Balance.md          # balance + physics source of truth (replaces GDD §Balance / TDD §Physics stubs until PDF regen)
 
 technical:
   tdd:                 TKPD/02_Technical/TDD.pdf

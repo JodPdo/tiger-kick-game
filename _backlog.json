@@ -718,7 +718,7 @@
     "status": "todo",
     "depends_on": [],
     "labels": "task, phase-2, prio-high, architecture, ability",
-    "notes": "⚠️ ARCHITECTURE CHANGE — architect ต้องอนุมัติก่อนลงมือ (CLAUDE.md) · แตก Player.gd (monolith) → PlayerController มี child: Movement, Camera, Ability · Ability base class (activate/cooldown/can_use) + 2 subclass: HumanAbility, TigerAbility · re-slot ของเดิม: Kick(TK-P2-01)→HumanAbility, Jump/JumpKick(TK-P2-10/11), Tag Sequence(TK-P2-03)→TigerAbility · Ability catalog (Phase 3-5 เพิ่มง่าย): TigerAbility={Crouch, Lean L/R, Sprint, Pounce, Peek} · HumanAbility={Kick, Hide, Emote} · host-authoritative: ability ที่ตัดสินเกม (kick/tag/pounce) ยิง RPC ให้ host validate · เริ่มหลังแก้บั๊ก Phase 1 (S1-B/S2) · DoD: เพิ่ม ability ใหม่ = สร้างไฟล์เดียว register ได้ ไม่แตะ core"
+    "notes": "APPROVED (architect+human, Change Log [0.33], design: 02_Technical/Ability_System_Design.md). Confirmed: Jump = movement primitive (not ability); Tag Sequence 7-step = GameManager (not ability); Sprint removed from Tiger -> TigerAbility = {Crouch, Lean, Pounce, Peek}. Build as 3 steps: 1 MovementComponent, 2 CameraComponent, 3 AbilityController(empty)+role plumbing. Kick = TK-P2-01 (step 4)."
   },
   {
     "id": "TK-P3-05",
@@ -773,5 +773,33 @@
       "TK-BUG-P1-02"
     ],
     "labels": "task, phase-1, prio-high, test"
+  },
+  {
+    "id": "TK-P2-17",
+    "phase": "Phase 2",
+    "milestone": "M2 Core Gameplay",
+    "title": "Kick Stagger: เสือเซ ~0.3s + ดันถอยเล็กน้อยเมื่อโดนเตะ (host-authoritative, ห้าม stun เต็ม — ให้คนที่เตะมีช่องหนี)",
+    "type": "task",
+    "priority": "High",
+    "owner_agent": "gameplay-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P2-01"
+    ],
+    "labels": "task, phase-2, prio-high"
+  },
+  {
+    "id": "TK-P2-18",
+    "phase": "Phase 2",
+    "milestone": "M2 Core Gameplay",
+    "title": "Pounce (TigerAbility, ดึงมา Phase 2): เสือพุ่งระยะสั้น burst ~8 m/s = กลไกจับหลัก (เพราะเสือช้า), host validate",
+    "type": "task",
+    "priority": "High",
+    "owner_agent": "gameplay-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P2-16"
+    ],
+    "labels": "task, phase-2, prio-high"
   }
 ]
