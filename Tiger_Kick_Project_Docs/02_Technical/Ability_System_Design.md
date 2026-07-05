@@ -74,6 +74,13 @@ func on_rejected(reason) -> void                     # owner ยกเลิก 
 - LOCAL_ONLY (Crouch): ไม่ยิง RPC — set `stance` บน root → synchronizer พาไป.
 - **หมายเหตุ latency:** host เห็น client ช้ากว่าจอ client เล็กน้อย → "จอฉันโดนแต่ host บอกไม่โดน" เกิดได้ → รับได้สำหรับ party game, จูนระยะให้ใจดี Phase 3.
 
+### 4a. Authority ของ node ใน Player (จารึกเพิ่ม 2026-07-05 — แก้ defect ที่ review TK-P2-16 Step 3 พบ; architect APPROVE, Change Log [0.35])
+- **Player (root), MultiplayerSynchronizer, MovementComponent, CameraComponent:** authority = **peer เจ้าของ** (จาก recursive set ใน `Player._enter_tree()` — INVARIANT TK-BUG-P1-01 คงเดิม ห้ามย้าย)
+- **AbilityController + ability children ทั้งหมด:** authority = **1 (server) เสมอ** — AbilityController เรียก `set_multiplayer_authority(1)` ใน `_enter_tree()` ของตัวเอง ซึ่งวิ่ง**หลัง** recursive set ของ Player เสมอ (parent-ก่อน-child, ยืนยัน empirically บน Godot 4.7) และ override เฉพาะ subtree ตัวเอง — sibling synchronizer ยังเป็นของ owner → position/spawn sync ไม่กระทบ. ability node ที่สร้าง runtime ได้ default authority = 1 ตรงกันอยู่แล้ว
+- **เหตุผล:** Godot ตรวจ `@rpc("authority")` ฝั่งรับด้วย `sender == authority ของ node นั้น`. ถ้า AbilityController เป็นของ owner: confirm/reject จาก host โดน drop และ client เจ้าของ forge `rpc_confirm` ได้เอง = server authority พลิกกลับ (S1). ตั้ง authority=1 ให้ engine drop RPC ปลอมก่อนถึงโค้ดเรา (fail-closed)
+- **กฎถาวร:** ห้ามตีความ `@rpc("authority")` ว่า "host-only" บน node ใดที่ authority ไม่ใช่ server — annotation ผูกกับ authority ของ node เสมอ. guard `is_server()` + `sender == authority ของ Player` ใน `rpc_request_activate` คงไว้ (defense in depth). ในโค้ด ability: **owner check = `_body.is_multiplayer_authority()` (Player root)** · **host check = `multiplayer.is_server()`** — ห้ามใช้ `is_multiplayer_authority()` ของ AbilityController เอง (หลัง fix = "am I host" ไม่ใช่ "am I owner")
+- **walkthrough Kick (host/offline ที่เป็นเจ้าของ Player เอง):** `try_activate` ห้ามยิง `rpc_id(1)` หาตัวเอง (Godot ห้าม self-RPC) — เรียก `_host_process_request(...)` (method ธรรมดา ตัวเดียวกับที่ `rpc_request_activate` เรียก) ตรง ๆ; reject ให้ host ผู้ขอ = `on_rejected` local ไม่ยิง `rpc_reject.rpc_id(1)`. client ทางไกลเดินเส้นเดิมผ่าน sender==authority guard ครบ
+
 ## 5. Role-swap
 1. GameManager (host) เดิน Tag Sequence ถึง transform → `apply_role_switch.rpc(old, new)` (`authority, call_local, reliable`)
 2. ทุก peer หา Player จาก `Players/str(peer_id)` → `player.set_role(&"tiger"/&"outer")`

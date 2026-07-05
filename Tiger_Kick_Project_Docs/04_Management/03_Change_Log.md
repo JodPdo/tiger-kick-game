@@ -3,6 +3,12 @@
 บันทึกการเปลี่ยนแปลงสำคัญของโปรเจกต์และเอกสาร (รูปแบบ Keep a Changelog)
 เวอร์ชันล่าสุดอยู่บนสุด
 
+## [0.35] — 2026-07-05 — แก้ authority model ของ Ability RPC (§4a) — review จับ + architect เคาะ
+- **defect:** review TK-P2-16 Step 3 (Fable 5) จับว่า TK-BUG-P1-01 (recursive authority) ทำให้ AbilityController ได้ authority = client เจ้าของ ไม่ใช่ server → `@rpc("authority")` = "owner" → (1) confirm/reject จาก host โดน drop (2) **client forge rpc_confirm ข้าม host_validate ได้ = server-authority พลิกกลับ (S1)** (3) host กด ability ตัวเองไม่ได้ (self-RPC) — เป็น interaction ข้ามการ์ดที่ per-card review มองไม่เห็น, จับได้ตอน scaffold ว่าง (ก่อน Kick)
+- **architect ruling (option a, พร้อม probe พิสูจน์ empirically):** AbilityController เรียก `set_multiplayer_authority(1)` ใน `_enter_tree` ตัวเอง (วิ่งหลัง recursive set, override เฉพาะ subtree ตัวเอง; sibling synchronizer/position ไม่กระทบ) → `@rpc("authority")` กลับมาหมายถึง host, engine drop RPC ปลอม (fail-closed) · + host-local activation path (`_host_process_request` เรียกตรงเมื่อ is_server, reject local เลี่ยง self-RPC)
+- บันทึกใน `Ability_System_Design.md` **§4a** (authority ของแต่ละ node); TK-P2-01 Kick ต้องยึด: owner=`_body.is_multiplayer_authority()`, host=`multiplayer.is_server()`
+- implement: `network-engineer` (RPC/authority domain) แก้ `AbilityController.gd` อย่างเดียว + tripwire test (authority==1)
+
 ## [0.34] — 2026-07-05 — บันทึก Game Balance / Physics + การ์ด Pounce/Kick-Stagger
 - สร้าง **`01_Design/Game_Balance.md`** = balance/physics source of truth (แทน GDD §Balance / TDD §Physics ที่เป็น PDF) + เดินสาย DOCUMENT_ROUTING (`design.game_balance`)
 - **บันทึกค่า (ค่าเสนอ จูน P3):** Kinematic CharacterBody3D server-auth · Human walk 4.0/sprint 6.0 · Tiger ≤4.0 (cap รวม sprint) · Pounce burst ~8 · Safe Circle radius 5.0m (locked — reconcile marker P0-05 ~6.0 ตอน TK-P2-06) · Kick range 1.5 · Sprint=primitive per-role
