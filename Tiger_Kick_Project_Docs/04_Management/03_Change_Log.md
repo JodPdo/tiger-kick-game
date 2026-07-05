@@ -3,6 +3,13 @@
 บันทึกการเปลี่ยนแปลงสำคัญของโปรเจกต์และเอกสาร (รูปแบบ Keep a Changelog)
 เวอร์ชันล่าสุดอยู่บนสุด
 
+## [0.31] — 2026-07-05 — แก้บั๊ก Phase 1 reopen เสร็จ (ผ่าน review 2 รอบ + qa)
+- `TK-BUG-P1-01` (S1): authority ย้ายไป `Player._enter_tree()` (จาก name contract + tripwire) และ spawner เปลี่ยนเป็น `MultiplayerSpawner.spawn_function` ส่ง `{id, position}` ถึงทุก peer โดยไม่พึ่ง authority-gated sync (`spawn=false` บน position/rotation; `_spawnable_scenes` ถอดออกกัน footgun) — spawn probe: client ลง slot ตัวเอง ไม่ทับ host ไม่ (0,0,0) ไม่มี pending-spawn error
+- `TK-BUG-P1-02` (S2): signal `NetworkManager.server_disconnected` → `world/TestArena.gd` (ใหม่) พากลับ MainMenu + คืนเมาส์; Leave = ESC-ESC (ESC แรก consume ใน Player ตอน CAPTURED — แก้ single-ESC race ที่ reviewer จับได้จากการยิง key จริง); guard `host()/join()` = ERR_ALREADY_IN_USE
+- เทสใหม่: NetworkManager 3 เคส + `tests/net/spawn_probe_peer.gd`/`run_spawn_probe.sh` (เช็ค XZ-tolerance กัน false-pass จาก gravity settle) — GUT 119/119, net_smoke + spawn probe + windowed ESC probe ผ่านหมด
+- late-join ตรวจแล้ว**ไม่ใช่ปัญหา** (reviewer ทดลอง 3-instance: late joiner เห็นตำแหน่งปัจจุบันทันที)
+- เหลือ: `TK-P1-07` (net smoke + spawn probe เข้า ci.yml) + **มนุษย์เทส 2 หน้าต่าง** = เงื่อนไขปิด Phase 1
+
 ## [0.30] — 2026-07-05 — ปรับ model ทีม AI agent
 - `producer` / `architect` / `code-reviewer`: opus → **claude-fable-5** · `designer`: sonnet → **claude-opus-4-8** (7 ตัวที่เหลือคง sonnet) — แก้ทั้ง frontmatter `.claude/agents/*.md` และตาราง AGENT_INDEX.md
 - ตัดสินโดย: มนุษย์ (project owner)

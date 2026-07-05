@@ -3,12 +3,21 @@ extends MultiplayerSpawner
 ##
 ## Attached to the "PlayerSpawner" MultiplayerSpawner node in
 ## world/TestArena.tscn. `spawn_path` points at the sibling "Players"
-## container; `_spawnable_scenes` lists res://characters/Player.tscn (see
-## TestArena.tscn for both). Only the multiplayer authority of THIS node
-## (the server/host, peer id 1 by default -- we never call
-## set_multiplayer_authority() on it) is allowed to add_child() a Player
-## under spawn_path and have it replicate; every other peer receives the
-## instance automatically because Player.tscn is registered as spawnable.
+## container. NOTE (TK-BUG-P1-02 review nit #2): TestArena.tscn deliberately
+## does NOT set `_spawnable_scenes` anymore. That list is NOT inert -- it
+## arms MultiplayerSpawner's implicit auto-replicate-by-scene path, which
+## replicates a matching node added under spawn_path WITHOUT any spawn_data
+## payload. Since our whole TK-BUG-P1-01 fix depends on the id+position
+## payload delivered by spawn_function (below), leaving Player.tscn in
+## _spawnable_scenes would mean a future stray/manual add_child(Player.tscn)
+## replicates with NO position data and silently reintroduces the origin-
+## spawn S1 bug. With the list empty, only spawn() (which routes through our
+## spawn_function) can produce a replicated Player -- any accidental
+## auto-spawn path is disarmed by construction. Only the multiplayer
+## authority of THIS node (the server/host, peer id 1 by default -- we never
+## call set_multiplayer_authority() on it) is allowed to call spawn() and
+## have it replicate; every other peer receives the instance automatically
+## because they all registered the identical spawn_function callback.
 ##
 ## Server-authoritative model (CLAUDE.md / TDD §2, §9):
 ##   - The HOST decides who spawns and where. It spawns itself on _ready()
@@ -32,32 +41,63 @@ extends MultiplayerSpawner
 ##     (wired to the `spawned` signal) handles the replicated/client-side
 ##     case. Both paths funnel through `_activate_local_camera_if_own()`.
 ##
-## Multiplayer authority of the spawned Player (TK-P1-05, this update): each
-## spawned Player's multiplayer authority is set to the peer id it was
-## spawned for (str(id) is already its node name -- see naming contract
-## below), so Player.gd's is_multiplayer_authority()-gated input (TK-P1-02)
-## lets each peer drive only its OWN Player; the host no longer drives
-## everyone.
+## Multiplayer authority of the spawned Player (TK-P1-05; superseded by
+## TK-BUG-P1-01, see below): each spawned Player's multiplayer authority ends
+## up set to the peer id it was spawned for (str(id) is already its node
+## name -- see naming contract below), so Player.gd's
+## is_multiplayer_authority()-gated input (TK-P1-02) lets each peer drive
+## only its OWN Player; the host no longer drives everyone.
 ##
-## set_multiplayer_authority() is a purely LOCAL call -- Godot does NOT
-## propagate it over the network by itself, so every peer's local copy of a
-## given Player node must call it independently and agree. We rely on the
-## deterministic naming contract (node.name == str(peer_id), already used by
-## _on_peer_disconnected/_activate_local_camera_if_own) rather than any
-## extra RPC/race:
-##   - Host side: _spawn_player() sets instance.set_multiplayer_authority(id)
-##     BEFORE add_child(), for every Player it spawns (its own AND every
-##     client's) -- this covers the host's entire local tree in one place,
-##     before that instance's first _ready()/_physics_process() runs.
-##   - Every other peer's side: _on_spawned() (replicated-receive only, see
-##     below) parses the same id back out of node.name and calls
-##     node.set_multiplayer_authority() on ITS local copy, so a client's
-##     local tree ends up agreeing with the host's without needing the
-##     spawner to transmit authority explicitly.
-## set_multiplayer_authority(id) defaults to recursive = true, so
-## Player.tscn's MultiplayerSynchronizer child (whose root_path defaults to
-## "..", i.e. the Player itself) inherits the same authority automatically
-## -- no separate call needed for it to replicate FROM the owning peer.
+## TK-BUG-P1-01 (network-engineer, S1 fix): authority assignment USED TO live
+## here -- host-side in _spawn_player() (instance.set_multiplayer_authority(id)
+## before add_child()) and client-side in _on_spawned() (parsed back out of
+## node.name after the `spawned` signal). That was too late on the
+## replicated/client side: `spawned` fires AFTER the node's own _ready(), by
+## which point Godot has already started delivering this instance's
+## MultiplayerSpawner spawn-state (the host-seeded initial position) and
+## rejects a late authority change ("unable to process the pending spawn
+## since it has no network ID"), silently discarding that spawn state --
+## every client's own Player landed at (0,0,0) or stacked on the host's slot,
+## plus an engine error on every join.
+##
+## Fix, part 1 (authority timing): authority assignment moved to
+## Player._enter_tree() (see that file), which runs on EVERY peer the
+## instant the node enters the tree -- before _ready() and before the
+## `spawned` signal, the timing Godot's OWN error message recommends. This
+## spawner no longer calls set_multiplayer_authority() anywhere;
+## Player.gd's _enter_tree() is now the ONE source of truth, deriving
+## authority from the same node.name == str(peer_id) naming contract this
+## spawner still owns (it only needs to set instance.name, which it does as
+## part of the spawn_function callback below).
+##
+## Fix, part 2 (initial position delivery -- REQUIRED, discovered via the
+## 2-instance spawn_probe while validating part 1 alone): giving a peer
+## authority over its OWN Player makes THAT peer the sync SOURCE for its
+## position/rotation from then on -- MultiplayerSynchronizer replication
+## only ever flows FROM the authority TO everyone else, never the reverse.
+## That means the host's OWN choice of "where does this new player start"
+## (SpawnPointUtil.spawn_point()) can NEVER reach the owning peer via the
+## ordinary property-sync channel once that peer holds authority -- no
+## matter how precisely part 1's timing is tuned, an authoritative peer's
+## local value simply cannot be overwritten by an incoming replicated write
+## for a property it now owns (confirmed empirically: with part 1 alone,
+## the owning client's own Player stayed at its scene-default (0,0,0)
+## forever, no error, no stack, just never-arriving spawn state -- a
+## different flavor of the same underlying symptom).
+##
+## This spawner now uses MultiplayerSpawner's spawn_function (instead of
+## the implicit _spawnable_scenes flow) to deliver id + position as a single
+## one-time, authority-INDEPENDENT payload: spawn(data) transmits `data` to
+## every peer, which each independently call _create_player_instance(data)
+## to build (and pre-position) their own local copy BEFORE add_child() --
+## i.e. before Player._enter_tree() ever runs, so authority is irrelevant to
+## whether the correct starting position lands. Player.tscn's
+## MultiplayerSynchronizer still replicates position/rotation ON_CHANGE
+## going forward (ordinary ongoing movement sync, unaffected by any of
+## this) but no longer marks them `spawn = true` -- that flag specifically
+## opts a property into the same "pending spawn" one-time delivery machinery
+## that was the source of both symptoms, and is now redundant since
+## spawn_function already delivers the initial value directly.
 ##
 ## Naming contract: each spawned Player's node name is set to str(peer_id)
 ## (e.g. "1" for the host, "2" for the first client, ...) -- this is how
@@ -72,6 +112,13 @@ var _spawn_count: int = 0
 
 func _ready() -> void:
 	_players_root = get_node(spawn_path)
+
+	# TK-BUG-P1-01 fix part 2 (see class doc): every peer registers the SAME
+	# spawn_function so spawn(data) below can deliver id + position as a
+	# single authority-independent payload, identically constructed on every
+	# peer (host included) BEFORE that instance's _enter_tree()/authority
+	# assignment ever runs.
+	spawn_function = _create_player_instance
 
 	# Handles the REPLICATED side only (see class doc): fires when a Player
 	# node is received over the network, never for the authority's own
@@ -121,8 +168,6 @@ func _spawn_player(id: int) -> void:
 	if _players_root.has_node(str(id)):
 		return # already spawned for this id -- idempotent guard
 
-	var instance: Node3D = PLAYER_SCENE.instantiate()
-	instance.name = str(id)
 	# NOTE: _spawn_count is a monotonically increasing "how many players has
 	# this host spawned so far this session" counter, not a live player
 	# count -- it intentionally does NOT decrement in _on_peer_disconnected,
@@ -130,30 +175,44 @@ func _spawn_player(id: int) -> void:
 	# reusing a just-vacated one. SpawnPointUtil.spawn_point() wraps it via
 	# `% MAX_SPAWN_SLOTS`, so this only affects which of the 8 fixed spots a
 	# given (re)connect lands on, never correctness.
-	instance.position = SpawnPointUtil.spawn_point(_spawn_count)
+	var spawn_position: Vector3 = SpawnPointUtil.spawn_point(_spawn_count)
 	_spawn_count += 1
 
-	# TK-P1-05: assign this Player's multiplayer authority to the peer it was
-	# spawned for, BEFORE add_child(), so the instance never spends a frame
-	# defaulting to authority = 1 (the server) once it enters the tree. This
-	# is the host's local copy of the node -- covers both the host's own
-	# Player and every client's Player, since only the host ever runs
-	# _spawn_player() (see _on_peer_connected's is_server() guard). Every
-	# OTHER peer's local copy of this same node gets its authority set
-	# independently in _on_spawned() below, from the same str(id) naming
-	# contract -- set_multiplayer_authority() does not itself propagate over
-	# the network. recursive = true (default) also covers the Player's
-	# MultiplayerSynchronizer child, so it replicates FROM the owning peer.
-	instance.set_multiplayer_authority(id)
+	# TK-BUG-P1-01 fix part 2 (see class doc): spawn(data) calls
+	# _create_player_instance(data) on EVERY peer (this one included) with
+	# the SAME id + position, building each peer's own local copy already
+	# correctly positioned before it ever enters the tree -- then adds the
+	# returned node under spawn_path itself (equivalent to our old manual
+	# add_child(), but authority-independent and race-free). Player._enter_tree()
+	# (this call's local add_child, and every other peer's replicated one)
+	# still assigns authority afterward exactly as before.
+	var instance: Node = spawn({"id": id, "position": spawn_position})
+	if instance == null:
+		GameLog.error("[SPAWN] spawn() returned null for peer %d -- not spawned" % id)
+		return
 
-	_players_root.add_child(instance)
-	GameLog.info("[SPAWN] player %d spawned at %s" % [id, instance.position])
+	GameLog.info("[SPAWN] player %d spawned at %s" % [id, spawn_position])
 
-	# Host-local path (see class doc): the authority's own add_child() above
-	# does NOT trigger `spawned` on itself, so activate this instance's
-	# camera synchronously here if it's ours. Covers the host's own Player
-	# and standalone/offline boot (single peer, is_server() == true).
+	# Host-local path (see class doc): the authority's own add_child() (done
+	# by spawn() above) does NOT trigger `spawned` on itself, so activate
+	# this instance's camera synchronously here if it's ours. Covers the
+	# host's own Player and standalone/offline boot (single peer,
+	# is_server() == true).
 	_activate_local_camera_if_own(instance)
+
+
+## spawn_function callback (TK-BUG-P1-01 fix part 2, see class doc): called
+## identically on EVERY peer (by MultiplayerSpawner, once per spawn(data)
+## call) to construct that peer's own local copy of a newly spawned Player,
+## already named and positioned from `data` -- BEFORE add_child()/_enter_tree()
+## ever runs, so the correct starting position is never subject to
+## authority-gated replication timing. Returns the built (but not yet
+## parented) node; MultiplayerSpawner itself adds it under spawn_path.
+func _create_player_instance(data: Dictionary) -> Node:
+	var instance: Node3D = PLAYER_SCENE.instantiate()
+	instance.name = str(data.get("id"))
+	instance.position = data.get("position", Vector3.ZERO)
+	return instance
 
 
 ## Replicated/client-side path (see class doc): runs on every peer whenever
@@ -162,30 +221,13 @@ func _spawn_player(id: int) -> void:
 ## to the same local-camera activation used by the host-local path in
 ## _spawn_player() so both routes agree on "exactly one camera current".
 ##
-## TK-P1-05: also sets THIS peer's local copy of the replicated node's
-## multiplayer authority, mirroring the host-side assignment in
-## _spawn_player() above. set_multiplayer_authority() never propagates over
-## the network on its own, so every peer must set it independently; we
-## recover the same peer id the host used from node.name (the naming
-## contract: node.name == str(peer_id), guaranteed set before this node was
-## ever replicated). Runs before anything else touches this node this
-## frame, so it's in place before the node's first _physics_process().
+## TK-BUG-P1-01: no longer touches multiplayer authority (see class doc) --
+## Player._enter_tree() already set its own authority correctly by the time
+## `spawned` fires (spawned fires after _ready(), _enter_tree() runs before
+## it), so re-deriving/re-setting it here would be redundant at best and,
+## per the audit, was actively harmful (too late relative to pending-spawn
+## state processing). This handler is ONLY local-camera activation now.
 func _on_spawned(node: Node) -> void:
-	# TK-P1-06 (code-review nit): guard against a non-numeric node.name before
-	# int()-parsing it -- `_spawn_player()` always sets it to str(peer_id),
-	# but a defensive check here costs nothing and prevents int("garbage")
-	# silently coercing to 0 (which would hand this node's authority to peer
-	# id 0 -- not a real peer id, since Godot peer ids start at 1) if this
-	# node ever arrived with an unexpected name. Same check SpawnPointUtil.
-	# is_local_peer_name() already relies on for its own String.is_valid_int()
-	# guard, kept in sync here for the authority-assignment path.
-	if not node.name.is_valid_int():
-		GameLog.error(
-			"[SPAWN] replicated node with non-numeric name '%s' -- refusing to assign authority" % node.name
-		)
-		return
-	var owner_peer_id: int = int(node.name)
-	node.set_multiplayer_authority(owner_peer_id)
 	_activate_local_camera_if_own(node)
 
 

@@ -118,6 +118,55 @@ const PITCH_MIN: float = -deg_to_rad(60.0) # look down
 const PITCH_MAX: float = deg_to_rad(30.0)  # look up
 
 
+## TK-BUG-P1-01 fix (network-engineer): this Player's multiplayer authority
+## used to be assigned by PlayerSpawner AFTER add_child() (host-side directly,
+## client-side from the `spawned` signal) -- but `spawned` fires AFTER this
+## node's own `_ready()`, and by then Godot has already started delivering
+## this instance's MultiplayerSpawner spawn-state and rejects a late
+## authority change with "unable to process the pending spawn since it has
+## no network ID" -- confirmed reproducible (see PlayerSpawner.gd class doc)
+## by moving the assignment to `_ready()` instead during investigation.
+##
+## Fix: `_enter_tree()` runs on EVERY peer the instant this node enters the
+## SceneTree -- BEFORE `_ready()` and before the `spawned` signal, the timing
+## Godot's own error message recommends. We derive authority from the
+## deterministic node.name == str(peer_id) naming contract (PlayerSpawner's
+## spawn_function sets instance.name = str(id) before returning the node to
+## be parented, so it's already in place by the time _enter_tree fires, on
+## every peer, replicated or not). set_multiplayer_authority() is a purely
+## LOCAL call (never propagates over the network by itself), so every
+## peer's local copy independently deriving the SAME authority from the
+## SAME node name is what keeps them all in agreement -- this is now the
+## ONE source of truth for authority; PlayerSpawner no longer sets it at all
+## (see its class doc). recursive = true (default) also covers this
+## Player's MultiplayerSynchronizer child, so it replicates FROM the owning
+## peer with no separate call needed.
+##
+## NOTE (see PlayerSpawner.gd class doc for the full story): this alone does
+## NOT get the host-decided spawn POSITION to the owning peer -- once a peer
+## holds authority over its own Player, MultiplayerSynchronizer only ever
+## replicates FROM that peer TO others, never the reverse, so an
+## authoritative peer's local value can never be overwritten by an incoming
+## write for a property it now owns. PlayerSpawner's spawn_function
+## delivers the initial position directly (authority-independent) before
+## this node is even parented, so by the time _enter_tree() below runs,
+## `position` is already correct and authority is irrelevant to it.
+func _enter_tree() -> void:
+	if name.is_valid_int():
+		set_multiplayer_authority(int(name))
+	else:
+		# Tripwire (TK-BUG-P1-02 review nit #3): the naming contract
+		# (node.name == str(peer_id), set by PlayerSpawner's spawn_function)
+		# should make this branch unreachable. If it ever fires, this Player
+		# silently keeps the default authority (peer 1 / the server), which
+		# would hand a client's avatar to the host -- exactly the kind of
+		# authority mixup TK-BUG-P1-01 was about. Log loudly rather than
+		# fail silently (mirrors the guard the old _on_spawned() had).
+		GameLog.error(
+			"[Player] _enter_tree: non-numeric name '%s' -- authority NOT set, keeping default" % name
+		)
+
+
 func _ready() -> void:
 	GameLog.debug("[Player] ready (name=%s)" % name)
 	if is_multiplayer_authority():
@@ -134,13 +183,29 @@ func _ready() -> void:
 ## a future pause/menu card should decide how capture interacts with that UI
 ## (e.g. suspend capture while a menu is open) rather than this script owning
 ## that policy.
+##
+## TK-BUG-P1-02 (review fix): the ESC branch below is GATED on the mouse
+## currently being CAPTURED, and CONSUMES the event
+## (get_viewport().set_input_as_handled()) when it releases capture. This is
+## load-bearing for the TestArena.gd Leave path: _unhandled_input propagates
+## from the DEEPEST node UP, so this Player (deep in the tree) runs BEFORE the
+## scene-root TestArena on the SAME event, and Input.mouse_mode readback is
+## immediate. Without the gate+consume, a single ESC tap would (1) release
+## capture here, then (2) TestArena would see mouse == VISIBLE on that very
+## same press and immediately _leave() -- one reflexive ESC ends the whole
+## session (fatal on the host). With the gate+consume: while CAPTURED, ESC is
+## eaten here (release only, TestArena never sees it); only once the mouse is
+## ALREADY visible does ESC fall through un-consumed to TestArena to trigger
+## Leave. Net UX: first ESC releases the mouse, a distinct second ESC leaves.
 func _unhandled_input(event: InputEvent) -> void:
 	if not is_multiplayer_authority():
 		return
 
 	if event is InputEventKey and event.pressed and not event.echo \
-			and event.keycode == KEY_ESCAPE:
+			and event.keycode == KEY_ESCAPE \
+			and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		get_viewport().set_input_as_handled()
 		return
 
 	if event is InputEventMouseButton and event.pressed \

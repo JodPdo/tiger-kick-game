@@ -743,7 +743,7 @@
     "type": "bug",
     "priority": "High",
     "owner_agent": "network-engineer",
-    "status": "doing",
+    "status": "done",
     "depends_on": [],
     "labels": "bug, phase-1, prio-high, S1"
   },
@@ -755,7 +755,7 @@
     "type": "bug",
     "priority": "High",
     "owner_agent": "network-engineer",
-    "status": "doing",
+    "status": "done",
     "depends_on": [],
     "labels": "bug, phase-1, prio-high, S2"
   },
@@ -767,7 +767,7 @@
     "type": "task",
     "priority": "High",
     "owner_agent": "network-engineer",
-    "status": "todo",
+    "status": "doing",
     "depends_on": [
       "TK-BUG-P1-01",
       "TK-BUG-P1-02"
