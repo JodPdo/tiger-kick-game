@@ -8,7 +8,7 @@ Single source of truth for "where are we now". **Update this whenever the phase/
 | Game Build | v0.3 — movement done (spawn/authority/camera/sync, 2-window verified); core loop next |
 | Current Phase | **Phase 2 — Core Loop** (started; Ability System design APPROVED) |
 | Current Milestone | **M2 Core Gameplay** |
-| Current Sprint | `TK-P2-16` Ability scaffold — Step 1 (extract MovementComponent) in progress |
+| Current Sprint | `TK-P2-16` Ability scaffold DONE (Steps 1–3, §4a authority fix) — pending human 2-window confirm → then `TK-P2-01` Kick |
 | Exit Gate goal | Kick + Tag + 7-step Tag Sequence + role swap on the ability scaffold; core loop playable |
 
 ## Phase 0 — CLOSED ✅ (Exit Gate PASS, PR #1 merged)
