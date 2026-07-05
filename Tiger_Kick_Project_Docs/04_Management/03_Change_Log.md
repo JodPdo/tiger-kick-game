@@ -3,6 +3,12 @@
 บันทึกการเปลี่ยนแปลงสำคัญของโปรเจกต์และเอกสาร (รูปแบบ Keep a Changelog)
 เวอร์ชันล่าสุดอยู่บนสุด
 
+## [0.32] — 2026-07-05 — Phase 1 (M1 Movement) CLOSED ✅
+- Exit Gate ผ่านครบ: **มนุษย์เทส 2 หน้าต่างผ่าน** (spawn ไม่ทับ, ESC-ESC Leave, host ปิด→client กลับเมนู, เดิน/กล้อง sync) + CI เขียว (GUT 119/119 + net_smoke + spawn probe เป็น gate แล้ว)
+- `TK-P1-07` done (CI wiring). การ์ด Phase 1 ครบ: TK-P1-01..07 + TK-BUG-P1-01/02
+- **บทเรียน:** "116/116 เขียว แต่เกมพัง" → เทส pure-function ล้วนมองไม่เห็น glue bug; แก้เชิงระบบด้วยการเพิ่ม 2-instance spawn probe เข้า CI (ไม่ให้เกิดซ้ำ)
+- เหลือ: merge PR #3 (มนุษย์) · **gate ก่อน Phase 2 = architect อนุมัติ design Ability System (TK-P2-16)**
+
 ## [0.31] — 2026-07-05 — แก้บั๊ก Phase 1 reopen เสร็จ (ผ่าน review 2 รอบ + qa)
 - `TK-BUG-P1-01` (S1): authority ย้ายไป `Player._enter_tree()` (จาก name contract + tripwire) และ spawner เปลี่ยนเป็น `MultiplayerSpawner.spawn_function` ส่ง `{id, position}` ถึงทุก peer โดยไม่พึ่ง authority-gated sync (`spawn=false` บน position/rotation; `_spawnable_scenes` ถอดออกกัน footgun) — spawn probe: client ลง slot ตัวเอง ไม่ทับ host ไม่ (0,0,0) ไม่มี pending-spawn error
 - `TK-BUG-P1-02` (S2): signal `NetworkManager.server_disconnected` → `world/TestArena.gd` (ใหม่) พากลับ MainMenu + คืนเมาส์; Leave = ESC-ESC (ESC แรก consume ใน Player ตอน CAPTURED — แก้ single-ESC race ที่ reviewer จับได้จากการยิง key จริง); guard `host()/join()` = ERR_ALREADY_IN_USE
