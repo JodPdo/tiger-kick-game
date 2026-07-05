@@ -80,8 +80,6 @@ extends CharacterBody3D
 
 @onready var collision_shape: CollisionShape3D = $CollisionShape3D
 @onready var mesh_instance: MeshInstance3D = $MeshInstance3D
-@onready var camera_rig: Node3D = $CameraRig
-@onready var spring_arm: SpringArm3D = $CameraRig/SpringArm3D
 @onready var camera: Camera3D = $CameraRig/SpringArm3D/Camera3D
 @onready var synchronizer: MultiplayerSynchronizer = $MultiplayerSynchronizer
 
@@ -92,30 +90,22 @@ extends CharacterBody3D
 ## characters/components/MovementComponent.gd (a new child node added in
 ## Player.tscn). This file's history above (TK-P1-02/03/06) is kept as
 ## context for that moved code -- see MovementComponent.gd for the current
-## implementation and its own doc comments. Everything below this point is
-## unchanged and still lives on Player.gd/PlayerRoot: authority/naming
-## (_enter_tree), the camera rig + mouse-look (_ready/_unhandled_input,
-## CameraRig stays on Player until Step 2/CameraComponent), and
-## get_view_camera().
-
-## -- Camera rig tunables (TK-P1-03) ------------------------------------------
-
-## Fallback mouse sensitivity multiplier, used only if ConfigManager isn't
-## available (e.g. a bare/offline test context). Normally overridden per-run
-## by ConfigManager.get_value("controls", "mouse_sensitivity", ...) -- see
-## Settings > Controls (TK-PX-05), DEFAULTS.controls.mouse_sensitivity = 1.0.
-@export var mouse_sensitivity_fallback: float = 1.0
-
-## Radians of rig rotation per pixel of mouse motion at sensitivity == 1.0.
-## Not a GDD/TDD-specified balance value (a feel/UX constant, not gameplay
-## rules), so a plain constant rather than a design-owned @export.
-const MOUSE_LOOK_RADIANS_PER_PIXEL: float = 0.0025
-
-## SpringArm3D pitch clamp (TK-P1-03 card spec): more room to look down
-## (toward the ground/character) than up, matching common third-person
-## camera feel and avoiding the camera flipping over the top.
-const PITCH_MIN: float = -deg_to_rad(60.0) # look down
-const PITCH_MAX: float = deg_to_rad(30.0)  # look up
+## implementation and its own doc comments.
+##
+## TK-P2-16 Step 2 (same scaffold): the camera-rig tunables, _ready()'s mouse
+## capture, and _unhandled_input() (mouse-look, ESC gate+consume, mouse-button
+## recapture) that used to live here have MOVED, verbatim/behavior-preserving,
+## to characters/components/CameraComponent.gd (a new child node added in
+## Player.tscn) -- this file's TK-P1-03/TK-BUG-P1-02 history above is kept as
+## context for that moved code -- see CameraComponent.gd for the current
+## implementation, its own doc comments, and (critically) the ESC gate+consume
+## banner. Everything below this point is unchanged and still lives on
+## Player.gd/PlayerRoot: authority/naming (_enter_tree) and get_view_camera()
+## (this file keeps its own `camera` @onready ref for that accessor --
+## CameraRig/SpringArm3D/Camera3D themselves stay in the scene tree under
+## Player; CameraComponent only holds the LOGIC that rotates
+## CameraRig/SpringArm3D, reached via get_parent().get_node(...), same pattern
+## as MovementComponent).
 
 
 ## TK-BUG-P1-01 fix (network-engineer): this Player's multiplayer authority
@@ -169,59 +159,6 @@ func _enter_tree() -> void:
 
 func _ready() -> void:
 	GameLog.debug("[Player] ready (name=%s)" % name)
-	if is_multiplayer_authority():
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-
-
-## Mouse-look (TK-P1-03): rotates CameraRig's yaw (Y) and SpringArm3D's
-## pitch (X, clamped to PITCH_MIN..PITCH_MAX) from raw mouse motion. Gated on
-## is_multiplayer_authority() so only the local/owning peer's rig responds
-## (same authority caveat as _physics_process below applies pre-TK-P1-05).
-## Mouse capture UX (documented, kept simple per the card): captured on
-## _ready() for the authority player; Esc releases it (e.g. to reach OS/UI);
-## a left-click while released recaptures it. No pause menu exists yet --
-## a future pause/menu card should decide how capture interacts with that UI
-## (e.g. suspend capture while a menu is open) rather than this script owning
-## that policy.
-##
-## TK-BUG-P1-02 (review fix): the ESC branch below is GATED on the mouse
-## currently being CAPTURED, and CONSUMES the event
-## (get_viewport().set_input_as_handled()) when it releases capture. This is
-## load-bearing for the TestArena.gd Leave path: _unhandled_input propagates
-## from the DEEPEST node UP, so this Player (deep in the tree) runs BEFORE the
-## scene-root TestArena on the SAME event, and Input.mouse_mode readback is
-## immediate. Without the gate+consume, a single ESC tap would (1) release
-## capture here, then (2) TestArena would see mouse == VISIBLE on that very
-## same press and immediately _leave() -- one reflexive ESC ends the whole
-## session (fatal on the host). With the gate+consume: while CAPTURED, ESC is
-## eaten here (release only, TestArena never sees it); only once the mouse is
-## ALREADY visible does ESC fall through un-consumed to TestArena to trigger
-## Leave. Net UX: first ESC releases the mouse, a distinct second ESC leaves.
-func _unhandled_input(event: InputEvent) -> void:
-	if not is_multiplayer_authority():
-		return
-
-	if event is InputEventKey and event.pressed and not event.echo \
-			and event.keycode == KEY_ESCAPE \
-			and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-		get_viewport().set_input_as_handled()
-		return
-
-	if event is InputEventMouseButton and event.pressed \
-			and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE:
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		return
-
-	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		var sensitivity: float = mouse_sensitivity_fallback
-		if ConfigManager:
-			sensitivity = ConfigManager.get_value(
-				"controls", "mouse_sensitivity", mouse_sensitivity_fallback
-			)
-		var motion: Vector2 = event.relative * sensitivity * MOUSE_LOOK_RADIANS_PER_PIXEL
-		camera_rig.rotation.y -= motion.x
-		spring_arm.rotation.x = clamp(spring_arm.rotation.x - motion.y, PITCH_MIN, PITCH_MAX)
 
 
 ## CONTRACT (producer-defined, TK-P1-03/TK-P1-05): returns the rig's
@@ -238,3 +175,9 @@ func get_view_camera() -> Camera3D:
 ## to be here have moved to characters/components/MovementComponent.gd --
 ## see this file's header above and MovementComponent.gd's own doc comments
 ## for the full (unchanged) history and rationale.
+##
+## TK-P2-16 Step 2: mouse capture (_ready()), mouse-look/ESC-gate/recapture
+## (_unhandled_input()), and the camera tunables that used to be here have
+## moved to characters/components/CameraComponent.gd -- see this file's
+## header above and CameraComponent.gd's own doc comments (including the ESC
+## gate+consume banner) for the full (unchanged) history and rationale.
