@@ -281,7 +281,8 @@
     "depends_on": [
       "TK-P1-02"
     ],
-    "labels": "task, phase-2, prio-high"
+    "labels": "task, phase-2, prio-high",
+    "parked": "CODE COMPLETE, REVIEW-PENDING (committed WIP). gameplay-engineer finished KickAbility + KickRules (pure) + catalog registration + AbilityController input-dispatch/initial-role-build + carried nits (set_role guard, dup ability_id assert). Verified by implementer: import clean, GUT 152/152 (+18 KickRules tests), net_smoke + spawn probe PASS, 2-instance pipeline proof (in-range client kick -> confirm both; out-of-range -> reject requester-only; host self-kick -> local path no self-RPC). NOT yet peer-reviewed: code-reviewer hit session limit mid-run. NEXT ON RESUME: re-run code-reviewer on TK-P2-01 (focus §4a security, host-side cooldown, windowed ESC-ESC + no-kick-on-visible-click), then qa, then commit-final + mark done. Scope note: no Tiger role yet -> Kick targets nearest other player; stagger/knockback = TK-P2-17."
   },
   {
     "id": "TK-P2-02",

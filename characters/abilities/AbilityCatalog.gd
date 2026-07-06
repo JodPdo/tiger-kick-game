@@ -13,12 +13,17 @@ class_name AbilityCatalog
 ## peer disagreeing about what a role's ability set is would desync which
 ## abilities exist, not just their results.
 ##
-## SCAFFOLD (this step): every role's list is EMPTY -- no concrete ability
-## exists yet (Kick lands in TK-P2-01 / design doc §7 Step 4, right after
-## this card). AbilityController.set_role() already calls
-## abilities_for_role() unconditionally, so registering the first ability
-## later is purely additive here -- no AbilityController/Player change
-## required.
+## TK-P2-01 (design doc §7 Step 4): Outer's catalog now has its first real
+## entry (KickAbility) -- registering it here was purely additive, exactly as
+## the original scaffold note below predicted (no AbilityController/Player
+## change was required). Tiger's catalog is still empty (TK-P2-18/TK-P3-05
+## are the cards that append its first entries).
+##
+## Original scaffold note (TK-P2-16, kept for history): every role's list
+## used to be EMPTY -- no concrete ability existed yet.
+## AbilityController.set_role() already calls abilities_for_role()
+## unconditionally, so registering the first ability was purely additive
+## here -- no AbilityController/Player change required.
 ##
 ## Pattern matches managers/TigerSelector.gd and networking/SpawnPointUtil.gd:
 ## a plain `class_name` with no `extends` (implicit Object), only static
@@ -47,8 +52,8 @@ static func abilities_for_role(role: StringName) -> Array:
 			return []
 		ROLE_OUTER:
 			# HumanAbility catalog (design doc §6): Kick, Hide, Emote (+ Jump-Kick).
-			# None implemented yet -- TK-P2-01 (Kick) is the very next card and
-			# will append the first entry here.
-			return []
+			# TK-P2-01 (Kick) is the first entry -- Hide/Emote/Jump-Kick are still
+			# unimplemented future cards.
+			return [preload("res://characters/abilities/KickAbility.gd")]
 		_:
 			return []

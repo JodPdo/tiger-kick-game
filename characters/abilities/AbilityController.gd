@@ -56,11 +56,25 @@ extends Node
 func _enter_tree() -> void:
 	set_multiplayer_authority(1)
 
+
+## TK-P2-01: build the initial ability set at spawn. Every peer's own local
+## Player tree (this node included) builds ITS OWN ability children straight
+## from AbilityCatalog, keyed off PlayerRoot's `role` (default &"outer" --
+## see Player.gd), so Kick exists the instant a Player spawns WITHOUT waiting
+## for GameManager (which does not exist yet -- TK-P2-15, later) to ever
+## broadcast a role. Calling `set_role(_body.role)` here is exactly the same
+## rebuild set_role() already does for a real role-switch broadcast later
+## (design doc section 5 step 1); this is just the first call, for the
+## default role every Player starts with.
+func _ready() -> void:
+	set_role(_body.role)
+
+
 ## Currently-active ability child nodes, keyed by ability_id, rebuilt every
-## time set_role() runs. Empty for now (AbilityCatalog returns an empty
-## array for every role this step) -- kept as a Dictionary (rather than
-## only relying on scene children) so try_activate()/the RPC handlers can
-## look an ability up by id in O(1) once abilities exist.
+## time set_role() runs. Empty for Tiger (no TigerAbility registered yet --
+## TK-P2-18/TK-P3-05), one entry for Outer (KickAbility, TK-P2-01) -- kept as
+## a Dictionary (rather than only relying on scene children) so
+## try_activate()/the RPC handlers can look an ability up by id in O(1).
 var _abilities: Dictionary = {}
 
 
@@ -87,6 +101,18 @@ func set_role(role: StringName) -> void:
 		var ability: Ability = _instantiate_ability(entry)
 		if ability == null:
 			continue
+		# Review nit (TK-P2-01 carried over from the TK-P2-16 Step 3 review):
+		# a catalog that lists two abilities sharing the same ability_id under
+		# one role would silently let the second overwrite the first in
+		# _abilities below (and leave an orphaned, un-lookup-able duplicate
+		# child node) -- fail loudly instead so a future catalog-authoring
+		# mistake is caught immediately rather than manifesting as "my new
+		# ability's input does nothing" later.
+		assert(
+			not _abilities.has(ability.ability_id),
+			"AbilityCatalog registered a duplicate ability_id '%s' for role '%s' -- every ability under one role must have a unique ability_id"
+			% [ability.ability_id, role]
+		)
 		add_child(ability)
 		_abilities[ability.ability_id] = ability
 
@@ -109,6 +135,42 @@ func _instantiate_ability(entry) -> Ability:
 	return null
 
 
+## TK-P2-01: input -> try_activate (design doc section 2 responsibility
+## table: "AbilityController -- registry ability ตาม role, input->try_activate
+## ..."). Iterates the currently-registered abilities (per the active role)
+## and fires try_activate() for whichever one's declared `input_action` this
+## event just-pressed -- e.g. KickAbility.input_action == &"kick" (bound to
+## left mouse button in project.godot). Deliberately event-driven
+## (_unhandled_input), not polled every _process() tick, matching
+## CameraComponent's own _unhandled_input pattern for the same node depth
+## (Player -> AbilityController, a sibling of CameraComponent).
+##
+## Two authority-adjacent guards, both belt-and-suspenders (try_activate()
+## re-checks the real one itself, design doc section 4a "owner check =
+## `_body.is_multiplayer_authority()`"):
+##   - `_body.is_multiplayer_authority()`: skip entirely for a Player this
+##     peer does not own -- no point scanning _abilities for someone else's
+##     Player, though try_activate() would also reject it.
+##   - `Input.mouse_mode == MOUSE_MODE_CAPTURED`: while the mouse is released
+##     (CameraComponent's ESC gate, TK-BUG-P1-02), a left-click is UI intent
+##     (re-capture the mouse), not gameplay intent -- without this guard,
+##     kick shares InputMap action `kick` with the same physical left-mouse-
+##     button CameraComponent uses to re-capture, so releasing-then-clicking
+##     to get the mouse back would ALSO fire a kick. Gated the same way
+##     CameraComponent gates its own recapture-only-while-visible branch, so
+##     the two components agree on which mouse-mode owns left-click.
+func _unhandled_input(event: InputEvent) -> void:
+	if not _body.is_multiplayer_authority():
+		return
+	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+		return
+
+	for id in _abilities:
+		var ability: Ability = _abilities[id]
+		if ability.input_action != &"" and event.is_action_pressed(ability.input_action):
+			try_activate(id)
+
+
 ## Owner-side entry point (design doc section 4, the Kick walkthrough):
 ## looks the ability up by id, runs its owner-side precheck + cosmetic
 ## feedback, then routes by its declared Resolution -- LOCAL_ONLY abilities
@@ -117,10 +179,9 @@ func _instantiate_ability(entry) -> Ability:
 ## A); HOST_AUTHORITATIVE abilities send an activation request to the host
 ## via rpc_request_activate and wait for rpc_confirm/rpc_reject.
 ##
-## With no abilities registered yet (this step), _abilities is always
-## empty, so every call is an inert early-return -- but the path below is
-## exactly what Step 4 (Kick) will exercise for real, so it is written and
-## reviewable now rather than invented later.
+## TK-P2-01: KickAbility is now registered for &"outer" (AbilityCatalog), so
+## this path is live -- _unhandled_input() above is the real caller for
+## player-driven activation; GameLog/tests may also call this directly.
 func try_activate(ability_id: StringName, payload: Dictionary = {}) -> void:
 	if not _body.is_multiplayer_authority():
 		return # only the owning peer may request its own Player ability to activate

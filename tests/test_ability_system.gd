@@ -19,6 +19,7 @@ const AbilityScript := preload("res://characters/abilities/Ability.gd")
 const HumanAbilityScript := preload("res://characters/abilities/HumanAbility.gd")
 const TigerAbilityScript := preload("res://characters/abilities/TigerAbility.gd")
 const AbilityCatalogScript := preload("res://characters/abilities/AbilityCatalog.gd")
+const KickAbilityScript := preload("res://characters/abilities/KickAbility.gd")
 const PlayerScene := preload("res://characters/Player.tscn")
 
 const ROLE_TIGER: StringName = &"tiger"
@@ -32,9 +33,14 @@ func test_tiger_role_has_no_abilities_this_step() -> void:
 	assert_eq(result, [], "AbilityCatalog scaffold ships with an empty Tiger catalog (TK-P2-18/TK-P3-05 register the first entries)")
 
 
-func test_outer_role_has_no_abilities_this_step() -> void:
+func test_outer_role_has_kick_registered() -> void:
+	# TK-P2-01: Outer's catalog now has its first real entry -- KickAbility.
+	# This test supersedes the old scaffold assertion (TK-P2-16) that Outer's
+	# catalog was empty; Kick registering here IS the "add ability = 1 file +
+	# 1 catalog line" DoD (design doc §7 Step 4) actually landing.
 	var result: Array = AbilityCatalogScript.abilities_for_role(ROLE_OUTER)
-	assert_eq(result, [], "AbilityCatalog scaffold ships with an empty Outer catalog (TK-P2-01 Kick registers the first entry)")
+	assert_eq(result.size(), 1, "Outer catalog should have exactly one entry (KickAbility) at this step")
+	assert_eq(result[0], KickAbilityScript, "Outer's single catalog entry should be KickAbility.gd")
 
 
 func test_unknown_role_returns_empty_array_not_null() -> void:

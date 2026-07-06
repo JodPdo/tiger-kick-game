@@ -214,6 +214,13 @@ func get_view_camera() -> Camera3D:
 ## (design doc §5 step 1: apply_role_switch) exist.
 func set_role(new_role: StringName) -> void:
 	role = new_role
+	# Review nit (TK-P2-01 carried over from the TK-P2-16 Step 3 review):
+	# `ability_controller` is an @onready var (assigned just before this
+	# node's own _ready()) -- guard against a hypothetical caller invoking
+	# set_role() on a Player that has not entered the tree yet (not ready),
+	# where ability_controller would still be null. Not reachable today
+	# (nobody calls set_role() before spawn), but this keeps the method safe
+	# regardless of future callers/timing.
 	if ability_controller:
 		ability_controller.set_role(new_role)
 
