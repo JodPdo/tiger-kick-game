@@ -277,7 +277,7 @@
     "type": "task",
     "priority": "High",
     "owner_agent": "gameplay-engineer",
-    "status": "todo",
+    "status": "doing",
     "depends_on": [
       "TK-P1-02"
     ],

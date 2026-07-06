@@ -3,6 +3,11 @@
 บันทึกการเปลี่ยนแปลงสำคัญของโปรเจกต์และเอกสาร (รูปแบบ Keep a Changelog)
 เวอร์ชันล่าสุดอยู่บนสุด
 
+## [0.36] — 2026-07-06 — TK-P2-16 ปิด (มนุษย์เทส 2 หน้าต่างผ่าน) → เริ่ม Kick
+- **TK-P2-16 (Ability scaffold) เสร็จสมบูรณ์** — มนุษย์ยืนยัน 2-window: spawn slot/sprint sync/mouse-look/ESC-2-step/host-quit ครบ (refactor 3 step ไม่พังเกม)
+- เริ่ม **TK-P2-01 Kick** = ability HOST_AUTHORITATIVE ตัวแรกบน scaffold; เพิ่ม InputMap action `kick` = left mouse button (project.godot)
+- nits ที่ผูกกับ Kick: set_role early-guard, ability_id collision assert, `on_confirmed` ต้องไม่ authoritative (forger self-echo เป็น cosmetic)
+
 ## [0.35] — 2026-07-05 — แก้ authority model ของ Ability RPC (§4a) — review จับ + architect เคาะ
 - **defect:** review TK-P2-16 Step 3 (Fable 5) จับว่า TK-BUG-P1-01 (recursive authority) ทำให้ AbilityController ได้ authority = client เจ้าของ ไม่ใช่ server → `@rpc("authority")` = "owner" → (1) confirm/reject จาก host โดน drop (2) **client forge rpc_confirm ข้าม host_validate ได้ = server-authority พลิกกลับ (S1)** (3) host กด ability ตัวเองไม่ได้ (self-RPC) — เป็น interaction ข้ามการ์ดที่ per-card review มองไม่เห็น, จับได้ตอน scaffold ว่าง (ก่อน Kick)
 - **architect ruling (option a, พร้อม probe พิสูจน์ empirically):** AbilityController เรียก `set_multiplayer_authority(1)` ใน `_enter_tree` ตัวเอง (วิ่งหลัง recursive set, override เฉพาะ subtree ตัวเอง; sibling synchronizer/position ไม่กระทบ) → `@rpc("authority")` กลับมาหมายถึง host, engine drop RPC ปลอม (fail-closed) · + host-local activation path (`_host_process_request` เรียกตรงเมื่อ is_server, reject local เลี่ยง self-RPC)
