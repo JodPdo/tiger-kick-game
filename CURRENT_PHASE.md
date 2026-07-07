@@ -8,7 +8,7 @@ Single source of truth for "where are we now". **Update this whenever the phase/
 | Game Build | v0.3 — movement done (spawn/authority/camera/sync, 2-window verified); core loop next |
 | Current Phase | **Phase 2 — Core Loop** (started; Ability System design APPROVED) |
 | Current Milestone | **M2 Core Gameplay** |
-| Current Sprint | ⏸️ PARKED — `TK-P2-16` scaffold DONE (human-confirmed). `TK-P2-01` Kick = code-complete, WIP-committed, **review-pending** (reviewer hit session limit). Resume: re-run code-reviewer on Kick. |
+| Current Sprint | ▶️ ACTIVE — `TK-P2-16` scaffold DONE. `TK-P2-01` Kick = **DONE** (code-review PASS-WITH-NITS + qa PASS, GUT 152/152, net_smoke + spawn probe PASS, no S0/S1). Next card: `TK-P2-10` Jump or `TK-P2-17` Kick Stagger. Followup `TK-P2-19` (CI kick-pipeline probe) open before Exit Gate. |
 | Exit Gate goal | Kick + Tag + 7-step Tag Sequence + role swap on the ability scaffold; core loop playable |
 
 ## Phase 0 — CLOSED ✅ (Exit Gate PASS, PR #1 merged)
@@ -26,7 +26,7 @@ Single source of truth for "where are we now". **Update this whenever the phase/
 - [x] host quits → client returns to MainMenu; ESC-ESC Leave works (single ESC does NOT disconnect)
 - [x] movement/camera sync across 2 windows — **human 2-window test PASSED**
 - [x] Regression: GUT 119/119 (1206 asserts) + net_smoke + spawn probe (now CI-gated), no open S0/S1
-- [ ] Merge `develop` → `main` (PR #3) — pending human
+- [x] Merge `develop` → `main` — **DONE**: Phase 1 close (`400e7f9` Exit Gate PASS) landed in `main` via **PR #4** (`386cf22`, 2026-07-05), which absorbed the pending PR #3. Phase 1 fully on `main`.
 - Audit note [0.28]: S1-A "WASD dead (device:16)" was a FALSE ALARM (human-verified); the 116/116-green-but-broken lesson → per-card pure-function tests missed glue bugs; fixed by adding the 2-instance spawn probe to CI.
 
 ## Open cross-phase items (not blocking)

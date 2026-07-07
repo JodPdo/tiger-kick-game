@@ -277,12 +277,12 @@
     "type": "task",
     "priority": "High",
     "owner_agent": "gameplay-engineer",
-    "status": "doing",
+    "status": "done",
     "depends_on": [
       "TK-P1-02"
     ],
     "labels": "task, phase-2, prio-high",
-    "parked": "CODE COMPLETE, REVIEW-PENDING (committed WIP). gameplay-engineer finished KickAbility + KickRules (pure) + catalog registration + AbilityController input-dispatch/initial-role-build + carried nits (set_role guard, dup ability_id assert). Verified by implementer: import clean, GUT 152/152 (+18 KickRules tests), net_smoke + spawn probe PASS, 2-instance pipeline proof (in-range client kick -> confirm both; out-of-range -> reject requester-only; host self-kick -> local path no self-RPC). NOT yet peer-reviewed: code-reviewer hit session limit mid-run. NEXT ON RESUME: re-run code-reviewer on TK-P2-01 (focus §4a security, host-side cooldown, windowed ESC-ESC + no-kick-on-visible-click), then qa, then commit-final + mark done. Scope note: no Tiger role yet -> Kick targets nearest other player; stagger/knockback = TK-P2-17."
+    "closed_note": "DONE. code-reviewer APPROVE (PASS-WITH-NITS, no blocking, §4a server-authority conforms, host cooldown not bypassable, no new @rpc) -> qa-engineer PASS (own run: import clean, GUT 152/152 / 1246 asserts, net_smoke + spawn probe PASS, no S0/S1). QA also automated the nit#7 host_validate decision-glue (4/4) and confirmed no self-target. Residual gap: RPC wire-routing (confirm-broadcast vs reject-requester-only) still manual-only -> followup TK-P2-19 (CI kick-pipeline probe) before Phase 2 Exit Gate. Scope: no Tiger role yet -> targets nearest other player; stagger/knockback = TK-P2-17; role-filter = TK-P2-04/09."
   },
   {
     "id": "TK-P2-02",
@@ -802,5 +802,20 @@
       "TK-P2-16"
     ],
     "labels": "task, phase-2, prio-high"
+  },
+  {
+    "id": "TK-P2-19",
+    "phase": "Phase 2",
+    "milestone": "M2 Core Gameplay",
+    "title": "CI kick-pipeline probe: 2-instance headless test asserting confirm-broadcast + reject-requester-only over the wire (analog of run_spawn_probe.sh) — closes nit#7 RPC-routing glue gap",
+    "type": "task",
+    "priority": "Medium",
+    "owner_agent": "tools-devops",
+    "status": "todo",
+    "depends_on": [
+      "TK-P2-01"
+    ],
+    "labels": "task, phase-2, prio-medium",
+    "note": "From TK-P2-01 review/QA. KickRules pure logic + host_validate decision-glue are covered by GUT; the residual gap is the RPC WIRE ROUTING (rpc_confirm broadcast-to-all vs rpc_reject requester-only, _reject_owner host-local-vs-remote branch), currently proven only by manual 2-instance run. Add a headless probe gated in CI, mirroring tests/net/run_spawn_probe.sh, so this path stays covered before the Phase 2 Exit Gate. Phase-1 lesson: green pure-function tests missed glue bugs."
   }
 ]
