@@ -8,7 +8,7 @@ Single source of truth for "where are we now". **Update this whenever the phase/
 | Game Build | v0.3 — movement done (spawn/authority/camera/sync, 2-window verified); core loop next |
 | Current Phase | **Phase 2 — Core Loop** (started; Ability System design APPROVED) |
 | Current Milestone | **M2 Core Gameplay** |
-| Current Sprint | ▶️ ACTIVE — `TK-P2-16` scaffold DONE. `TK-P2-01` Kick = **DONE** (code-review PASS-WITH-NITS + qa PASS, GUT 152/152, net_smoke + spawn probe PASS, no S0/S1). Next card: `TK-P2-10` Jump or `TK-P2-17` Kick Stagger. Followup `TK-P2-19` (CI kick-pipeline probe) open before Exit Gate. |
+| Current Sprint | ⏸️ CHECKPOINT (session break) — `TK-P2-01` Kick = **DONE** (pushed). `TK-P2-10` Jump = **automation gate GREEN, HUMAN 2-WINDOW PENDING** (code-review 2-round PASS incl. S2 double-jump-guard fix + qa PASS, GUT 166/166, net_smoke + spawn probe PASS, no S0/S1; committed checkpoint). **RESUME:** run the human 2-window manual test on Jump (see `TK-P2-10` parked note steps a–e) → if PASS flip card to done + close commit → then next card `TK-P2-17` Kick Stagger or `TK-P2-11` Jump-Kick. Followups open: `TK-P2-19` (CI kick-pipeline probe). |
 | Exit Gate goal | Kick + Tag + 7-step Tag Sequence + role swap on the ability scaffold; core loop playable |
 
 ## Phase 0 — CLOSED ✅ (Exit Gate PASS, PR #1 merged)
@@ -35,6 +35,6 @@ Single source of truth for "where are we now". **Update this whenever the phase/
 - Tech-debt: NetworkManager peer-teardown guard / MainMenu nits (task); PDF docs regen to 4.7.
 
 ## Next — Phase 2 (Core Loop), the "prove it's fun" milestone
-**Gate before any Phase 2 code:** `architect` must approve the **Ability System** design (`TK-P2-16`: refactor Player → Movement / Camera / Ability components + base HumanAbility/TigerAbility; Kick/Jump/Tag re-slot as abilities). Then Phase 2 starts at that scaffold.
-- Phase 2 card order (from `_backlog.json`, +8 new Cowork cards): `TK-P2-16` (Ability scaffold, first) → abilities (`TK-P2-01` Kick, `TK-P2-10/11` Jump/Jump-Kick) → `TK-P2-12..15` match flow (Waiting Room → Start → Countdown → GameManager state machine) → Tag Sequence (`TK-P2-02..08`) → `TK-P2-09` first-Tiger (TigerSelector ready). `TK-P3-05` Tiger body-language (Crouch→Lean→Peek) proves the ability system.
+**Gate before any Phase 2 code:** `architect` must approve the **Ability System** design (`TK-P2-16`: refactor Player → Movement / Camera / Ability components + base HumanAbility/TigerAbility; Kick/Tag re-slot as abilities, **Jump/Sprint stay as MovementComponent primitives** per design doc §2/§3 + architect ruling [0.33]/[0.34]). Then Phase 2 starts at that scaffold.
+- Phase 2 card order (from `_backlog.json`, +8 new Cowork cards): `TK-P2-16` (Ability scaffold, first) → `TK-P2-01` Kick (ability, DONE) + `TK-P2-10` Jump (movement primitive) / `TK-P2-11` Jump-Kick → `TK-P2-12..15` match flow (Waiting Room → Start → Countdown → GameManager state machine) → Tag Sequence (`TK-P2-02..08`) → `TK-P2-09` first-Tiger (TigerSelector ready). `TK-P3-05` Tiger body-language (Crouch→Lean→Peek) proves the ability system.
 - Ability catalog (Phase 3-5): Tiger{Crouch, Lean, Sprint, Pounce, Peek} · Human{Kick, Hide, Emote}.

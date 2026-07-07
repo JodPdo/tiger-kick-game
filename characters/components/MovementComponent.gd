@@ -16,6 +16,15 @@ extends Node
 ## TK-P1-02/03/06 history of WHY this code looks the way it does -- that
 ## history still applies unchanged, just relocated here).
 ##
+## TK-P2-10 (gameplay-engineer, later card): Jump added here, NOT as a new
+## characters/abilities/*Ability.gd -- see JumpRules.gd's own class doc (same
+## folder) for the full architecture note/citations resolving the
+## CURRENT_PHASE.md-vs-design-doc phrasing question for this exact card.
+## Jump is authority-side local physics + MultiplayerSynchronizer sync
+## (Player.gd's new `is_jumping` channel-A property), same shape as the
+## Sprint/gravity code already below -- it does NOT go through
+## AbilityController's RPC surface.
+##
 ## Coupling to the parent Player (documented per the card):
 ##   - This component is added as a child of Player (a CharacterBody3D) in
 ##     Player.tscn. It does NOT own a body of its own -- `velocity`,
@@ -40,6 +49,35 @@ extends Node
 @onready var _body: CharacterBody3D = get_parent() as CharacterBody3D
 @onready var _camera_rig: Node3D = get_parent().get_node("CameraRig") as Node3D
 
+## TK-P2-10: this component's OWN authoritative "am I currently mid-jump"
+## flag -- independent of `_body.is_on_floor()`, which is only ever accurate
+## on the owning peer's copy (non-authority Players never call
+## move_and_slide(), see the class doc above, so their is_on_floor() is
+## whatever it last happened to be, not live physics). Set true the instant
+## a jump fires, cleared once a REAL landing is detected (see step_jump()
+## below) -- this is the "no double-jump mid-air" guard the card's DoD calls
+## out, checked together with is_on_floor() by JumpRules.can_jump()
+## (belt-and-suspenders against is_on_floor() lagging a frame while still
+## rising, a known CharacterBody3D quirk on slopes/moving floors -- see
+## step_jump()'s own doc for the fix that makes this guard load-bearing
+## rather than redundant with is_on_floor() alone).
+## NAMING (review nit): named `_is_jumping`, not `_airborne` -- it is ONLY
+## ever set true by an actual jump impulse, and cleared on landing. A player
+## walking off a ledge (falling, never jumped) is genuinely airborne
+## (is_on_floor() == false) but this flag stays false the whole time -- see
+## is_jumping()'s own doc below for why that gap matters to TK-P2-11.
+## THIS local flag only ever actually CHANGES value at those two transitions
+## (jump-fire / real-landing, both inside step_jump()); mirrored onto
+## `_body.is_jumping` (see Player.gd) every _physics_process tick for
+## simplicity (an unconditional assignment of the current value, not a
+## conditional "only on change" write) so it replicates to every OTHER peer
+## via MultiplayerSynchronizer (design doc §4 channel A, same owner-authored
+## pattern as `stance`/`lean`) -- writing the SAME value every tick is a
+## harmless no-op (MultiplayerSynchronizer's own ON_CHANGE replication mode
+## is what actually gates outgoing network traffic to real value changes,
+## not this assignment).
+var _is_jumping: bool = false
+
 ## -- Tunables (TDD §11 Game Balance; design-owned, NOT hard-coded) ----------
 ## Moved verbatim from Player.gd. Values UNCHANGED -- per-role balance tuning
 ## is explicitly OUT of scope for this step (a later card).
@@ -54,6 +92,15 @@ extends Node
 ## Downward acceleration, m/s^2. Not specified in TDD §11 -- defaulted to
 ## Godot's engine default (ProjectSettings physics/3d/default_gravity = 9.8).
 @export var gravity: float = 9.8
+
+## TK-P2-10 (gameplay-engineer): Jump impulse, m/s applied to velocity.y the
+## instant a grounded jump fires. Not yet in Game_Balance.md (no jump entry
+## exists there today) -- placeholder tuned for "readable, not floaty" feel;
+## @export (not hard-coded) so producer/designer can retune once Jump is
+## recorded in Game_Balance.md/GDD (per this card's own DoD note to do so),
+## same "expose design-owned tunables" rule CLAUDE.md sets for every other
+## balance value in this file.
+@export var jump_speed: float = 5.0
 
 
 ## Movement input (TK-P1-02, made camera-relative by TK-P1-03; relocated here
@@ -93,9 +140,107 @@ func _physics_process(delta: float) -> void:
 	_body.velocity.x = horizontal.x
 	_body.velocity.z = horizontal.z
 
-	_body.velocity.y = apply_gravity(_body.velocity.y, gravity, delta, _body.is_on_floor())
+	# TK-P2-10: is_on_floor() reflects the result of LAST tick's
+	# move_and_slide() (no physics has run yet this tick) -- read once and
+	# reuse for both step_jump() and gravity below, same "one read, two uses"
+	# shape apply_gravity's own doc already relies on.
+	var is_grounded: bool = _body.is_on_floor()
+
+	# Mouse-mode guard (TK-P2-10, matching AbilityController's own kick-input
+	# guard, design doc §4a spirit + CameraComponent's ESC gate/consume): while
+	# the mouse is released (paused-for-UI / mid ESC-ESC Leave), Space is not
+	# gameplay intent -- without this, jump would still fire while the player
+	# has tabbed out to a menu with the mouse visible. Movement's WASD axis
+	# itself is left as-is (pre-existing behavior, out of scope for this card)
+	# -- only the newly-added jump TRIGGER gets this guard.
+	var jump_input_pressed: bool = Input.mouse_mode == Input.MOUSE_MODE_CAPTURED \
+			and Input.is_action_just_pressed("jump")
+
+	_body.velocity.y = step_jump(is_grounded, _body.velocity.y, jump_input_pressed)
+	_body.is_jumping = _is_jumping
+
+	_body.velocity.y = apply_gravity(_body.velocity.y, gravity, delta, is_grounded)
 
 	_body.move_and_slide()
+
+
+## TK-P2-10 (code-review fix S2): the landing-clear + jump-trigger decision,
+## extracted out of _physics_process specifically so it is reachable by GUT
+## WITHOUT a live CharacterBody3D/physics tick -- the Phase-1 lesson (see
+## CURRENT_PHASE.md's [0.28] audit note) is that per-card PURE-function tests
+## (JumpRules.can_jump() alone) can stay green while the surrounding WIRING
+## defeats them; this method IS that wiring, isolated so a GUT test can drive
+## it directly with hand-built is_grounded/velocity_y/jump_input_pressed
+## values instead of only being exercisable inside a live physics tick. Not a
+## static/pure function like JumpRules' own helpers -- it deliberately owns
+## the `_is_jumping` mutation (the one piece of state this whole card is
+## about), so an instance method is the honest shape; JumpRules.can_jump()/
+## jump_velocity() stay the pure decision logic this method is a thin shell
+## around (same "pure statics + thin caller" split KickAbility.host_validate()
+## uses around KickRules).
+##
+## Landing-clear ordering (the actual bug the review caught): clearing
+## `_is_jumping` on `is_grounded` ALONE let a stray is_on_floor()-true tick
+## while genuinely still RISING (a known CharacterBody3D lag on slopes/moving
+## floors -- never reproduces on the flat TestArena, which is exactly why
+## manual flat-ground testing alone missed it) silently clear the flag and
+## permit an illegal mid-air re-jump -- i.e. JumpRules.can_jump()'s own
+## is_jumping guard became dead code, reducing the whole gate to
+## `is_grounded` alone. Requiring `current_velocity_y <= 0.0` too (a landing
+## must be BOTH grounded AND non-upward) keeps a REAL landing (velocity.y
+## goes <= 0 at touchdown) clearing the flag the SAME tick -- same-tick
+## land-then-jump still works -- while a stale floor-true during the RISING
+## half of a jump (velocity.y > 0.0) cannot falsely clear it, making the
+## can_jump() guard actually load-bearing.
+##
+## Returns the (possibly jump-modified) vertical velocity for the CALLER to
+## assign to `_body.velocity.y` -- this method never touches `_body` itself,
+## which is exactly what makes it callable with no scene tree.
+func step_jump(is_grounded: bool, current_velocity_y: float, jump_input_pressed: bool) -> float:
+	if is_grounded and _is_jumping and current_velocity_y <= 0.0:
+		_is_jumping = false
+
+	if jump_input_pressed and JumpRules.can_jump(is_grounded, _is_jumping):
+		_is_jumping = true
+		return JumpRules.jump_velocity(jump_speed)
+
+	return current_velocity_y
+
+
+## TK-P2-11 HOOK (Jump-Kick, gameplay-engineer): owner-side query for "did
+## THIS peer's own Player jump and not land yet" -- e.g. for a future
+## JumpKickAbility.can_activate()'s owner-predicted precheck (design doc §3:
+## can_activate is always an owner-side PREDICTION, never authoritative) to
+## gate "kick while jumping" input the same local-feel way KickAbility.
+## can_activate() gates its own cooldown. Deliberately just a getter over
+## `_is_jumping` -- no new state, no ability-shaped API here (this file stays
+## a movement primitive, per the design doc; see JumpRules.gd's own class doc
+## for the full architecture note).
+##
+## SCOPE GAP (review nit, read before wiring TK-P2-11): this flag is ONLY
+## ever set by an actual jump impulse and cleared on landing -- a player
+## simply walking off a ledge (falling, is_on_floor() == false, never
+## pressed jump) is genuinely airborne but this returns false for them the
+## entire fall. If TK-P2-11's "Jump Kick" is meant to also cover "kick while
+## falling off a ledge" (not just "kick after pressing jump"), this getter is
+## NOT enough on its own -- that card must either accept the narrower
+## "must have actually jumped" scope (matching its own name), or add a
+## separate general "not is_on_floor()" check alongside this one. Not
+## resolved here on purpose -- a design-scope call for that later card.
+##
+## NOT authoritative either way: a HOST_AUTHORITATIVE Jump-Kick ability's
+## host_validate() must independently re-derive whether the ATTACKER was
+## really jumping/airborne server-side rather than trust this getter's
+## remote/replicated `_body.is_jumping` mirror at face value -- that mirror
+## is channel-A owner-authored state (design doc §4), spoofable the same
+## "cheating this only ever shows a remote a wrong pose" way `stance`/`lean`
+## already are documented to be. Left as an explicitly OPEN question for
+## TK-P2-11 to resolve (e.g. re-derive jumping-ness from a host-side
+## position/velocity trend, or accept the channel-A signal, or ratify a
+## wider host-side landing tolerance) -- deliberately NOT decided by this
+## card.
+func is_jumping() -> bool:
+	return _is_jumping
 
 
 ## Pure, node-independent helper (GUT-testable without a scene tree/Input):

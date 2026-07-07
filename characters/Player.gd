@@ -110,6 +110,36 @@ var role: StringName = &"outer"
 @export var stance: int = 0
 @export var lean: float = 0.0
 
+## TK-P2-10 (gameplay-engineer): replicated pose channel A, same rules as
+## stance/lean above -- authored by the OWNING peer's MovementComponent (see
+## MovementComponent._is_jumping, mirrored onto this property unconditionally
+## every physics tick for simplicity; the underlying flag itself only ever
+## actually CHANGES value at two transitions -- jump-fire / real-landing --
+## so this property's VALUE only changes at those same two moments even
+## though the assignment runs every tick), replicated ON_CHANGE via
+## MultiplayerSynchronizer (this scene's SceneReplicationConfig) -- ON_CHANGE
+## is what gates actual outgoing network traffic to real value changes, not
+## the local assignment. Lets every
+## OTHER peer (and the host, which is just "another peer" for a client-owned
+## Player) know a Player has jumped and not landed yet, without needing that
+## Player's own is_on_floor()/physics to be live locally -- non-authority
+## copies never run physics at all (TK-P1-06 invariant, see
+## MovementComponent's own doc), so this is the only way a remote observer
+## can tell "this Player is mid-jump" at all.
+##
+## NAMING (review nit): named `is_jumping`, not `airborne` -- it is ONLY ever
+## true from an actual jump impulse to landing; a player falling off a ledge
+## (never jumped) reads false here the whole fall. See
+## MovementComponent.is_jumping()'s own doc for why that scope gap matters to
+## TK-P2-11 ("kick while jumping" vs "kick while falling").
+##
+## Cosmetic-only by design (design doc §3 resolution criterion: "cheating
+## this only ever shows a remote a wrong pose") -- MUST NOT be trusted as an
+## authoritative signal by any future HOST_AUTHORITATIVE ability (e.g.
+## TK-P2-11 Jump-Kick); see MovementComponent.is_jumping()'s own doc for that
+## open question, deliberately left for that later card.
+@export var is_jumping: bool = false
+
 ## TK-P2-16 Step 1 (Ability System scaffold, gameplay-engineer): the movement
 ## Tunables (walk_speed/sprint_multiplier/gravity), _physics_process(), and
 ## the pure statics (compute_velocity, camera_relative_dir, apply_gravity)

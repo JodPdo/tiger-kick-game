@@ -27,6 +27,7 @@
 |---|---|---|
 | **Safe Circle radius** | **5.0 m** | locked (balance value) — ⚠️ marker ใน `world/TestArena.tscn` (P0-05) วาดไว้ ~6.0 ต้อง reconcile ตอน TK-P2-06 |
 | **Kick range** | 1.5 m | เสนอ (จูน P3; host validate ระยะ kicker↔tiger) |
+| **Jump impulse (jump_speed)** | 5.0 m/s | เสนอ (จูน P3; การ์ด TK-P2-10 — ยังไม่มีใน GDD) |
 | **Kick Stagger** | เสือเซ ~0.3s + ดันถอยเล็กน้อย (ห้าม stun เต็ม) | การ์ด TK-P2-17 |
 | **Pounce burst** | ~8 m/s ระยะสั้น | การ์ด TK-P2-18 (TigerAbility, HOST validate) |
 | **Round length** | 3–5 นาที | GDD (ยังไม่ทำ) |
