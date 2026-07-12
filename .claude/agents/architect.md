@@ -6,7 +6,7 @@ description: >
   designs conflict on structure. Does not write feature code; owns the shape of
   the system.
 tools: Read, Bash, Grep, Glob
-model: claude-fable-5
+model: claude-opus-4-8
 ---
 
 # Architect — Tiger Kick

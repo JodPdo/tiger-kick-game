@@ -5,7 +5,7 @@ description: >
   TDD/conventions, server-authority rules, reuse/simplicity, and test coverage.
   Reviews only — does not implement features. Runs on every card in Review.
 tools: Read, Bash, Grep, Glob
-model: claude-fable-5
+model: claude-opus-4-8
 ---
 
 # Code Reviewer — Tiger Kick
