@@ -124,6 +124,29 @@ func _is_valid_port(port: int) -> bool:
 	return port >= _MIN_PORT and port <= _MAX_PORT
 
 
+## Read-only helper (TK-P2-12): true if this instance is the host/server of
+## the current session. Thin wrapper around multiplayer.is_server() so other
+## systems (WaitingRoom, GameManager) never need to touch `multiplayer`
+## directly (see class doc above). Guards on `_peer != null` because
+## multiplayer.is_server() defaults to true when there is no active peer at
+## all (SceneTree's default MultiplayerAPI treats unique_id 1 == server as
+## the offline default) -- without that guard an offline instance would
+## wrongly report itself as host.
+func is_host() -> bool:
+	return _peer != null and multiplayer.is_server()
+
+
+## Read-only helper (TK-P2-12): ids of peers currently connected to
+## `multiplayer`, per SceneMultiplayer.get_peers() -- does NOT include this
+## instance's own id. On the HOST this is every connected client (the host
+## itself is always id 1 and must be added by the caller, see
+## managers/RosterHelper.build_roster()). On a CLIENT this is only ever
+## [1] (the host) -- clients cannot see each other directly, which is
+## exactly why the roster must be host-authoritative (see RosterHelper doc).
+func get_connected_peer_ids() -> Array:
+	return multiplayer.get_peers()
+
+
 func _on_peer_connected(id: int) -> void:
 	print("[NET] peer joined: %d" % id)
 	peer_connected.emit(id)

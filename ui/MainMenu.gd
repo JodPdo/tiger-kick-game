@@ -13,10 +13,13 @@ const DEFAULT_ADDRESS: String = "127.0.0.1"
 const DEFAULT_PORT: int = 7777
 const DEFAULT_ADDRESS_PORT: String = "%s:%d" % [DEFAULT_ADDRESS, DEFAULT_PORT]
 
-## Minimal test level (TK-P0-05). Host and client both switch here once the
-## connection is confirmed by NetworkManager (server_started / connection_succeeded).
-## Path per TDD §3 Folder Structure: res://world/ -- Arena, SafeCircle.
-const TEST_ARENA_SCENE: String = "res://world/TestArena.tscn"
+## Waiting Room (TK-P2-12). Host and client both switch here once the
+## connection is confirmed by NetworkManager (server_started /
+## connection_succeeded) -- this REPLACES the old Phase 0 behavior of
+## switching straight into TestArena (res://world/TestArena.tscn). The
+## Waiting Room itself is what later transitions into the arena once a
+## match actually starts (TK-P2-13+), not MainMenu.
+const WAITING_ROOM_SCENE: String = "res://ui/WaitingRoom.tscn"
 
 ## Settings screen (TK-PX-05): Graphics/Audio/Controls, backed by
 ## ConfigManager. Reachable from a single "Settings" button below -- does not
@@ -97,12 +100,12 @@ func _parse_address_port(text: String) -> Dictionary:
 
 func _on_server_started() -> void:
 	status_label.text = "Server started. Waiting for players..."
-	_switch_to_test_arena()
+	_switch_to_waiting_room()
 
 
 func _on_connection_succeeded() -> void:
 	status_label.text = "Connected to server."
-	_switch_to_test_arena()
+	_switch_to_waiting_room()
 
 
 func _on_connection_failed() -> void:
@@ -110,7 +113,7 @@ func _on_connection_failed() -> void:
 
 
 ## Opens the Settings screen (TK-PX-05). Runtime-only scene switch, same
-## pattern as _switch_to_test_arena() below -- does not touch project.godot's
+## pattern as _switch_to_waiting_room() below -- does not touch project.godot's
 ## run/main_scene, and does not affect NetworkManager/Host/Join state.
 func _on_settings_pressed() -> void:
 	var err: Error = get_tree().change_scene_to_file(SETTINGS_MENU_SCENE)
@@ -119,12 +122,13 @@ func _on_settings_pressed() -> void:
 		status_label.text = "Failed to open settings (error %d)" % err
 
 
-## Switches from MainMenu to the TestArena once a connection is confirmed.
-## Host reacts to `server_started`; client reacts to `connection_succeeded`.
-## Does not touch project.godot's run/main_scene -- the game still boots into
-## MainMenu; this is a runtime-only transition (TK-P0-05).
-func _switch_to_test_arena() -> void:
-	var err: Error = get_tree().change_scene_to_file(TEST_ARENA_SCENE)
+## Switches from MainMenu to the Waiting Room once a connection is confirmed
+## (TK-P2-12). Host reacts to `server_started`; client reacts to
+## `connection_succeeded`. Does not touch project.godot's run/main_scene --
+## the game still boots into MainMenu; this is a runtime-only transition
+## (same pattern as _on_settings_pressed() above, TK-P0-05).
+func _switch_to_waiting_room() -> void:
+	var err: Error = get_tree().change_scene_to_file(WAITING_ROOM_SCENE)
 	if err != OK:
-		push_warning("[MENU] failed to switch to %s (error %d)" % [TEST_ARENA_SCENE, err])
-		status_label.text = "Failed to load arena (error %d)" % err
+		push_warning("[MENU] failed to switch to %s (error %d)" % [WAITING_ROOM_SCENE, err])
+		status_label.text = "Failed to load waiting room (error %d)" % err

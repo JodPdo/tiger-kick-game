@@ -656,7 +656,7 @@
     "type": "task",
     "priority": "High",
     "owner_agent": "gameplay-engineer",
-    "status": "todo",
+    "status": "review",
     "depends_on": [
       "TK-P0-06"
     ],
