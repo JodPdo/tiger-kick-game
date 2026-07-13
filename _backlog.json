@@ -292,7 +292,7 @@
     "type": "task",
     "priority": "High",
     "owner_agent": "gameplay-engineer",
-    "status": "todo",
+    "status": "doing",
     "depends_on": [
       "TK-P1-01"
     ],
@@ -875,11 +875,12 @@
     "type": "task",
     "priority": "Medium",
     "owner_agent": "documentation-manager",
-    "status": "todo",
+    "status": "done",
     "depends_on": [
       "TK-P2-13"
     ],
     "labels": "task, phase-2, prio-medium, docs",
+    "closed_note": "DONE (2026-07-13). Change Log entry [0.38] added to 04_Management/03_Change_Log.md (Thai) recording TK-P2-13 Start Match + PlayerSpawner readiness barrier + the path-cache-poisoning S1 root cause + verification + followups — satisfies CLAUDE.md change-control. TDD §9 addition is BLOCKED: TDD is PDF-only (v0.6, no editable md/source), same PDF-regen tech-debt already tracked in CURRENT_PHASE 'Open cross-phase items'. Full §9.3 text drafted and preserved for the next TDD regen: '9.3 Scene-Transition Spawn Ordering Constraint (TK-P2-13) — When transitioning already-connected peers into a new scene containing a MultiplayerSpawner, the authority must NOT spawn() toward a peer until that peer spawner node exists in-tree, else Godot per-peer node-path cache poisoning drops the spawn -> client lands with no Player (S1). Fix: host-side readiness barrier (_rpc_arena_ready handshake) + grace-timer force-disconnect. Recurs for every future scene transition, esp. the Tag Sequence transform. See networking/PlayerSpawner.gd class doc.' The same mechanism is already fully documented in PlayerSpawner.gd's class doc, so nothing is lost pending regen.",
     "note": "From TK-P2-13 review (architect-FYI) + CLAUDE.md change-control (networking behavior change must be recorded). Record in 04_Management/03_Change_Log.md the TK-P2-13 host-authoritative Start-Match broadcast + the PlayerSpawner readiness BARRIER (host spawns nobody until every connected peer's PlayerSpawner is in-tree; grace-timer force-disconnect) and its root cause: Godot per-peer node-path-cache poisoning when the host spawns before a peer has entered the target scene. Add a TDD §9 (Network Flow) note so this failure mode is known before it bites the next scene transition (esp. the Tag Sequence transform). Do AFTER TK-P2-13 human N-window PASS / close."
   }
 ]
