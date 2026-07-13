@@ -624,11 +624,12 @@
     "type": "task",
     "priority": "High",
     "owner_agent": "gameplay-engineer",
-    "status": "review",
+    "status": "done",
     "depends_on": [
       "TK-P1-02"
     ],
     "labels": "task, phase-2, prio-high, movement",
+    "closed_note": "DONE (2026-07-13). Automation gate was GREEN (code-review 2-round PASS incl. S2 double-jump-guard fix + qa PASS, GUT). HUMAN 2-WINDOW steps a-e all PASS (confirmed by human): (a) remote sees Y-motion + is_jumping sync, (b) spam Space mid-air = no double-jump, (c) ESC+Space = no jump & ESC-ESC Leave works, (d) hold Space through landing = no auto re-jump, (e) land-then-jump responsive. Ran via the TK-P2-13 Start-Match path (WaitingRoom -> Start -> arena), which is what unblocked the in-arena test. Followup TK-P2-11 Jump-Kick now unblocked.",
     "notes": "prerequisite ของ Jump Kick (TK-P2-11) · จริง ๆ เป็น movement primitive แต่ตั้งใน Phase 2 เพราะ Phase 1 ปิด code แล้ว + เป็นฐานของ combat move · host ยังคุม state ที่ตัดสินเกม ส่วนการเด้งเป็น local physics + sync · DoD: กระโดดแล้วทุกเครื่องเห็นตรงกัน, ลงพื้นถูกต้อง ไม่ลอยค้าง/ไม่กระโดดซ้อนกลางอากาศ, ปรับ MultiplayerSynchronizer ให้รวมแกน Y/สถานะ airborne",
     "parked": "AUTOMATION GATE GREEN, HUMAN 2-WINDOW PENDING (committed checkpoint). Jump = movement primitive on MovementComponent (design doc §2/§3 + architect ruling [0.33]/[0.34], NOT an ability). code-reviewer: 2 rounds — round1 CHANGES-REQUIRED (S2: _is_jumping double-jump guard was dead code, landing-clear ran on is_grounded alone) -> fixed via step_jump() extraction + regression test -> round2 APPROVE PASS-WITH-NITS. qa-engineer PASS (own run: import clean, GUT 166/166 / 1270 asserts, net_smoke + spawn probe PASS, S2 fix empirically verified by reconstructing old code = fails the guard test; no S0/S1). RESUME STEP = HUMAN 2-WINDOW MANUAL TEST before marking done — see Phase2 QA checklist / qa report section 4: (a) remote sees Y-motion + is_jumping flip in sync; (b) spam Space mid-air -> no 2nd jump; (c) ESC(mouse visible)+Space -> no jump, ESC-ESC leave still works; (d) hold Space through landing -> no auto re-jump; (e) land-then-jump responsive. After human PASS -> flip to done + close commit. Followups: TK-P2-11 host_validate must re-derive airborne server-side (is_jumping is owner-spoofable) + decide ledge-fall coverage; jump_speed=5.0 placeholder tune Phase 3."
   },
