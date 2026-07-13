@@ -292,7 +292,8 @@
     "type": "task",
     "priority": "High",
     "owner_agent": "gameplay-engineer",
-    "status": "doing",
+    "status": "review",
+    "parked": "AUTOMATION GATE GREEN, HUMAN 2-INSTANCE PENDING (2026-07-13). Host-authoritative Area3D proximity sensor as a plain Player-root component (TagDetectorComponent.gd + pure TagRules.gd), role-agnostic, RPC-free; feeds TK-P2-03. code-review APPROVE-WITH-NITS (no S0/S1/S2). architect APPROVED placement (sensor != ability; binding invariant: TagDetector stays RPC-free) — Ability_System_Design.md §2/§3/§4b + Change Log [0.39] amended. qa PASS own run: import clean, GUT 201/201 (+17 TagRules), net_smoke + spawn_probe + spawn_probe_together PASS (no Player.tscn spawn regression). RESUME = human 2-instance check (needs temp debug prints in _on_body_entered/_exited): (1) two players within 2m -> body_entered fires + tag_target_in_range(tagger,target) with correct peer ids; (2) HOST-ONLY EMIT holds (fires server=true on host, NOT on client); (3) leave range -> tag_target_left_range + get_candidates_in_range() empties; (4) despawn a peer in range -> no stale candidate, no crash on body.name (document whether left_range fires -> TK-P2-03 poll-vs-event); (5) floor not a candidate. Any server=true emit on client (2) or crash on despawn (4) = blocker. Followups: TK-P2-24 (headless probe, tools-devops), TK-P2-25 (code nits). tag_range_m=2.0 placeholder -> Phase-3 balance (designer).",
     "depends_on": [
       "TK-P1-01"
     ],
@@ -882,5 +883,35 @@
     "labels": "task, phase-2, prio-medium, docs",
     "closed_note": "DONE (2026-07-13). Change Log entry [0.38] added to 04_Management/03_Change_Log.md (Thai) recording TK-P2-13 Start Match + PlayerSpawner readiness barrier + the path-cache-poisoning S1 root cause + verification + followups — satisfies CLAUDE.md change-control. TDD §9 addition is BLOCKED: TDD is PDF-only (v0.6, no editable md/source), same PDF-regen tech-debt already tracked in CURRENT_PHASE 'Open cross-phase items'. Full §9.3 text drafted and preserved for the next TDD regen: '9.3 Scene-Transition Spawn Ordering Constraint (TK-P2-13) — When transitioning already-connected peers into a new scene containing a MultiplayerSpawner, the authority must NOT spawn() toward a peer until that peer spawner node exists in-tree, else Godot per-peer node-path cache poisoning drops the spawn -> client lands with no Player (S1). Fix: host-side readiness barrier (_rpc_arena_ready handshake) + grace-timer force-disconnect. Recurs for every future scene transition, esp. the Tag Sequence transform. See networking/PlayerSpawner.gd class doc.' The same mechanism is already fully documented in PlayerSpawner.gd's class doc, so nothing is lost pending regen.",
     "note": "From TK-P2-13 review (architect-FYI) + CLAUDE.md change-control (networking behavior change must be recorded). Record in 04_Management/03_Change_Log.md the TK-P2-13 host-authoritative Start-Match broadcast + the PlayerSpawner readiness BARRIER (host spawns nobody until every connected peer's PlayerSpawner is in-tree; grace-timer force-disconnect) and its root cause: Godot per-peer node-path-cache poisoning when the host spawns before a peer has entered the target scene. Add a TDD §9 (Network Flow) note so this failure mode is known before it bites the next scene transition (esp. the Tag Sequence transform). Do AFTER TK-P2-13 human N-window PASS / close."
+  },
+  {
+    "id": "TK-P2-24",
+    "phase": "Phase 2",
+    "milestone": "M2 Core Gameplay",
+    "title": "CI headless probe for Tag detection: assert Area3D overlap fires + host-only-emit gate holds + despawn leaves no stale candidate",
+    "type": "task",
+    "priority": "Medium",
+    "owner_agent": "tools-devops",
+    "status": "todo",
+    "depends_on": [
+      "TK-P2-02"
+    ],
+    "labels": "task, phase-2, prio-medium, test, network",
+    "note": "From TK-P2-02 qa recommendation (same pattern as TK-P2-01->TK-P2-19). GUT fully covers pure TagRules but structurally cannot exercise: (a) a real Area3D body_entered/body_exited firing across two live networked peers against replicated positions, (b) the host-only-emit gate holding on the wire (tag_target_in_range emits server-side only, never on the client), (c) despawn/ghost edge = a peer in range disconnects -> get_candidates_in_range() must leave no stale entry and must not crash on body.name of a freed node. This is exactly the class of wire behavior automation missed on TK-P2-13 (opus review, not GUT, caught that S1). Add a 2-instance headless probe mirroring tests/net/run_spawn_probe_together.sh and gate in CI. Higher urgency now that Player.tscn collision layers are a moving target (see TK-P2-25)."
+  },
+  {
+    "id": "TK-P2-25",
+    "phase": "Phase 2",
+    "milestone": "M2 Core Gameplay",
+    "title": "Tag detection nits (from TK-P2-02 review/qa): explicit collision layer/mask + boundary test + comment fix",
+    "type": "task",
+    "priority": "Low",
+    "owner_agent": "gameplay-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P2-02"
+    ],
+    "labels": "task, phase-2, prio-low, cleanup",
+    "note": "Non-blocking from TK-P2-02 code-review + qa. 1) Player.tscn: set explicit collision_layer/collision_mask on both the Player CharacterBody3D and the TagDetector Area3D (both currently rely on default layer1/mask1) -> silent-break risk: the day players move to a dedicated physics layer, TagDetector stops detecting with NO error. Use a shared constant/documented layer. 2) tests/test_tag_rules.gd: add a nearest_candidate() at-exactly-range_m boundary assertion (its own <= check is currently unguarded by tests; only is_in_range/candidates_in_range assert the boundary). 3) TagDetectorComponent.gd ~:138-140: fix the self-overlap comment (a child Area3D CAN report its parent body; keep the body==_body guard, correct the wording). Also (designer, Phase-3 balance): lock tag_range_m (2.0 placeholder) in Game_Balance.md."
   }
 ]

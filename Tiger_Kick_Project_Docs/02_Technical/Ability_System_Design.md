@@ -18,9 +18,12 @@ Player (CharacterBody3D)  — PlayerRoot (Player.gd เดิม ผอมลง
 ├── CameraRig → SpringArm3D → Camera3D   (transform ยังอยู่ใต้ Player; CameraComponent ถือ logic)
 ├── AbilityController (Node)     characters/abilities/AbilityController.gd
 │   └── [ability nodes — สร้าง/ลบ runtime ตาม role จาก AbilityCatalog]
+├── TagDetector (Area3D)         characters/components/TagDetectorComponent.gd + TagRules.gd (pure helper)
 └── MultiplayerSynchronizer      (เดิม + property ใหม่ ดู §4 ช่อง A)
 ```
 - **component = child Node** (ไม่ใช่ Resource) — ต้องมี lifecycle + ถือ scene node ได้ (เช่น KickHitbox Area3D อยู่ใต้ ability node เอง → เพิ่ม ability = 1 ไฟล์). ค่าจูนเป็น `@export` วันนี้ → อัปเกรดเป็น `.tres` ใน TK-P3-01 ได้โดยไม่แตะโครง.
+
+**Architectural boundary:** Detection **sensors** (เช่น TagDetector) เป็น plain Player-root components: role-agnostic, **RPC-free**, consumed host-side โดย GameManager (TK-P2-03). Ability-owned **hitboxes** (เช่น KickHitbox) nest ใต้ ability node ตัวเอง (Kick precedent). ความแตกต่างนี้จงใจออกแบบ: sensor ไม่มี owning ability, hitbox ต้อง tie เข้ากับ ability lifecycle และ RPC surface ของมัน.
 
 **ความรับผิดชอบ / อะไรย้ายจาก Player.gd เดิม**
 | ส่วน | รับผิดชอบ |
@@ -58,6 +61,8 @@ func on_rejected(reason) -> void                     # owner ยกเลิก 
 | Crouch, Lean, Peek, Emote | **LOCAL_ONLY** + pose replication (ช่อง A) |
 | **Sprint, Jump** | **ไม่ใช่ ability** — MovementComponent (movement primitive) |
 
+**หมายเหตุ:** "Tag = HOST" ที่นี่หมายถึง **Tag action** (ability ที่ Tiger ที่จะเรียก ตัดสินต่อฝั่ง host) และ **Tag Sequence 7 ขั้น** (GameManager-owned, TK-P2-03, ไม่ใช่ ability). Tag **detection sensor** (TagDetector, TK-P2-02) เป็น plain component ไม่ใช่ ability — ไม่มี resolution value.
+
 **testability:** logic ตัดสินใจเป็น pure static แยกไฟล์ (pattern เดียวกับ `TigerSelector`/`SpawnPointUtil`) เช่น `KickRules.is_in_range()`, `CooldownLedger.can_fire()`, `AbilityCatalog.abilities_for_role()` → `host_validate` เป็นเปลือกบาง.
 
 ## 4. Networking — 2 ช่องทาง (จารึกถาวร)
@@ -80,6 +85,10 @@ func on_rejected(reason) -> void                     # owner ยกเลิก 
 - **เหตุผล:** Godot ตรวจ `@rpc("authority")` ฝั่งรับด้วย `sender == authority ของ node นั้น`. ถ้า AbilityController เป็นของ owner: confirm/reject จาก host โดน drop และ client เจ้าของ forge `rpc_confirm` ได้เอง = server authority พลิกกลับ (S1). ตั้ง authority=1 ให้ engine drop RPC ปลอมก่อนถึงโค้ดเรา (fail-closed)
 - **กฎถาวร:** ห้ามตีความ `@rpc("authority")` ว่า "host-only" บน node ใดที่ authority ไม่ใช่ server — annotation ผูกกับ authority ของ node เสมอ. guard `is_server()` + `sender == authority ของ Player` ใน `rpc_request_activate` คงไว้ (defense in depth). ในโค้ด ability: **owner check = `_body.is_multiplayer_authority()` (Player root)** · **host check = `multiplayer.is_server()`** — ห้ามใช้ `is_multiplayer_authority()` ของ AbilityController เอง (หลัง fix = "am I host" ไม่ใช่ "am I owner")
 - **walkthrough Kick (host/offline ที่เป็นเจ้าของ Player เอง):** `try_activate` ห้ามยิง `rpc_id(1)` หาตัวเอง (Godot ห้าม self-RPC) — เรียก `_host_process_request(...)` (method ธรรมดา ตัวเดียวกับที่ `rpc_request_activate` เรียก) ตรง ๆ; reject ให้ host ผู้ขอ = `on_rejected` local ไม่ยิง `rpc_reject.rpc_id(1)`. client ทางไกลเดินเส้นเดิมผ่าน sender==authority guard ครบ
+
+### 4b. RPC-free invariant ของ TagDetector (จารึกจาก architect approval 2026-07-13 — TK-P2-02)
+- **กฎถาวร:** TagDetector (characters/components/TagDetectorComponent.gd) ห้ามมี `@rpc` เอง — node authority คือ owning peer (recursive set จาก Player root ตามเดิม), แต่เนื่องจาก sensor ไม่มี ability-lifetime ทำให้ transport reading ของมันออกจาก host **ต้อง** ไปผ่าน host-authority node เช่น AbilityController หรือ GameManager RPC, ไม่ใช่ TagDetector ตัวเอง
+- **Future-proofing:** ถ้าต้อง transport TagDetector state ในอนาคต ห้ามเพิ่ม `@rpc` ลงใน TagDetectorComponent — ต้อง wrap ผ่าน AbilityController หรือ GameManager (host-authority) เท่านั้น (การหลีกเลี่ยง owner-authority pitfall ของ §4a)
 
 ## 5. Role-swap
 1. GameManager (host) เดิน Tag Sequence ถึง transform → `apply_role_switch.rpc(old, new)` (`authority, call_local, reliable`)
