@@ -657,7 +657,8 @@
     "type": "task",
     "priority": "High",
     "owner_agent": "gameplay-engineer",
-    "status": "review",
+    "status": "done",
+    "closed_note": "DONE (2026-07-13). Automation GREEN (code-review APPROVE-WITH-NITS — host-authoritative roster via @rpc call_local + scene-change race closed by client-hello handshake, both S1-risk areas held; qa PASS own run GUT 178->184/184). HUMAN PASS (confirmed by human 2026-07-13): Group D roster S1-S7 — identical roster on all machines, join/leave real-time, correct (Host)/(You) marks, host-only Start button, host-quit -> clients return to MainMenu, re-Host works. Verified in the same N-window session as TK-P2-13.",
     "depends_on": [
       "TK-P0-06"
     ],
@@ -672,7 +673,8 @@
     "type": "task",
     "priority": "High",
     "owner_agent": "gameplay-engineer",
-    "status": "review",
+    "status": "done",
+    "closed_note": "DONE (2026-07-13). Automation GREEN (code-review 3 rounds by opus -> APPROVE-WITH-NITS; killed a real S1 = Godot per-peer node-path-cache poisoning on scene transition -> clients spawned Player-less; fixed with host-side readiness BARRIER + 3 side-door guards + grace-timer force-disconnect; qa PASS own run: GUT 184/184, net_smoke + spawn_probe + host-first spawn_probe_together PASS, falsification both ways). HUMAN N-WINDOW PASS (confirmed by human 2026-07-13): Group A happy-path (each window a controllable Player, slots correct, no cache errors), Group B barrier B1/B2/B3 (join/disconnect/grace timing windows all behaved as predicted), Group C Start guards (client no button, single transition on double-Start, host-alone blocked). Unblocks TK-P2-14 Countdown. Non-blocking followups filed: TK-P2-20 (late-join), TK-P2-21 (B2 probe + wording), TK-P2-22 (nits bundle), TK-P2-23 (Change Log/TDD doc).",
     "depends_on": [
       "TK-P2-12"
     ],
