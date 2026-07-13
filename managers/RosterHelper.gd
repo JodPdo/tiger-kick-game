@@ -66,6 +66,30 @@ static func count_hosts(roster: Array) -> int:
 	return n
 
 
+## Pure guard for TK-P2-13 (Host Start Match): whether the "Start Match"
+## action is currently allowed, given who is asking and how many players are
+## in the current roster. Node-independent (no Node/multiplayer/RPC access)
+## so GUT can test the boundary conditions directly (tests/test_roster_helper.gd).
+##
+## This is DEFENSE IN DEPTH, not the only gate: the actual guarantee that a
+## client can never start a match comes from the
+## @rpc("authority", "call_local", "reliable") annotation on
+## WaitingRoom._rpc_start_match() -- the engine itself refuses to run that
+## RPC's body on any machine when the sender isn't the node's multiplayer
+## authority (the host), so a client cannot trigger it even by spoofing a
+## call. This function exists so the human-facing "why can't I start" (too
+## few players) is decided by the exact same rule GUT verifies in isolation,
+## rather than a second, potentially-drifting inline check in WaitingRoom.gd.
+##
+## `min_players` is passed in (not hardcoded here) because it is a Phase-3
+## design/balance tune (see WaitingRoom.MIN_PLAYERS_TO_START) -- this helper
+## only owns the comparison, not the value.
+static func can_start_match(is_host: bool, player_count: int, min_players: int) -> bool:
+	if not is_host:
+		return false
+	return player_count >= min_players
+
+
 ## Formats one roster row for display, e.g. "Player 3 (Host)" or
 ## "Player 5 (You)" or "Player 2 (Host) (You)". Pure string formatting, no
 ## Node/multiplayer access -- `is_you` is passed in by the caller (which

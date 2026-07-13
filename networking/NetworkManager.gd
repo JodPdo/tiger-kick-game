@@ -120,6 +120,21 @@ func disconnect_from_game() -> void:
 	_peer = null
 
 
+## Host-only: force-disconnect a single connected peer. Used by
+## networking/PlayerSpawner.gd's readiness-barrier grace release (TK-P2-13): a
+## peer that never reaches the arena within the grace window is dropped rather
+## than left in a silently path-cache-poisoned, Player-less limbo. Thin wrapper
+## so callers never touch `multiplayer.multiplayer_peer` directly (see class
+## doc). `force = true` tears the ENet connection down immediately instead of
+## waiting for a graceful handshake. No-op if there is no active peer. The
+## normal peer_disconnected signal fires for `id` as usual.
+func disconnect_peer(id: int) -> void:
+	if _peer == null:
+		return
+	print("[NET] force-disconnecting peer %d" % id)
+	_peer.disconnect_peer(id, true)
+
+
 func _is_valid_port(port: int) -> bool:
 	return port >= _MIN_PORT and port <= _MAX_PORT
 

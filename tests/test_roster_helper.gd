@@ -101,3 +101,35 @@ func test_format_roster_entry_you() -> void:
 
 func test_format_roster_entry_host_and_you() -> void:
 	assert_eq(RosterHelperScript.format_roster_entry(1, true, true), "Player 1 (Host) (You)")
+
+
+# --- can_start_match (TK-P2-13 Host Start Match guard) ----------------------
+
+func test_can_start_match_host_with_enough_players() -> void:
+	assert_true(RosterHelperScript.can_start_match(true, 2, 2),
+		"host with exactly the minimum player count may start")
+
+
+func test_can_start_match_host_with_more_than_enough_players() -> void:
+	assert_true(RosterHelperScript.can_start_match(true, 8, 2),
+		"host with more than the minimum player count may start")
+
+
+func test_can_start_match_client_never_allowed() -> void:
+	assert_false(RosterHelperScript.can_start_match(false, 8, 2),
+		"a non-host is never allowed to start, regardless of player count")
+
+
+func test_can_start_match_host_below_minimum() -> void:
+	assert_false(RosterHelperScript.can_start_match(true, 1, 2),
+		"host with fewer than the minimum player count may not start")
+
+
+func test_can_start_match_boundary_one_below_minimum() -> void:
+	assert_false(RosterHelperScript.can_start_match(true, 3, 4),
+		"one below a higher minimum must still be rejected (boundary check)")
+
+
+func test_can_start_match_boundary_exactly_at_minimum() -> void:
+	assert_true(RosterHelperScript.can_start_match(true, 4, 4),
+		"exactly at a higher minimum must be accepted (boundary check)")

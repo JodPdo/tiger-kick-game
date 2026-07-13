@@ -671,7 +671,7 @@
     "type": "task",
     "priority": "High",
     "owner_agent": "gameplay-engineer",
-    "status": "todo",
+    "status": "review",
     "depends_on": [
       "TK-P2-12"
     ],
@@ -818,5 +818,65 @@
     ],
     "labels": "task, phase-2, prio-medium",
     "note": "From TK-P2-01 review/QA. KickRules pure logic + host_validate decision-glue are covered by GUT; the residual gap is the RPC WIRE ROUTING (rpc_confirm broadcast-to-all vs rpc_reject requester-only, _reject_owner host-local-vs-remote branch), currently proven only by manual 2-instance run. Add a headless probe gated in CI, mirroring tests/net/run_spawn_probe.sh, so this path stays covered before the Phase 2 Exit Gate. Phase-1 lesson: green pure-function tests missed glue bugs."
+  },
+  {
+    "id": "TK-P2-20",
+    "phase": "Phase 2",
+    "milestone": "M2 Core Gameplay",
+    "title": "Late-join / late-connect after Match Start: refuse or route peers that connect (or click Join) after the host has started the match",
+    "type": "task",
+    "priority": "Medium",
+    "owner_agent": "network-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P2-13"
+    ],
+    "labels": "task, phase-2, prio-medium, network, match-flow",
+    "note": "From TK-P2-13 code-review (round1 finding4) + qa. Two reachable states once Start fires: (a) a peer connecting during the spawn barrier window is deferred by PlayerSpawner (_deferred_join_peers) but NEVER spawned -> connected-but-Player-less; (b) a peer connecting after the host has left the WaitingRoom lands in a WaitingRoom whose host counterpart is freed (its _rpc_client_hello targets /root/WaitingRoom on a host that isn't there -> dead empty roster, can never start), and PlayerSpawner._on_peer_connected would spawn a driverless ghost avatar for everyone. Decide + implement: either REFUSE joins after Start (host rejects/closes the lobby on match start) or properly ROUTE late joiners into the running match (spawn them cleanly, put them in the arena). Server-authoritative. Not an S1 in the happy path (guarded), but a correctness/UX gap that must close before the Phase 2 Exit Gate."
+  },
+  {
+    "id": "TK-P2-21",
+    "phase": "Phase 2",
+    "milestone": "M2 Core Gameplay",
+    "title": "B2 disconnect-during-barrier: add a falsifiable 2-instance headless probe + CI gate; fix stale harness/CI wording",
+    "type": "task",
+    "priority": "Medium",
+    "owner_agent": "tools-devops",
+    "status": "todo",
+    "depends_on": [
+      "TK-P2-13"
+    ],
+    "labels": "task, phase-2, prio-medium, test, network",
+    "note": "From TK-P2-13 review round3 (nit3) + qa. The join/grace barrier windows (B1/B3) are legitimately manual, but B2 (a peer disconnecting during the spawn barrier before readying) IS falsifiably testable headless: client connects, host arms barrier expecting it, client disconnects before _rpc_arena_ready; assert the host spawns its own Player within ~3s (well under the 8s grace) -> would FAIL (sub-grace timeout) if the _on_peer_disconnected prune/re-check is ever removed. Add it mirroring run_spawn_probe_together.sh and gate in CI. ALSO fix stale wording surfaced by review/qa: .github/workflows/ci.yml:57 step name still says 'entry-sweep gate' (should read 'readiness-barrier'); residual 'handshake'/'entry-sweep' strings in tests/net/spawn_probe_together_peer.gd (~:64,:205) and run_spawn_probe_together.sh describe the superseded design."
+  },
+  {
+    "id": "TK-P2-22",
+    "phase": "Phase 2",
+    "milestone": "M2 Core Gameplay",
+    "title": "Barrier + WaitingRoom non-blocking nits bundle (from TK-P2-13 review/qa)",
+    "type": "task",
+    "priority": "Low",
+    "owner_agent": "network-engineer",
+    "status": "todo",
+    "depends_on": [
+      "TK-P2-13"
+    ],
+    "labels": "task, phase-2, prio-low, cleanup",
+    "note": "Non-blocking cleanups batched from TK-P2-13 code-review (r2/r3) + qa. (network-engineer, PlayerSpawner.gd/NetworkManager.gd): 1) stop/queue_free the ArenaReadyGrace Timer on a NORMAL barrier release in _do_initial_barrier_spawn so it doesn't fire a harmless ~8s-later no-op (qa S4 nit); 2) add defensive `if not multiplayer.is_server(): return` to NetworkManager.disconnect_peer (host-only intent; safe without it since a client can only disconnect itself). (gameplay-engineer, WaitingRoom.gd): 3) pass NetworkManager.is_host() instead of literal `true` into can_start_match at ~:240 (dead param at its only call site); 4) guard _broadcast_roster() on `not _match_started` (~:155-166) so the host doesn't broadcast to WaitingRoom nodes peers have already left. 5) SpawnPointUtil.MAX_SPAWN_SLOTS(8) vs NetworkManager.MAX_CLIENTS(8): host+8 clients = 9 bodies, the 9th wraps `% 8` onto host slot 0 -> either cap total players at 8 or add slots (low: needs 9 players)."
+  },
+  {
+    "id": "TK-P2-23",
+    "phase": "Phase 2",
+    "milestone": "M2 Core Gameplay",
+    "title": "Document the scene-transition path-cache-poisoning + readiness-barrier protocol (Change Log + TDD §9)",
+    "type": "task",
+    "priority": "Medium",
+    "owner_agent": "documentation-manager",
+    "status": "todo",
+    "depends_on": [
+      "TK-P2-13"
+    ],
+    "labels": "task, phase-2, prio-medium, docs",
+    "note": "From TK-P2-13 review (architect-FYI) + CLAUDE.md change-control (networking behavior change must be recorded). Record in 04_Management/03_Change_Log.md the TK-P2-13 host-authoritative Start-Match broadcast + the PlayerSpawner readiness BARRIER (host spawns nobody until every connected peer's PlayerSpawner is in-tree; grace-timer force-disconnect) and its root cause: Godot per-peer node-path-cache poisoning when the host spawns before a peer has entered the target scene. Add a TDD §9 (Network Flow) note so this failure mode is known before it bites the next scene transition (esp. the Tag Sequence transform). Do AFTER TK-P2-13 human N-window PASS / close."
   }
 ]

@@ -41,17 +41,68 @@ extends Control
 ## switches to it -- required for RPCs to resolve to the same node on
 ## every machine.
 ##
-## START BUTTON SCOPE (TK-P2-12 vs TK-P2-13): this card only owns "only
-## the host sees or can use Start"; the actual host-authoritative
-## "everyone jumps into the match together" broadcast is the next card,
-## TK-P2-13. To avoid shipping a half-done start flow that could desync
-## clients (host leaves the Waiting Room, clients do not),
-## _on_start_pressed() below is a clearly-marked stub that only logs and
-## updates the host own status label.
+## MATCH START (TK-P2-13, gameplay-engineer): host-authoritative "everyone
+## jumps into the match together" broadcast, built by MIRRORING the roster
+## broadcast pattern above exactly. _on_start_pressed() is host-only in code
+## (defense in depth on top of the Start button already being hidden/disabled
+## for clients, see _configure_start_button()) and additionally guards a
+## minimum player count (MIN_PLAYERS_TO_START, see const doc) before doing
+## anything. If both checks pass, the host calls the
+## @rpc("authority", "call_local", "reliable") _rpc_start_match(), which is
+## what actually switches EVERY peer -- host included, via call_local -- from
+## this WaitingRoom scene into res://world/TestArena.tscn. "authority" is the
+## real client-can-never-start guarantee: the engine rejects this RPC's body
+## from running anywhere unless the SENDER is the node's multiplayer
+## authority (the host, never overridden), so a client cannot trigger a match
+## start even by spoofing the call directly.
 ##
-## Reference: CLAUDE.md server authority; _backlog.json TK-P2-12.
+## PLAYERSPAWNER TIMING RISK (flagged for code-review/QA, not fixed here --
+## spawn/authority wiring is network-engineer's territory per
+## .claude/agents/gameplay-engineer.md §6): networking/PlayerSpawner.gd only
+## ever spawns a Player for a peer in two places -- (a) its own _ready(), for
+## `multiplayer.get_unique_id()` IF is_server(), and (b)
+## NetworkManager.peer_connected, a ONE-TIME signal that fires exactly once,
+## at the moment a given peer's ENet connection is established. Before
+## TK-P2-12/13, MainMenu switched every peer into TestArena immediately on
+## server_started/connection_succeeded, so PlayerSpawner's node existed
+## before any *other* peer connected, and peer_connected firing later (as
+## each client joined) is what spawned every non-host Player -- (a) and (b)
+## together covered everyone. NOW, with the Waiting Room in between, every
+## peer's peer_connected has ALREADY fired (while everyone was sitting in
+## WaitingRoom, before PlayerSpawner's node even existed) by the time Start
+## is pressed -- so when _rpc_start_match() below switches everyone into
+## TestArena simultaneously, PlayerSpawner._ready() only self-spawns the
+## HOST (path (a)); path (b) never fires again for the already-connected
+## clients, since peer_connected is not re-emitted on a scene switch. Traced
+## through, this means only ONE Player (the host's) would be spawned and
+## replicated to everyone -- every client would land in TestArena with no
+## controllable Player of their own. This is a real risk under the NEW
+## Start-from-WaitingRoom timing, not a hypothetical: it needs a
+## PlayerSpawner-side fix (e.g. also spawning every already-connected peer,
+## not just self, on TestArena entry) before the human 2-window run can be
+## expected to show "every window has exactly one controllable Player" --
+## see HANDOFF.
+##
+## IDEMPOTENCY: _match_started (see var doc) guards _rpc_start_match() the
+## same way _session_ended guards _leave()/_on_server_disconnected() below --
+## change_scene_to_file() is deferred, so a double-press (or a duplicate/
+## retried RPC) must not queue two scene switches.
+##
+## Reference: CLAUDE.md server authority; _backlog.json TK-P2-12, TK-P2-13.
 
 const MAIN_MENU_SCENE: String = "res://ui/MainMenu.tscn"
+
+## Match scene entered when the host starts (TK-P2-13). Runtime-only scene
+## switch (change_scene_to_file), same pattern as MainMenu's
+## _switch_to_waiting_room() and this file's own _return_to_main_menu().
+const MATCH_SCENE: String = "res://world/TestArena.tscn"
+
+## Minimum roster size required for the host to start a match (TK-P2-13).
+## Set to 2 for Phase 2 so a single host+client pair can validate the flow;
+## the GDD's real 4-8 player target is a Phase 3 design/balance tune (backlog
+## explicitly calls this out as a placeholder) -- do not read this as the
+## final value.
+const MIN_PLAYERS_TO_START: int = 2
 
 @onready var roster_list: ItemList = $MarginContainer/VBoxContainer/RosterList
 @onready var roster_count_label: Label = $MarginContainer/VBoxContainer/RosterCountLabel
@@ -68,6 +119,12 @@ var _current_roster: Array = []
 ## Guards against acting twice on the same session end (mirrors
 ## world/TestArena.gd _session_ended -- see that file for why).
 var _session_ended: bool = false
+
+## Guards against starting the match twice (TK-P2-13; see class doc
+## IDEMPOTENCY). Set true the first time _rpc_start_match() runs on THIS
+## machine (host included, via call_local) -- a second call (double-press or
+## a duplicate/retried RPC) is a no-op.
+var _match_started: bool = false
 
 
 func _ready() -> void:
@@ -167,13 +224,51 @@ func _configure_start_button() -> void:
 	start_button.disabled = not is_host
 
 
+## Host-only entry point for the Start button (TK-P2-13). Defense in depth:
+## the button is already hidden/disabled for clients
+## (_configure_start_button()) and _rpc_start_match() below is
+## "authority"-gated so a client could never make it run remotely even by
+## spoofing -- but a non-host code path calling this directly must still be
+## unable to start a match, so the host-role check happens here too, not
+## only in the UI wiring.
 func _on_start_pressed() -> void:
 	if not NetworkManager.is_host():
 		return
-	# Stub only -- see class doc START BUTTON SCOPE. TK-P2-13 owns the
-	# real host-authoritative "everyone starts together" broadcast.
-	GameLog.info("[WaitingRoom] Start pressed by host -- match-start broadcast is TK-P2-13 (not implemented yet)")
-	status_label.text = "Start pressed -- match start (TK-P2-13) is not wired up yet."
+	if _match_started:
+		return
+
+	if not RosterHelper.can_start_match(true, _current_roster.size(), MIN_PLAYERS_TO_START):
+		status_label.text = "Need at least %d players to start (currently %d)." \
+			% [MIN_PLAYERS_TO_START, _current_roster.size()]
+		return
+
+	GameLog.info("[WaitingRoom] Start pressed by host -- broadcasting match start (%d players)" \
+		% _current_roster.size())
+	rpc("_rpc_start_match")
+
+
+## Host-authoritative match start (TK-P2-13). Mirrors _rpc_receive_roster()'s
+## "authority" + "call_local" pattern exactly (see class doc): "authority"
+## restricts this RPC's sender to the node's multiplayer authority (default
+## authority = peer 1 = the host, never overridden), so the engine itself
+## rejects a client trying to trigger this -- a client cannot start the
+## match even by spoofing the call. "call_local" runs this SAME function on
+## the host too, so every peer (host included) transitions into the match
+## through identical code, not a separate host-local path.
+##
+## Idempotency: guarded by _match_started (see var doc) so a double-press (or
+## a duplicate/retried reliable RPC) cannot queue two deferred scene
+## switches.
+@rpc("authority", "call_local", "reliable")
+func _rpc_start_match() -> void:
+	if _match_started:
+		return
+	_match_started = true
+
+	GameLog.info("[WaitingRoom] match starting -- switching to %s" % MATCH_SCENE)
+	var err: Error = get_tree().change_scene_to_file(MATCH_SCENE)
+	if err != OK:
+		push_warning("[WaitingRoom] failed to switch to %s (error %d)" % [MATCH_SCENE, err])
 
 
 # --- leave / disconnect -------------------------------------------------
