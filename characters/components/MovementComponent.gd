@@ -79,15 +79,47 @@ extends Node
 var _is_jumping: bool = false
 
 ## -- Tunables (TDD §11 Game Balance; design-owned, NOT hard-coded) ----------
-## Moved verbatim from Player.gd. Values UNCHANGED -- per-role balance tuning
-## is explicitly OUT of scope for this step (a later card).
+## Moved verbatim from Player.gd, TK-P2-16 Step 1. Values were UNCHANGED at
+## that step -- per-role balance tuning was explicitly OUT of scope there.
 
-## Baseline walking speed, m/s. TDD §11 "Player Speed": 5.0 m/s baseline.
+## Currently-ACTIVE walk speed, m/s -- what _physics_process() actually reads
+## every tick. TK-P2-04 (gameplay-engineer): this is now a DERIVED/working
+## value, overwritten by set_role() below the instant a role is known (see
+## _ready() below, which calls set_role(_body.role) at spawn, same pattern
+## AbilityController._ready() already uses for the ability catalog). The
+## @export default (5.0, the old pre-role-profile TDD §11 stand-in Game_
+## Balance.md §2 explicitly calls out as superseded) only matters for an
+## instance that is never given a role -- e.g. a bare `.new()` in a unit test
+## that calls compute_velocity() directly without ever calling set_role() --
+## kept as a safe, previously-shipped fallback rather than deleted outright.
 @export var walk_speed: float = 5.0
 
-## Multiplier applied to walk_speed while `sprint` is held.
-## TDD §11 "Sprint Multiplier": x1.4.
+## Currently-ACTIVE multiplier applied to walk_speed while `sprint` is held.
+## Same "derived, overwritten by set_role()" status as walk_speed above.
 @export var sprint_multiplier: float = 1.4
+
+## -- Per-role speed profile (TK-P2-04, gameplay-engineer) -------------------
+## Wires Tiger_Kick_Project_Docs/01_Design/Game_Balance.md §2 ("ความเร็ว
+## (m/s) — per-role") into MovementComponent for the first time -- design doc
+## Ability_System_Design.md §5 step 3 lists "MovementComponent apply role
+## speed profile" as one of exactly three things PlayerRoot.set_role()
+## distributes (AbilityController catalog swap and this profile; the third,
+## CameraComponent FP/TP, is TK-P2-05's separate job). Game_Balance.md §2
+## itself flags these as "ค่าเป้า...จนกว่า role speed profile จะ wire" -- this
+## card/commit IS that wiring landing. Absolute m/s (not multipliers) to
+## match the balance table directly; @export (not hard-coded) per CLAUDE.md's
+## "expose design-owned tunables" rule, same as every other balance value in
+## this file.
+##
+## Human (Outer): walk 4.0 / sprint 6.0 m/s.
+@export var outer_walk_speed: float = 4.0
+@export var outer_sprint_speed: float = 6.0
+
+## Tiger: walk AND sprint both capped at human-walk (4.0) -- "เสือกด sprint
+## ได้แต่เพดาน = human walk": sprinting gives the Tiger no speed advantage at
+## all, by design (hunt-not-chase; see Game_Balance.md §3 locked intent).
+@export var tiger_walk_speed: float = 4.0
+@export var tiger_sprint_speed: float = 4.0
 
 ## Downward acceleration, m/s^2. Not specified in TDD §11 -- defaulted to
 ## Godot's engine default (ProjectSettings physics/3d/default_gravity = 9.8).
@@ -101,6 +133,58 @@ var _is_jumping: bool = false
 ## same "expose design-owned tunables" rule CLAUDE.md sets for every other
 ## balance value in this file.
 @export var jump_speed: float = 5.0
+
+
+## TK-P2-04 (gameplay-engineer): apply the initial speed profile at spawn,
+## same "build my own ITS OWN state from PlayerRoot's `role` the instant I
+## exist, without waiting for GameManager" reasoning
+## AbilityController._ready() already documents for the ability catalog
+## (GameManager/the real Role state machine's caller, TK-P2-03, does not
+## broadcast a role for the FIRST Tiger until TK-P2-09 lands) -- default
+## &"outer" (Player.gd's own default) means every Player starts at Human
+## walk/sprint speeds until a real role-swap broadcast changes it.
+func _ready() -> void:
+	set_role(_body.role)
+
+
+## TK-P2-04 (Role state machine, gameplay-engineer): the "property" half of
+## this card's title (design doc §5 step 3 / §6 balance table) -- selects
+## this Player's ACTIVE walk_speed/sprint_multiplier from the per-role
+## tunables above. Called by Player.set_role() (PlayerRoot) alongside
+## AbilityController.set_role() -- see that method's own doc. Idempotent,
+## same as AbilityController.set_role(): always recomputes from the tunables
+## above rather than diffing, so re-applying the same role is a harmless
+## no-op recompute.
+##
+## Unrecognized role values cannot reach here in practice -- Player.set_role()
+## rejects them via RoleRules.is_valid_role() before ever calling this -- but
+## this still defaults any non-&"tiger" value to the Outer/Human profile
+## (fail-safe: an unrecognized role should never accidentally grant the
+## SLOWER/weaker Tiger movement profile to what might actually be a Human,
+## nor vice versa grant Tiger speed to an unrecognized value).
+func set_role(role: StringName) -> void:
+	if role == &"tiger":
+		walk_speed = tiger_walk_speed
+		sprint_multiplier = speed_profile_multiplier(tiger_walk_speed, tiger_sprint_speed)
+	else:
+		walk_speed = outer_walk_speed
+		sprint_multiplier = speed_profile_multiplier(outer_walk_speed, outer_sprint_speed)
+
+
+## Pure, node-independent helper (GUT-testable, TK-P2-04): compute_velocity()
+## multiplies walk_speed by sprint_multiplier while sprinting (see that
+## function below) -- this converts the balance table's ABSOLUTE sprint
+## speed (Game_Balance.md §2, e.g. Human sprint 6.0 m/s) into the multiplier
+## compute_velocity() already expects, without changing that pure function's
+## existing signature/behavior (kept identical on purpose -- it is already
+## covered by tests/test_player_movement.gd and used as-is elsewhere).
+## Guards walk == 0.0 (degenerate/misconfigured tunable) by returning 1.0
+## (sprint == walk, i.e. sprinting grants no advantage) rather than dividing
+## by zero.
+static func speed_profile_multiplier(walk: float, sprint: float) -> float:
+	if walk <= 0.0:
+		return 1.0
+	return sprint / walk
 
 
 ## Movement input (TK-P1-02, made camera-relative by TK-P1-03; relocated here
