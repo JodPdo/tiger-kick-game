@@ -119,6 +119,26 @@ func on_rejected(reason) -> void                     # owner ยกเลิก 
 - **MovementComponent** = เจ้าของ physics primitives (Sprint, Jump)
 - **ability subclass** = logic + visuals เท่านั้น
 
+### 8a. GameManager — minimal scope + placement (จารึกจาก architect approval 2026-07-14 — TK-P2-03)
+- GameManager ตัวแรกเกิดที่ TK-P2-03 ในสโคป "ขั้นต่ำ": เป็นเจ้าของ **เฉพาะ** Tag Sequence 7 ขั้น
+  + ล็อก `_is_tag_sequence_active` เท่านั้น — **ยังไม่ใช่** match state machine เต็ม
+  (WaitingRoom → Countdown → Playing → MatchEnd ยังเป็นของ TK-P2-15). step 7
+  ("return to Playing") = "เคลียร์ล็อก" ล้วน ๆ ไม่มี match-state enum ในไฟล์นี้.
+- **Placement:** scene-local node ใต้ world/TestArena.tscn (sibling ของ Players/PlayerSpawner),
+  **ไม่ใช่ autoload** — mirror precedent ของ networking/PlayerSpawner.gd. authority = 1 (server)
+  โดยปริยาย เพราะเป็น static scene node ที่ไม่เคยถูก spawn และไม่เคยเป็น descendant ของ Player
+  จึงไม่โดน recursive owner-set ของ Player._enter_tree() (ต่างจาก AbilityController §4a ที่ต้อง
+  override เอง). `apply_role_switch` = `@rpc("authority","call_local","reliable")` ถูกต้องตาม §5 step 1.
+- **RPC boundary:** apply_role_switch อยู่บน GameManager ไม่ใช่ AbilityController — ไม่ขัด §8
+  ("AbilityController owns ability RPC surface") เพราะ role-swap = match flow (GameManager-owned, §5),
+  ไม่ใช่ ability RPC. ability subclass (TagAbility) ยังไม่มี @rpc เองตาม §3.
+- **OPEN QUESTION → TK-P2-15 ต้องตัดสิน (ห้ามสมมติเงียบ):** เมื่อ TK-P2-15 เพิ่ม match state ที่ต้อง
+  ข้ามฉาก WaitingRoom ↔ Arena, GameManager แบบ scene-local จะถือ state ก่อนเข้า arena ไม่ได้ →
+  TK-P2-15 ต้องเลือก (a) promote เป็น autoload ที่ persist ข้าม scene switch, หรือ (b) จำกัด state
+  machine ให้เริ่มที่ Countdown (ใน arena) แล้วให้ pre-arena state อยู่ที่อื่น + กลไก hand-off/snapshot.
+  bool lock ปัจจุบันดูดกลืนเข้า enum ได้สะอาด (`is_sequence_active()` เป็น derived accessor ต่อได้),
+  แต่การเลือก autoload-vs-scene-local เป็น decision ของ TK-P2-15 ไม่ใช่ของการ์ดนี้.
+
 ## 9. ความเสี่ยง / open (ตรง ๆ)
 - Host-view fairness: "จอฉันโดนแต่ระบบบอกไม่โดน" ตามธรรมชาติ — เลือกถูกต้อง (no desync) เหนือแม่น; แก้ด้วยขยาย range ก่อน lag-comp
 - Crouch LOCAL_ONLY มีช่องโกงเบา (ประกาศหมอบทั้งที่วิ่ง) — host sanity-check pose-vs-speed ก่อน Steam (Phase 5)

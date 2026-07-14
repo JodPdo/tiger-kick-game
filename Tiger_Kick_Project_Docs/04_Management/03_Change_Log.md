@@ -3,6 +3,13 @@
 บันทึกการเปลี่ยนแปลงสำคัญของโปรเจกต์และเอกสาร (รูปแบบ Keep a Changelog)
 เวอร์ชันล่าสุดอยู่บนสุด
 
+## [0.40] — 2026-07-14 — TK-P2-03 architecture: first GameManager introduced, scene-local placement + minimal scope (TK-P2-03)
+- **Architect ruling:** Tag Sequence 7-step now owned by a new **GameManager node (scene-local, not autoload)** introduced at TK-P2-03 with **minimal scope = Tag Sequence orchestration + `is_tag_sequence_active` lock only** — NOT the full match state machine (WaitingRoom → Countdown → Playing → MatchEnd remains TK-P2-15 scope). step 7 ("return to Playing") = unlock only, no enum state in GameManager.
+- **Placement:** child node of world/TestArena.tscn, sibling to Players/PlayerSpawner (mirrors PlayerSpawner precedent for networking/match-flow nodes). Authority = 1 (server) by default since GameManager is a static scene node that is never spawn()ed and never a descendant of Player (thus not subject to Player._enter_tree() recursive authority set, unlike AbilityController which must override itself per §4a).
+- **RPC ownership:** `apply_role_switch` RPC lives on GameManager (host-authoritative, @rpc("authority","call_local","reliable")) per Ability_System_Design.md §5; does not violate AbilityController's "ability RPC surface" ownership (§8) because role-swap is match flow (GameManager-owned per §5), not ability RPC. ability subclass (TagAbility) has no @rpc of its own per §3.
+- **Boundary rule recorded in `Ability_System_Design.md` §8a:** new subsection documenting the architect ruling, placement rationale, and an explicit OPEN QUESTION for TK-P2-15 (must decide whether to promote GameManager to autoload for WaitingRoom↔Arena scene transitions, or keep it scene-local and start the state machine at Countdown only, with pre-arena state elsewhere + hand-off mechanism).
+- **Architect APPROVED 2026-07-14.** Autoload-vs-scene-local promotion explicitly deferred to TK-P2-15 as a decision requirement (cannot be left silent).
+
 ## [0.39] — 2026-07-13 — TK-P2-02 Tag Detection: architect approval — sensor vs hitbox architectural distinction + RPC-free invariant
 - **Architect ruling:** Tag detection placed as **plain Player-root sensor component** (TagDetector Area3D) distinct from ability-owned hitboxes (e.g., KickHitbox) — detection sensors are **role-agnostic, RPC-free, host-side consumption by GameManager**, while hitboxes nest under ability nodes and tie to ability RPC surface.
 - **Boundary rule recorded in `Ability_System_Design.md` §2 + §4b:** sensors ≠ abilities; sensor has no owning ability; hitbox must be ability-owned. RPC-free invariant: TagDetector must never grow its own `@rpc` — state transport off the host must go through host-authority nodes (AbilityController/GameManager).

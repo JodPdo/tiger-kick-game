@@ -712,7 +712,7 @@
       "TK-P2-09"
     ],
     "labels": "task, phase-2, prio-high, match-flow",
-    "notes": "โครง state ระดับแมตช์ ครอบ Round Flow เดิม · เข้า Playing → เรียก assign_first_tiger (TK-P2-09) · เชื่อม RoundManager (TK-P2-07) สำหรับลูปรอบ · host-authoritative · DoD: ไหลครบ WaitingRoom→Countdown→Playing, สลับ state ตรงกันทุกเครื่อง, จบแมตช์กลับ Waiting Room ได้"
+    "notes": "โครง state ระดับแมตช์ ครอบ Round Flow เดิม · เข้า Playing → เรียก assign_first_tiger (TK-P2-09) · เชื่อม RoundManager (TK-P2-07) สำหรับลูปรอบ · host-authoritative · DoD: ไหลครบ WaitingRoom→Countdown→Playing, สลับ state ตรงกันทุกเครื่อง, จบแมตช์กลับ Waiting Room ได้ ·· OPEN QUESTION from TK-P2-03 (architect ruling 2026-07-14, design doc §8a): GameManager currently exists as a scene-local node (not autoload), scoped only to the Tag Sequence. This card must decide whether to promote it to an autoload (to persist across WaitingRoom↔Arena scene transitions) or keep it scene-local with the match state machine starting only at Countdown (in-arena) and pre-arena state owned elsewhere + a hand-off/snapshot mechanism. Do not resolve this silently — pick one and record why."
   },
   {
     "id": "TK-P2-16",
