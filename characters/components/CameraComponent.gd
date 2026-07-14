@@ -8,9 +8,39 @@ extends Node
 ## Tiger_Kick_Project_Docs/04_Management/03_Change_Log.md [0.33]): target
 ## Player tree is
 ##   Player -> MovementComponent · CameraComponent · AbilityController -> [abilities]
-## THIS STEP (2 of 3) extracts ONLY the camera/mouse-look code, still
-## THIRD-PERSON ONLY (no FP/first-person mode -- that is TK-P2-05, later
-## work; do not add it here). AbilityController (Step 3) does not exist yet.
+## STEP 2 (TK-P2-16) extracted ONLY the camera/mouse-look code and was
+## THIRD-PERSON ONLY at that point (no FP/first-person mode -- that was
+## explicitly deferred to this exact card, TK-P2-05, see that step's own
+## history below).
+##
+## TK-P2-05 (gameplay-engineer, THIS pass): adds the FP/TP swap design doc §5
+## step 3 calls for -- Tiger = first-person, everyone else (Outer) =
+## third-person. Decision logic lives in CameraModeRules.gd (pure static,
+## same "pure helper, thin caller" split as RoleRules.gd/JumpRules.gd); this
+## file only wires it: `_body.role_changed` SIGNAL SUBSCRIBE (see _ready()
+## below) -- chosen over adding a second direct call inside
+## Player.set_role() per the TK-P2-04 code-review nit ("decide signal-
+## subscribe vs. a direct call, don't do both"); Player.gd is NOT touched by
+## this card. `_apply_camera_mode()` is gated on `_body.is_multiplayer_
+## authority()` (same authority caveat this file's mouse-look already
+## documents) -- see CameraModeRules.gd's own class doc for why: only the
+## owning peer's own Camera3D is ever `current` (PlayerSpawner.
+## _activate_local_camera_if_own), so applying the swap to a NON-owned copy
+## of some other Player's rig would be a silent no-op for the spring-arm
+## pull-back, and actively WRONG for the own-mesh-hide half (it would hide
+## that Player's model from every OTHER peer's view, not just switch that
+## Player's OWN first-person view). No new RPC/network state: `role` itself
+## already arrives host-authoritatively via GameManager.apply_role_switch()
+## -> Player.set_role() (TK-P2-03/04) -- this card only reacts, client-side,
+## to a value that has already been decided.
+##
+## OUT OF SCOPE (flagged, not decided here): the GDD's "limited view" phrase
+## for the Tiger (core-loop paragraph) could mean a narrower FOV/vision-cone,
+## which is a separate design/balance decision (e.g. Phase 3 Crouch/Lean/Peek
+## body-language ladder) -- NOT assumed or implemented by this card, which is
+## scoped strictly to the FP/TP camera-rig swap the card title names. Escalate
+## to `designer` if "limited view" needs to become a real mechanic before
+## Phase 3.
 ##
 ## STEP 2 DISCIPLINE (per card, per the design doc's Step 2 note): this is a
 ## pure code MOVE. No tunable value changed, no new feature, no behavior
@@ -65,6 +95,16 @@ extends Node
 @onready var _camera_rig: Node3D = get_parent().get_node("CameraRig") as Node3D
 @onready var _spring_arm: SpringArm3D = get_parent().get_node("CameraRig/SpringArm3D") as SpringArm3D
 
+## TK-P2-05: sideways reach to the sibling MeshInstance3D, same
+## get_parent().get_node(...) pattern this file already uses for CameraRig/
+## SpringArm3D above (and MovementComponent uses for CameraRig) -- needed so
+## the OWNING peer can hide their own body mesh while first-person (otherwise
+## the camera would be looking out from inside their own capsule). Only ever
+## mutated from `_apply_camera_mode()` below, which is itself gated on
+## `_body.is_multiplayer_authority()` -- see that method's doc for why a
+## non-owning peer's copy of this same node must never touch this.
+@onready var _mesh: MeshInstance3D = get_parent().get_node("MeshInstance3D") as MeshInstance3D
+
 ## -- Camera rig tunables (TK-P1-03) ------------------------------------------
 ## Moved verbatim from Player.gd. Values UNCHANGED.
 
@@ -85,6 +125,24 @@ const MOUSE_LOOK_RADIANS_PER_PIXEL: float = 0.0025
 const PITCH_MIN: float = -deg_to_rad(60.0) # look down
 const PITCH_MAX: float = deg_to_rad(30.0)  # look up
 
+## -- FP/TP mode tunables (TK-P2-05) ------------------------------------------
+
+## Spring-arm length while first-person (Tiger): 0.0 pulls the Camera3D all
+## the way in to CameraRig's own position (already ~head height, see
+## Player.tscn's CameraRig transform y=1.5), i.e. no third-person pull-back at
+## all. A feel constant (like MOUSE_LOOK_RADIANS_PER_PIXEL above), not a GDD/
+## Game_Balance.md-specified value, so a plain @export rather than a design-
+## owned tunable.
+@export var first_person_spring_length: float = 0.0
+
+## Cached at _ready() from whatever Player.tscn's SpringArm3D.spring_length
+## already is (currently 4.0) -- read back rather than hardcoded as a second
+## magic number here, so the third-person distance stays the single value
+## already authored on the scene (no drift if that scene value is ever
+## retuned) and switching back to Outer always restores exactly what TP
+## looked like before this card touched anything.
+var _third_person_spring_length: float = 0.0
+
 
 ## Mouse capture UX (documented, kept simple per the card, unchanged by this
 ## move): captured on _ready() for the authority player; Esc releases it
@@ -95,6 +153,50 @@ const PITCH_MAX: float = deg_to_rad(30.0)  # look up
 func _ready() -> void:
 	if _body.is_multiplayer_authority():
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+	# TK-P2-05: cache the scene-authored TP distance BEFORE anything can
+	# mutate spring_length, then self-apply this Player's CURRENT role once
+	# (same "build my own state from PlayerRoot's `role` the instant I exist,
+	# without waiting for a broadcast" reasoning MovementComponent._ready()/
+	# AbilityController._ready() already use for their own role-driven state --
+	# matters for a late-join/reconnect Tiger, design doc §9 open question),
+	# then subscribe to `role_changed` for every subsequent swap. SIGNAL
+	# SUBSCRIBE chosen over a second direct call added into Player.set_role()
+	# per the TK-P2-04 review nit -- see this file's header doc.
+	_third_person_spring_length = _spring_arm.spring_length
+	_apply_camera_mode(_body.role)
+	_body.role_changed.connect(_on_role_changed)
+
+
+## TK-P2-05: `role_changed` handler -- see this file's header doc for why
+## this is a signal subscription rather than a direct call from
+## Player.set_role().
+func _on_role_changed(new_role: StringName) -> void:
+	_apply_camera_mode(new_role)
+
+
+## TK-P2-05: applies the FP/TP swap for `role` -- gated on `_body.
+## is_multiplayer_authority()` (see this file's header + CameraModeRules.gd's
+## own doc for why a non-owning peer's copy of this same node must never
+## mutate its rig/mesh: only the owning peer's own Camera3D is ever `current`,
+## and mutating a non-owned copy's mesh visibility would hide that Player's
+## model from every OTHER peer's view too, not just switch its own).
+func _apply_camera_mode(role: StringName) -> void:
+	if not _body.is_multiplayer_authority():
+		return
+
+	var first_person: bool = CameraModeRules.is_first_person(role)
+	_spring_arm.spring_length = (
+		first_person_spring_length if first_person else _third_person_spring_length
+	)
+	# Hide the owning peer's own body mesh while first-person -- otherwise
+	# the camera (pulled all the way in) would be looking out from inside
+	# their own capsule. Cosmetic-only, local to this peer's own render (see
+	# `_mesh`'s own doc above); every OTHER peer's separate instantiated copy
+	# of this same Player is untouched (this whole method already returned
+	# above on their machine, since they are not this Player's authority).
+	if _mesh:
+		_mesh.visible = not first_person
 
 
 ## Mouse-look (TK-P1-03): rotates CameraRig's yaw (Y) and SpringArm3D's

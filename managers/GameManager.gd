@@ -47,6 +47,26 @@ extends Node
 ## about callers" split as every other host_validate()/GameManager-shaped
 ## file in this codebase (KickAbility/KickRules, TagAbility/TagRules,
 ## TigerSelector).
+##
+## TK-P2-09 (สุ่มเสือตัวแรก, gameplay-engineer) ADDITION: this file now also
+## owns assigning the FIRST Tiger of a round, per design doc §8 ("GameManager
+## = เจ้าของ role + Tag Sequence 7 ขั้น"). Same node, same placement, same
+## host-authoritative-only posture as apply_role_switch above -- see
+## assign_first_tiger()/_try_assign_first_tiger() below. PURE selection logic
+## (pick_first_tiger/build_role_map/count_tigers) lives in
+## managers/TigerSelector.gd (pre-existing, see that file's own doc); this
+## file only wires TigerSelector's pure output into a real broadcast, same
+## split as TagSequenceRules above.
+##
+## INTERIM CALL SITE (per the card note -- RoundManager/TK-P2-07 and the full
+## match state machine/TK-P2-15 do not exist yet): "once at round start" is
+## approximated here as "once every initially-connected peer's Player has
+## actually spawned under ../Players" (see _try_assign_first_tiger() doc for
+## why spawn-completion, not _ready(), is the trigger). TK-P2-15 will replace
+## this call site with the real Playing-state entry point per its own OPEN
+## QUESTION (design doc §8a) -- this is explicitly a placeholder trigger, not
+## a decision about the eventual match SM; the round-loop RE-ROLL trigger
+## (next round -> new Tiger) is TK-P2-07's job, not built here.
 
 ## Seconds the stub throw-to-ground step "plays" before the transform stub
 ## starts. Placeholder pending TK-P4-0x real animation -- @export so
@@ -83,6 +103,226 @@ var _is_tag_sequence_active: bool = false
 ## since GameManager (unlike PlayerSpawner) is not designed to be reused
 ## outside this one arena scene.
 @onready var _players_root: Node = get_node("../Players")
+
+## HOST-ONLY (TK-P2-09). How long to wait, after GameManager enters the tree,
+## for every initially-connected peer's Player to actually appear under
+## _players_root before giving up waiting for the stragglers and assigning
+## the first Tiger among whoever HAS spawned. Mirrors
+## networking/PlayerSpawner.gd's own ARENA_READY_GRACE_SEC rescue-timer
+## pattern (a peer that crashes/hangs mid-load, or gets force-disconnected by
+## THAT grace timer, must not deadlock this one forever) -- deliberately
+## longer than PlayerSpawner's 8.0s since this wait starts at the same moment
+## and must be able to observe PlayerSpawner's own barrier resolving first.
+const FIRST_TIGER_SPAWN_WAIT_GRACE_SEC: float = 12.0
+
+## HOST-ONLY (TK-P2-09): true once the first Tiger has been picked and
+## broadcast -- guards against ever running the pick/broadcast a second time
+## from this interim call site (the round-loop re-roll is TK-P2-07's job, a
+## separate future entry point, not this guard).
+var _first_tiger_assigned: bool = false
+
+## HOST-ONLY (TK-P2-09): snapshot, taken once in _ready(), of how many
+## Players this round expects to see spawned (host + every peer connected at
+## that moment) before picking the first Tiger. See
+## _on_player_entered_watch_first_tiger() for how this is consumed.
+var _expected_first_tiger_roster_size: int = 0
+
+## HOST-ONLY (TK-P2-09): true once FIRST_TIGER_SPAWN_WAIT_GRACE_SEC has
+## elapsed without every expected Player spawning -- relaxes
+## _on_player_entered_watch_first_tiger()'s condition so the very next
+## spawn (or the current count, if already > 0) triggers assignment instead
+## of waiting forever for a peer that will never arrive.
+var _first_tiger_grace_elapsed: bool = false
+
+## HOST-ONLY (TK-P2-09): the single RandomNumberGenerator instance used for
+## the first-Tiger pick. Created and randomize()'d EXACTLY ONCE, here, on the
+## host only -- this is the mandatory rule from the card note: clients must
+## NEVER call randomize()/pick their own Tiger, or every machine could resolve
+## a different "random" winner (S1 desync). Injected into
+## TigerSelector.pick_first_tiger() exactly like tests/test_tiger_assignment.gd
+## injects its own seeded RNG, so the same pure function is exercised in both
+## contexts.
+var _tiger_rng: RandomNumberGenerator = null
+
+
+## TK-P2-09: host-only setup for the interim first-Tiger trigger (see class
+## doc). Never runs any of this on a client -- clients only ever receive
+## assign_first_tiger's broadcast below, they never decide or wait for
+## anything here.
+func _ready() -> void:
+	if not multiplayer.is_server():
+		return
+
+	_tiger_rng = RandomNumberGenerator.new()
+	_tiger_rng.randomize() # ONE call, host-only -- see _tiger_rng doc above.
+
+	# host id + every peer already connected at the moment GameManager enters
+	# the tree -- same NetworkManager.get_connected_peer_ids() source
+	# networking/PlayerSpawner.gd's own barrier snapshot reads, taken at
+	# effectively the same instant (no `await` runs between the two _ready()
+	# calls), so both nodes agree on "who do we expect this round".
+	_expected_first_tiger_roster_size = 1 + NetworkManager.get_connected_peer_ids().size()
+
+	if _expected_first_tiger_roster_size > 0 and _players_root.get_child_count() >= _expected_first_tiger_roster_size:
+		# Standalone/offline boot (or the old staggered-connect path): the
+		# sibling PlayerSpawner already spawned everyone it's going to spawn
+		# synchronously, earlier in this same _ready() pass (PlayerSpawner is
+		# the earlier sibling in world/TestArena.tscn) -- nothing left to wait
+		# for.
+		_try_assign_first_tiger()
+	else:
+		_players_root.child_entered_tree.connect(_on_player_entered_watch_first_tiger)
+		_start_first_tiger_grace_timer()
+
+
+func _start_first_tiger_grace_timer() -> void:
+	var grace := Timer.new()
+	grace.name = "FirstTigerSpawnGrace"
+	grace.wait_time = FIRST_TIGER_SPAWN_WAIT_GRACE_SEC
+	grace.one_shot = true
+	add_child(grace)
+	grace.timeout.connect(_on_first_tiger_grace_timeout)
+	grace.start()
+
+
+## Fires every time a new Player is spawned under _players_root (host's own
+## local view -- see _try_assign_first_tiger() doc for why watching spawns,
+## rather than firing in _ready() directly, is what keeps the eventual RPC
+## broadcast from racing a client's own still-loading scene). Once every
+## expected Player has arrived (or the grace window already elapsed and at
+## least one Player exists), triggers the actual pick + broadcast.
+##
+## DEFERRED ON PURPOSE (bug found + fixed during this card's own probe
+## testing, see tests/net/run_spawn_probe_together.sh output): Node's
+## `child_entered_tree` fires as soon as THIS SAME child enters the tree --
+## confirmed EMPIRICALLY to run before that child's own _ready() (and
+## therefore its @onready ability_controller/movement_component) has been
+## assigned yet. Calling set_role() synchronously here, on the very Player
+## whose spawn just satisfied the roster count, would hit Player.set_role()'s
+## existing "caller before ready" null-guards (see that method's own doc) and
+## silently skip distributing the role to ability_controller/
+## movement_component for exactly that Player -- `role`/`role_changed` would
+## still update, but the new Tiger's ability catalog would never swap to
+## TigerAbility and its speed profile would never apply. call_deferred()
+## pushes the actual pick+broadcast past the current call stack, so by the
+## time it runs, this Player's own _ready() (queued/processed as part of the
+## same node-entering sequence) has already completed.
+func _on_player_entered_watch_first_tiger(_node: Node) -> void:
+	if _first_tiger_assigned:
+		return
+	var have_everyone: bool = _players_root.get_child_count() >= _expected_first_tiger_roster_size
+	if have_everyone or (_first_tiger_grace_elapsed and _players_root.get_child_count() > 0):
+		_try_assign_first_tiger.call_deferred()
+
+
+## Rescue timer (mirrors networking/PlayerSpawner.gd's ARENA_READY_GRACE_SEC):
+## if some expected peer's Player never actually spawns (e.g. it crashed
+## mid-load, or PlayerSpawner's OWN grace timer force-disconnected it first),
+## this must not wait forever -- assign the first Tiger among whoever HAS
+## spawned by now instead of deadlocking the round before it even starts.
+func _on_first_tiger_grace_timeout() -> void:
+	if _first_tiger_assigned:
+		return
+	_first_tiger_grace_elapsed = true
+	if _players_root.get_child_count() > 0:
+		_try_assign_first_tiger()
+	else:
+		GameLog.error("[TIGER] first-tiger grace elapsed with zero Players spawned -- will assign as soon as the first Player appears")
+
+
+## HOST-ONLY: the peer ids of every Player CURRENTLY spawned under
+## _players_root, derived from the Players/<id> naming contract every
+## spawned Player already uses (TK-BUG-P1-01 -- see PlayerSpawner.gd's own
+## class doc). This is the candidate pool TigerSelector.pick_first_tiger()
+## chooses from -- built from ACTUAL spawned Players (not raw
+## NetworkManager peer ids) so a pick can never reference a peer whose
+## Player does not exist yet/anymore.
+func _current_player_ids() -> Array:
+	var ids: Array = []
+	for child in _players_root.get_children():
+		# .to_int() (not the global int() cast) to match the rest of the
+		# codebase's Players/<id> name-parsing convention -- see
+		# networking/SpawnPointUtil.gd / TagDetectorComponent.gd's own
+		# `.name.to_int()` usage.
+		ids.append(child.name.to_int())
+	ids.sort()
+	return ids
+
+
+## HOST-ONLY: picks the first Tiger, re-rolling against the CURRENT roster if
+## the chosen id's Player has disconnected (card edge case: "if the
+## randomly-selected peer disconnects at exactly the wrong moment, re-roll").
+## _try_assign_first_tiger() may itself run one frame LATER than the spawn
+## that triggered it (see _on_player_entered_watch_first_tiger()'s
+## call_deferred() doc), but once it starts, this whole call chain down to
+## here is synchronous -- no `await` runs between building the candidate list
+## and broadcasting -- so in practice a disconnect cannot land mid-call; this
+## loop makes the guarantee explicit rather than relying on "it's synchronous
+## so it can't happen" (e.g. a disconnect signal already queued ahead of this
+## call on the same frame). Each failed iteration re-snapshots the roster and
+## re-picks, so it always terminates: either a still-present id is found, or
+## the roster empties entirely (the card's "only 1 player left" edge case is
+## handled by TigerSelector.pick_first_tiger() itself returning that one
+## remaining id; only a TOTAL wipeout falls through to NO_ID here).
+func _pick_first_tiger_with_reroll() -> int:
+	var ids: Array = _current_player_ids()
+	var attempts: int = 0
+	while attempts <= ids.size():
+		if ids.is_empty():
+			return TigerSelector.NO_ID
+		var pick: int = TigerSelector.pick_first_tiger(ids, _tiger_rng)
+		if _players_root.has_node(str(pick)):
+			return pick
+		ids = _current_player_ids() # re-snapshot -- the picked id vanished
+		attempts += 1
+	return TigerSelector.NO_ID
+
+
+## HOST-ONLY: the actual TK-P2-09 decision point. Picks exactly one Tiger
+## (see _pick_first_tiger_with_reroll()) and broadcasts it via
+## assign_first_tiger.rpc() below -- same
+## @rpc("authority","call_local","reliable") pattern as apply_role_switch,
+## so the host's own copy also applies the result instead of being
+## special-cased. Idempotent: does nothing once _first_tiger_assigned is set.
+func _try_assign_first_tiger() -> void:
+	if _first_tiger_assigned:
+		return
+
+	if _players_root.child_entered_tree.is_connected(_on_player_entered_watch_first_tiger):
+		_players_root.child_entered_tree.disconnect(_on_player_entered_watch_first_tiger)
+
+	var tiger_id: int = _pick_first_tiger_with_reroll()
+	if tiger_id == TigerSelector.NO_ID:
+		GameLog.error("[TIGER] assign_first_tiger: no spawned Players to choose from -- cannot assign a Tiger")
+		return
+
+	_first_tiger_assigned = true
+	GameLog.info("[TIGER] assign_first_tiger: host picked tiger=%d among %s" % [tiger_id, _current_player_ids()])
+	assign_first_tiger.rpc(tiger_id)
+
+
+## Host -> everyone (TK-P2-09). Broadcasts the ONE first-Tiger decision the
+## host made (see _try_assign_first_tiger()) so every peer applies the exact
+## SAME role assignment -- the mandatory server-authority rule from the card
+## note: clients must NEVER pick/derive a Tiger themselves, only ever apply
+## whatever this broadcast says. call_local so the host's own copy runs this
+## too, exactly like apply_role_switch.
+##
+## Per TigerSelector.gd's own documented usage contract ("4) call
+## build_role_map() on every peer to apply roles"), every peer builds the
+## same role map from its OWN current _players_root roster + the broadcast
+## tiger_id, then applies it to EVERY Player currently present (not just the
+## chosen tiger_id) -- so any peer whose Player still held a stale/default
+## role (e.g. it spawned slightly after another peer, or a future re-entry
+## case) is explicitly confirmed Outer too, not just left alone.
+@rpc("authority", "call_local", "reliable")
+func assign_first_tiger(tiger_id: int) -> void:
+	var ids: Array = _current_player_ids()
+	var roles: Dictionary = TigerSelector.build_role_map(ids, tiger_id)
+	for child in _players_root.get_children():
+		var pid: int = child.name.to_int()
+		var is_tiger: bool = roles.get(pid, TigerSelector.ROLE_OUTER) == TigerSelector.ROLE_TIGER
+		child.set_role(RoleRules.TIGER if is_tiger else RoleRules.OUTER)
 
 
 ## Read-only accessor for TagAbility.host_validate() (design doc section 3
