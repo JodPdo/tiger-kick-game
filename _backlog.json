@@ -892,12 +892,12 @@
     "type": "task",
     "priority": "Medium",
     "owner_agent": "tools-devops",
-    "status": "doing",
+    "status": "done",
     "depends_on": [
       "TK-P2-02"
     ],
     "labels": "task, phase-2, prio-medium, test, network",
-    "note": "From TK-P2-02 qa recommendation (same pattern as TK-P2-01->TK-P2-19). GUT fully covers pure TagRules but structurally cannot exercise: (a) a real Area3D body_entered/body_exited firing across two live networked peers against replicated positions, (b) the host-only-emit gate holding on the wire (tag_target_in_range emits server-side only, never on the client), (c) despawn/ghost edge = a peer in range disconnects -> get_candidates_in_range() must leave no stale entry and must not crash on body.name of a freed node. This is exactly the class of wire behavior automation missed on TK-P2-13 (opus review, not GUT, caught that S1). Add a 2-instance headless probe mirroring tests/net/run_spawn_probe_together.sh and gate in CI. Higher urgency now that Player.tscn collision layers are a moving target (see TK-P2-25)."
+    "note": "From TK-P2-02 qa recommendation (same pattern as TK-P2-01->TK-P2-19). GUT fully covers pure TagRules but structurally cannot exercise: (a) a real Area3D body_entered/body_exited firing across two live networked peers against replicated positions, (b) the host-only-emit gate holding on the wire (tag_target_in_range emits server-side only, never on the client), (c) despawn/ghost edge = a peer in range disconnects -> get_candidates_in_range() must leave no stale entry and must not crash on body.name of a freed node. This is exactly the class of wire behavior automation missed on TK-P2-13 (opus review, not GUT, caught that S1). Add a 2-instance headless probe mirroring tests/net/run_spawn_probe_together.sh and gate in CI. Higher urgency now that Player.tscn collision layers are a moving target (see TK-P2-25). CLOSED (2026-07-14): added tests/net/run_tag_detect_probe.sh + tag_detect_probe_peer.gd, CI-gated. code-review APPROVE-WITH-NITS (no S0/S1/S2; nits: dep-ordering note for producer since TK-P2-02 was still in review when this started but is the card this probe automates, a dead \\[ERROR\\] grep alternative, WAIT_SEC=25-vs-TIMEOUT=35 flakiness watch-item, unfreed helper timers in the short-lived headless process). QA PASS: full regression green, GUT 201/201 (1320 asserts), net_smoke + spawn_probe + spawn_probe_together PASS, new tag_detect_probe PASS 3/3 (not flaky, all markers land well inside WAIT_SEC). No S0/S1/S2."
   },
   {
     "id": "TK-P2-25",
