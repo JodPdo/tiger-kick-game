@@ -892,7 +892,7 @@
     "type": "task",
     "priority": "Medium",
     "owner_agent": "tools-devops",
-    "status": "todo",
+    "status": "doing",
     "depends_on": [
       "TK-P2-02"
     ],
