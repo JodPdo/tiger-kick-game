@@ -20,6 +20,7 @@ const HumanAbilityScript := preload("res://characters/abilities/HumanAbility.gd"
 const TigerAbilityScript := preload("res://characters/abilities/TigerAbility.gd")
 const AbilityCatalogScript := preload("res://characters/abilities/AbilityCatalog.gd")
 const KickAbilityScript := preload("res://characters/abilities/KickAbility.gd")
+const TagAbilityScript := preload("res://characters/abilities/TagAbility.gd")
 const PlayerScene := preload("res://characters/Player.tscn")
 
 const ROLE_TIGER: StringName = &"tiger"
@@ -28,9 +29,17 @@ const ROLE_OUTER: StringName = &"outer"
 
 # --- AbilityCatalog.abilities_for_role (pure static) ---------------------------
 
-func test_tiger_role_has_no_abilities_this_step() -> void:
+func test_tiger_role_has_tag_registered() -> void:
+	# TK-P2-03: Tiger's catalog now has its first real entry -- TagAbility
+	# (the Tag ACTION, step 1 of the 7-step Tag Sequence). This supersedes
+	# the old scaffold assertion (TK-P2-16) that Tiger's catalog was empty,
+	# same "registering IS the DoD landing" supersession
+	# test_outer_role_has_kick_registered() below already documents for
+	# Outer/Kick. Crouch/Lean/Pounce/Peek (TK-P2-18/TK-P3-05) are still the
+	# cards that append the rest of Tiger's design doc §6 catalog.
 	var result: Array = AbilityCatalogScript.abilities_for_role(ROLE_TIGER)
-	assert_eq(result, [], "AbilityCatalog scaffold ships with an empty Tiger catalog (TK-P2-18/TK-P3-05 register the first entries)")
+	assert_eq(result.size(), 1, "Tiger catalog should have exactly one entry (TagAbility) at this step")
+	assert_eq(result[0], TagAbilityScript, "Tiger's single catalog entry should be TagAbility.gd")
 
 
 func test_outer_role_has_kick_registered() -> void:
@@ -52,11 +61,14 @@ func test_abilities_for_role_returns_a_fresh_array_each_call() -> void:
 	# Mutating a previously-returned Array must never leak into the next call
 	# -- AbilityController relies on being handed an independent Array it can
 	# freely iterate without corrupting the catalog for the next Player/role
-	# switch.
+	# switch. ROLE_TIGER now ships one real entry (TagAbility, TK-P2-03) --
+	# the assertion below checks the SAME independence property that used to
+	# be checked against an empty array, just against a non-empty one now.
 	var first: Array = AbilityCatalogScript.abilities_for_role(ROLE_TIGER)
 	first.append("scratch_entry_that_should_not_leak")
 	var second: Array = AbilityCatalogScript.abilities_for_role(ROLE_TIGER)
-	assert_eq(second, [], "abilities_for_role must return an independent Array on every call")
+	assert_eq(second.size(), 1, "abilities_for_role must return an independent Array on every call -- the scratch append above must not leak in")
+	assert_false(second.has("scratch_entry_that_should_not_leak"), "a previously-returned Array's mutation must never leak into the next call's result")
 
 
 # --- Ability base class defaults (safe/conservative scaffold behavior) --------

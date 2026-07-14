@@ -16,8 +16,14 @@ class_name AbilityCatalog
 ## TK-P2-01 (design doc §7 Step 4): Outer's catalog now has its first real
 ## entry (KickAbility) -- registering it here was purely additive, exactly as
 ## the original scaffold note below predicted (no AbilityController/Player
-## change was required). Tiger's catalog is still empty (TK-P2-18/TK-P3-05
-## are the cards that append its first entries).
+## change was required).
+##
+## TK-P2-03: Tiger's catalog now has its first real entry (TagAbility) -- the
+## Tag ACTION (step 1 of the 7-step Tag Sequence, see
+## characters/abilities/TagAbility.gd's own class doc). Same purely-additive
+## registration Kick already proved out. Crouch/Lean/Pounce/Peek (TK-P2-18/
+## TK-P3-05) are the cards that append the rest of Tiger's design doc §6
+## catalog.
 ##
 ## Original scaffold note (TK-P2-16, kept for history): every role's list
 ## used to be EMPTY -- no concrete ability existed yet.
@@ -46,10 +52,12 @@ const ROLE_OUTER: StringName = &"outer"
 static func abilities_for_role(role: StringName) -> Array:
 	match role:
 		ROLE_TIGER:
-			# TigerAbility catalog (design doc §6): Crouch, Lean, Pounce, Peek.
-			# None implemented yet -- TK-P3-05 (Crouch->Lean->Peek body language)
-			# and TK-P2-18 (Pounce) are the cards that will each append one entry.
-			return []
+			# TigerAbility catalog (design doc §6): Crouch, Lean, Pounce, Peek --
+			# plus the Tag ACTION (TK-P2-03), which design doc §3's Resolution
+			# table lists alongside Kick/Jump-Kick/Pounce but is not part of the
+			# §6 body-language/movement list. TK-P3-05 (Crouch->Lean->Peek) and
+			# TK-P2-18 (Pounce) are the cards that will each append one more entry.
+			return [preload("res://characters/abilities/TagAbility.gd")]
 		ROLE_OUTER:
 			# HumanAbility catalog (design doc §6): Kick, Hide, Emote (+ Jump-Kick).
 			# TK-P2-01 (Kick) is the first entry -- Hide/Emote/Jump-Kick are still
