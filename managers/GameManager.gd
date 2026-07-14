@@ -85,26 +85,6 @@ var _is_tag_sequence_active: bool = false
 @onready var _players_root: Node = get_node("../Players")
 
 
-## TEMP DEBUG (TK-P2-03 human 2-instance test): F7, HOST-ONLY. Force-assigns
-## the first connected non-host peer as Tiger via the REAL apply_role_switch
-## broadcast (no separate hack path) -- TK-P2-09 (first-Tiger assignment)
-## hasn't landed yet, so nothing else can make anyone a Tiger for a live test
-## of this card's pipeline. Press once on the HOST window; the two peers can
-## then tag back and forth normally. Remove once the manual test PASSes.
-func _input(event: InputEvent) -> void:
-	if not (event is InputEventKey and event.keycode == KEY_F7 and event.pressed and not event.echo):
-		return
-	if not multiplayer.is_server():
-		return
-	var peers: PackedInt32Array = multiplayer.get_peers()
-	if peers.is_empty():
-		GameLog.debug("[TAG-SEQ][DEBUG] F7: no connected peer to promote to Tiger")
-		return
-	var target_id: int = peers[0]
-	GameLog.debug("[TAG-SEQ][DEBUG] F7: force-assigning peer %d as Tiger" % target_id)
-	apply_role_switch.rpc(multiplayer.get_unique_id(), target_id, Vector3.ZERO)
-
-
 ## Read-only accessor for TagAbility.host_validate() (design doc section 3
 ## testability note: host_validate is a thin shell -- this is the one piece
 ## of live GameManager state it needs to consult that TagSequenceRules
