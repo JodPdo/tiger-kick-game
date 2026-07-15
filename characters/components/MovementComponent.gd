@@ -134,6 +134,31 @@ var _is_jumping: bool = false
 ## balance value in this file.
 @export var jump_speed: float = 5.0
 
+## -- Safe Circle boundary (TK-P2-06, gameplay-engineer) ---------------------
+## Design-locked balance value (Tiger_Kick_Project_Docs/01_Design/
+## Game_Balance.md §4 "Safe Circle radius" = 5.0m, Change Log [0.34]/[0.42]
+## design ruling) -- @export per CLAUDE.md's "expose design-owned tunables"
+## rule, same as every other balance value in this file. See
+## managers/GameManager.gd's own matching @export for the host-side
+## correction half of this boundary (an independent copy, not a shared
+## constant -- same "each file keeps its own balance-value copy" convention
+## exit_radius_m there already uses; there is no single shared autoload for
+## design-locked values in this codebase).
+##
+## Applied ONLY to the Tiger (design ruling point 2: Outer/human players must
+## stay free to walk in AND out of the circle to Kick and flee -- see
+## apply_safe_circle_boundary() below for the role gate). This is the OWNER'S
+## OWN local prediction half of the boundary -- runs every physics tick on
+## the owning peer only (the whole _physics_process() below is already gated
+## on is_multiplayer_authority(), see that method's TK-P1-06 invariant doc),
+## same "owning client predicts locally" shape KickAbility/TagAbility's
+## on_activate_local() already use for their own local feel. A compromised
+## client could skip this local clamp -- see managers/GameManager.gd's own
+## host-side correction (_physics_process()/correct_tiger_position()) for the
+## authoritative backstop design ruling point 3 requires; this export/method
+## pair is deliberately NOT that backstop by itself.
+@export var safe_circle_radius: float = 5.0
+
 
 ## TK-P2-04 (gameplay-engineer): apply the initial speed profile at spawn,
 ## same "build my own ITS OWN state from PlayerRoot's `role` the instant I
@@ -247,6 +272,15 @@ func _physics_process(delta: float) -> void:
 
 	_body.move_and_slide()
 
+	# TK-P2-06 (Safe Circle, gameplay-engineer): post-move radial clamp, role-
+	# gated to the Tiger only -- see apply_safe_circle_boundary()'s own doc
+	# (extracted the same "GUT-testable without a live physics tick" way
+	# step_jump() below is) for why this reads `_body.position` AFTER
+	# move_and_slide() rather than pre-empting velocity: ordinary collision
+	# (the Floor, any future scenery) resolves first, then the boundary is
+	# enforced as a final position clamp on top.
+	_body.position = apply_safe_circle_boundary(_body.role, _body.position)
+
 
 ## TK-P2-10 (code-review fix S2): the landing-clear + jump-trigger decision,
 ## extracted out of _physics_process specifically so it is reachable by GUT
@@ -325,6 +359,23 @@ func step_jump(is_grounded: bool, current_velocity_y: float, jump_input_pressed:
 ## card.
 func is_jumping() -> bool:
 	return _is_jumping
+
+
+## TK-P2-06 (Safe Circle, gameplay-engineer): role-gated Safe Circle clamp,
+## extracted out of _physics_process the same reason step_jump() above is --
+## so GUT can drive it directly with a hand-built role/position pair, with no
+## live CharacterBody3D/physics tick required. Confines the Tiger only
+## (design ruling point 2: an Outer must be returned UNCHANGED, always free
+## to walk in/out) -- delegates the actual boundary math to
+## SafeCircleRules.clamp_to_circle() (see that file's own class doc for the
+## "why a radial clamp, not a collision shape" reasoning and the exact wall
+## behavior). Returns the (possibly-clamped) position for the CALLER to
+## assign back to `_body.position`; never touches `_body` itself, which is
+## exactly what makes it callable with no scene tree.
+func apply_safe_circle_boundary(role: StringName, position: Vector3) -> Vector3:
+	if role != RoleRules.TIGER:
+		return position
+	return SafeCircleRules.clamp_to_circle(position, safe_circle_radius)
 
 
 ## Pure, node-independent helper (GUT-testable without a scene tree/Input):

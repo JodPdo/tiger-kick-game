@@ -25,7 +25,7 @@
 ## 4. กลไกหลัก (ค่าเสนอ)
 | ค่า | เสนอ | สถานะ |
 |---|---|---|
-| **Safe Circle radius** | **5.0 m** | locked (balance value) — ⚠️ marker ใน `world/TestArena.tscn` (P0-05) วาดไว้ ~6.0 ต้อง reconcile ตอน TK-P2-06 |
+| **Safe Circle radius** | **5.0 m** | locked (balance value) — boundary logic ทำแล้วที่ TK-P2-06 (`characters/components/SafeCircleRules.gd`, host+owner clamp); marker ใน `world/TestArena.tscn` reconcile เป็น 5.0 แล้ว (outer_radius = 5.0, ตรงกับค่านี้) |
 | **Kick range** | 1.5 m | เสนอ (จูน P3; host validate ระยะ kicker↔tiger) |
 | **Jump impulse (jump_speed)** | 5.0 m/s | เสนอ (จูน P3; การ์ด TK-P2-10 — ยังไม่มีใน GDD) |
 | **Kick Stagger** | เสือเซ ~0.3s + ดันถอยเล็กน้อย (ห้าม stun เต็ม) | การ์ด TK-P2-17 |

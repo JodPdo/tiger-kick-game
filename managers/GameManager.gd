@@ -28,8 +28,15 @@ extends Node
 ## animation/VFX; the "TK-P4-xx HOOK" comments mark exactly where, same
 ## shape as KickAbility.host_apply()'s own TK-P2-17 stagger hook comment.
 ## Step 6 (move the old tiger outside the Safe Circle) is a PLACEHOLDER
-## teleport -- Safe Circle itself does not exist yet (TK-P2-06, still todo)
-## -- explicitly flagged non-final here, does not block on that card.
+## teleport -- kept as-is by TK-P2-06 (the Safe Circle boundary itself,
+## characters/components/SafeCircleRules.gd + the new _physics_process()/
+## correct_tiger_position() below): exit_radius_m (6.0m) already lands
+## outside safe_circle_radius (5.0m, TK-P2-06's locked value), and the old
+## tiger's role has already flipped to Outer by the time this teleport runs
+## (see apply_role_switch() below), so the new boundary clamp never fights
+## this placeholder -- still not a REAL Safe-Circle-boundary-aware exit
+## (e.g. shortest path out, or an actual gate), just no longer blocking on
+## the boundary not existing.
 ##
 ## HOST-AUTHORITATIVE THROUGHOUT: every step's authoritative logic (the
 ## is_tag_sequence_active lock, the role assignment, the exit teleport) only
@@ -58,6 +65,21 @@ extends Node
 ## file only wires TigerSelector's pure output into a real broadcast, same
 ## split as TagSequenceRules above.
 ##
+## TK-P2-06 (Safe Circle, gameplay-engineer) ADDITION: this file now also owns
+## the HOST-SIDE best-effort correction half of the Safe Circle boundary
+## (design ruling point 3, Change Log [0.42]) -- see _physics_process()/
+## correct_tiger_position() below for what this is (a defense-in-depth
+## backstop) and, importantly, is NOT (a hard containment guarantee against a
+## deliberately modified client -- position stays owner-authoritative
+## one-way sync; see that method's own doc, and `TK-P2-28`, filed for
+## architect to rule on whether Phase 2 needs true host-authoritative
+## position containment). The OWNER-SIDE local-prediction half lives on
+## characters/components/MovementComponent.gd (role-gated, applies to an
+## honest Tiger client's own movement every tick); the pure boundary math both
+## halves share lives on characters/components/SafeCircleRules.gd (same
+## "pure static helper, thin host-only shell" split every other file in this
+## class doc already follows).
+##
 ## INTERIM CALL SITE (per the card note -- RoundManager/TK-P2-07 and the full
 ## match state machine/TK-P2-15 do not exist yet): "once at round start" is
 ## approximated here as "once every initially-connected peer's Player has
@@ -79,14 +101,60 @@ extends Node
 @export var transform_stub_sec: float = 0.6
 
 ## PLACEHOLDER exit radius (meters from the arena center, world origin) the
-## old tiger is teleported to for step 6 -- Safe Circle (TK-P2-06) does not
-## exist yet, so this is a rough "somewhere outside the ring" stand-in, NOT a
-## real Safe-Circle-boundary exit. world/TestArena.tscn's own
-## SafeCircleMarker ships outer_radius = 5.0 (see that scene) -- picked
-## slightly larger here on the same "give some margin" placeholder reasoning
-## KickAbility/TagDetectorComponent's own placeholder tunables use elsewhere
-## in this codebase. Flag for designer once TK-P2-06 lands for real.
+## old tiger is teleported to for step 6 -- a rough "somewhere outside the
+## ring" stand-in, NOT a real Safe-Circle-boundary-aware exit (e.g. shortest
+## path out, or an actual gate). world/TestArena.tscn's own SafeCircleMarker
+## (visual-only ring) and safe_circle_radius below (TK-P2-06's real, locked
+## boundary value) both ship 5.0 -- picked slightly larger here on the same
+## "give some margin" placeholder reasoning KickAbility/TagDetectorComponent's
+## own placeholder tunables use elsewhere in this codebase (also keeps this
+## placeholder teleport landing safely OUTSIDE the new Tiger-only boundary
+## clamp below, though that clamp would not apply here anyway -- the old
+## tiger's role has already flipped to Outer by the time this teleport runs).
+## Flag for designer if a real boundary-aware exit is ever wanted (Phase 4
+## polish candidate, not required by TK-P2-06's own scope).
 @export var exit_radius_m: float = 6.0
+
+## TK-P2-06 (Safe Circle, gameplay-engineer). Design-locked balance value
+## (Tiger_Kick_Project_Docs/01_Design/Game_Balance.md §4 "Safe Circle
+## radius" = 5.0m, Change Log [0.34]/[0.42] design ruling) -- @export per
+## CLAUDE.md's "expose design-owned tunables" rule. This is GameManager's own
+## copy for the HOST-SIDE authoritative correction half of the boundary (see
+## _physics_process()/correct_tiger_position() below); characters/components/
+## MovementComponent.gd keeps its own matching copy for the owner-side local
+## prediction half. Independent per-file copies, not a shared constant --
+## same convention exit_radius_m above already uses (Game_Balance.md's own
+## "แก้ที่ไฟล์นี้ + Change Log + (ถ้ากระทบโค้ด) การ์ด" note: no single shared
+## autoload exists in this codebase for design-locked values).
+@export var safe_circle_radius: float = 5.0
+
+## Tolerance margin (meters), HOST-SIDE ONLY, added to safe_circle_radius
+## purely for the _physics_process() "is this Tiger's replicated position
+## still inside the circle" check below -- the owner's own LOCAL clamp
+## (MovementComponent.apply_safe_circle_boundary()) stays exact, no
+## tolerance, since that one is local prediction, not something that fires
+## network traffic.
+##
+## WHY THIS EXISTS (code-review + network-engineer review finding, both
+## independently caught the same defect pre-handoff): an honest Tiger
+## pressed against the wall has its OWNER-side clamp pin `position` to
+## EXACTLY `safe_circle_radius` every tick -- the single most common resting
+## state this boundary creates, not a rare edge case. That exact value then
+## round-trips through MultiplayerSynchronizer float replication before the
+## host ever reads it, landing a few ULP on either side of the true radius
+## roughly half the time -- ordinary replication noise, not a real breach.
+## Without slack, is_inside()'s exact `<=` would read that honest client as
+## "outside" on ~half of every physics tick, firing a reliable,
+## all-peers-targetable correct_tiger_position RPC 15-30x/sec/Tiger against a
+## client that never did anything wrong. 0.05m is comfortably larger than any
+## float32 replication noise at this arena's scale while still catching a
+## REAL breach (a client that actually skipped its own local clamp, which
+## would read many centimeters+ outside, not a few ULP) well before it
+## becomes visually meaningful. correct_tiger_position's own CORRECTED
+## position still snaps back to the exact `safe_circle_radius` (not
+## `safe_circle_radius + tolerance`) -- the tolerance only widens the
+## "should I bother correcting at all" check, never where a correction lands.
+const SAFE_CIRCLE_CORRECTION_TOLERANCE_M: float = 0.05
 
 ## HOST-ONLY re-trigger guard (mandatory per TK-P2-02's human-test finding:
 ## boundary jitter re-fired tag_target_in_range/left_range repeatedly within
@@ -459,3 +527,103 @@ func apply_role_switch(old_tiger_id: int, new_tiger_id: int, old_tiger_exit_posi
 		new_tiger.set_role(&"tiger")
 	else:
 		GameLog.error("[TAG-SEQ] apply_role_switch: new tiger Player %d not found (disconnected mid-sequence?)" % new_tiger_id)
+
+
+## HOST-ONLY (TK-P2-06, Safe Circle). Design ruling point 3 ("host-
+## authoritative -- the HOST clamps/rejects the Tiger's position; a client
+## cannot walk a Tiger through the boundary by local movement alone"):
+## characters/components/MovementComponent.gd already confines an HONEST
+## Tiger client's own LOCAL prediction every physics tick (see that file's
+## own doc). The host (and ONLY the host -- multiplayer.is_server() gate,
+## mirrors every other host-only method in this file) independently
+## re-checks whether each CURRENTLY-Tiger Player's replicated position (the
+## host's own local view of it -- same "host sees a client slightly behind
+## that client's own screen" caveat _compute_old_tiger_exit_position() above
+## already documents) is still inside the circle every physics tick (with
+## SAFE_CIRCLE_CORRECTION_TOLERANCE_M slack -- see that const's own doc for
+## why an exact check would misfire against an honest, already-compliant
+## Tiger resting against the wall), and pushes a correction back to that
+## Player's OWNING peer only if not, via correct_tiger_position() below.
+##
+## HONEST ABOUT WHAT THIS DOES AND DOES NOT DO (reworded per code-review +
+## network-engineer review -- the previous wording here overclaimed this as
+## authoritatively "stopping" a cheating client; it does not): position in
+## this codebase is owner-authoritative, ONE-WAY sync (Game_Balance.md §1:
+## "ตำแหน่ง = owner-authoritative... sync ทางเดียว") -- a genuinely malicious
+## client that has actually patched out its own local clamp will simply
+## overwrite this correction with its own (still out-of-bounds) position on
+## its very next physics tick, forever, since MultiplayerSynchronizer only
+## ever replicates FROM the owner. This is a BEST-EFFORT defense-in-depth
+## BACKSTOP, not a hard containment guarantee -- it helps a COOPERATING
+## client recover from a transient bug/desync (a real, useful case: a stray
+## frame of lag, a physics hiccup, a future regression that breaks the local
+## clamp), and it is the honest, no-op-in-ordinary-play backstop design
+## ruling point 3 asked for at this card's scope, but it is NOT proof against
+## a deliberately modified client. Whether Phase 2 needs TRUE
+## host-authoritative position containment (the host, not the owner, being
+## the source of truth for a Tiger's position) is an open architecture
+## question, deliberately NOT decided here -- filed as `TK-P2-28` for
+## architect to rule on.
+func _physics_process(_delta: float) -> void:
+	if not multiplayer.is_server():
+		return
+
+	var host_id: int = multiplayer.get_unique_id()
+	for child in _players_root.get_children():
+		if child.role != RoleRules.TIGER:
+			continue
+		var current_position: Vector3 = child.position
+		if SafeCircleRules.is_inside(current_position, safe_circle_radius + SAFE_CIRCLE_CORRECTION_TOLERANCE_M):
+			continue
+		var corrected: Vector3 = SafeCircleRules.clamp_to_circle(current_position, safe_circle_radius)
+		var owner_peer_id: int = child.name.to_int()
+		if owner_peer_id == host_id:
+			# The host itself owns this Tiger (host is playing, not just
+			# hosting) -- Godot disallows a self-targeted rpc_id() call (see
+			# Ability_System_Design.md §4a's own "try_activate ห้ามยิง
+			# rpc_id(1) หาตัวเอง" note for the exact same constraint on Kick),
+			# so apply the correction directly through the same shared method
+			# the RPC handler below calls, instead of routing through the
+			# network for no reason.
+			_apply_tiger_position_correction(owner_peer_id, corrected)
+		else:
+			# TARGETED, not broadcast (code-review + network-engineer fix):
+			# only the owning peer ever acts on this correction (see
+			# correct_tiger_position()'s own doc) -- every OTHER peer already
+			# learns the corrected position the ordinary way, via that
+			# owner's own next replicated position update, so broadcasting
+			# this RPC to everyone would be pure waste (and would compound
+			# any future tolerance miss into needless traffic on every peer,
+			# not just the one that matters).
+			correct_tiger_position.rpc_id(owner_peer_id, owner_peer_id, corrected)
+
+
+## Host -> the OWNING peer ONLY (rpc_id, not a broadcast -- see the targeted
+## call site above). Resolves the named Player and only ACTS if it is the
+## OWNING peer of that Player (`is_multiplayer_authority()` guard, defense in
+## depth even though the caller already targeted the right peer) -- same
+## reasoning apply_role_switch's own doc gives for its step-6 placeholder
+## teleport: position is owner-authoritative, so writing to a Player this
+## peer does NOT own would just be silently overwritten by that Player's own
+## next replicated update; only the owner's own write can ever actually
+## matter. No call_local (unlike apply_role_switch/assign_first_tiger): the
+## host-owns-the-Tiger case is handled by the caller invoking
+## _apply_tiger_position_correction() directly instead (self-targeted rpc_id
+## is disallowed by Godot -- see the call site's own doc), so this RPC only
+## ever needs to reach a REMOTE peer.
+@rpc("authority", "reliable")
+func correct_tiger_position(peer_id: int, corrected_position: Vector3) -> void:
+	_apply_tiger_position_correction(peer_id, corrected_position)
+
+
+## Shared local-apply logic for correct_tiger_position -- extracted so both
+## the RPC handler above (remote peer's own copy runs this on receipt) and
+## the host's own direct call (when the host itself owns the Tiger being
+## corrected, see _physics_process()'s own doc) go through the exact same
+## code, rather than duplicating the lookup+guard+write.
+func _apply_tiger_position_correction(peer_id: int, corrected_position: Vector3) -> void:
+	var player: Node = _players_root.get_node_or_null(str(peer_id))
+	if player == null:
+		return
+	if player.is_multiplayer_authority():
+		player.position = corrected_position
