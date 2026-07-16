@@ -1,8 +1,9 @@
-[gd_scene load_steps=6 format=3 uid="uid://c8k3n1p6qr2ws"]
+[gd_scene load_steps=7 format=3 uid="uid://c8k3n1p6qr2ws"]
 
 [ext_resource type="Script" path="res://networking/PlayerSpawner.gd" id="1_spawner_script"]
 [ext_resource type="Script" path="res://world/TestArena.gd" id="2_arena_script"]
 [ext_resource type="Script" path="res://managers/GameManager.gd" id="3_gamemanager_script"]
+[ext_resource type="Script" path="res://managers/RoundManager.gd" id="4_roundmanager_script"]
 
 [sub_resource type="StandardMaterial3D" id="SafeCircleMaterial"]
 albedo_color = Color(1, 0.6, 0.1, 1)
@@ -50,6 +51,9 @@ current = true
 [node name="PlayerSpawner" type="MultiplayerSpawner" parent="."]
 script = ExtResource("1_spawner_script")
 spawn_path = NodePath("../Players")
+
+[node name="RoundManager" type="Node" parent="."]
+script = ExtResource("4_roundmanager_script")
 
 [node name="GameManager" type="Node" parent="."]
 script = ExtResource("3_gamemanager_script")

@@ -39,5 +39,11 @@
 - **ไม่ใช่ ability (MovementComponent):** Sprint, Jump
 - **TigerAbility = {Crouch, Lean, Pounce, Peek}** · HumanAbility = {Kick, Hide, Emote} (+Jump-Kick)
 
+## 6. Known Limitations — Phase 2→3
+
+| ข้อจำกัด | สาเหตุ | แผนแก้ไข |
+|---|---|---|
+| **Tiger position = owner-authoritative** — ไม่ได้ป้องกันกับ client ที่แก้ไขโค้ด (modified client ที่ข้ามการ clamp ทั่ว client ได้) | Phase 2 ยอมรับ owner-auth ทั่ว core loop; host-side correction ช่วย honest clients/transient bugs เท่านั้น | Phase 3+ anti-cheat hardening (ถ้าจำเป็น) — ขณะนี้ไม่มีการประเมินความสำคัญ (TK-P2-28 architect ruling, Change Log [0.45]) |
+
 ## เปลี่ยนค่า?
 แก้ที่ไฟล์นี้ + Change Log + (ถ้ากระทบโค้ด) การ์ด. ค่าในโค้ดควร `@export`/`.tres` (TK-P3-01) เพื่อจูนโดยไม่แตะ logic.
