@@ -449,9 +449,12 @@
     "owner_agent": "designer",
     "status": "todo",
     "depends_on": [
-      "TK-P3-02"
+      "TK-P3-02",
+      "TK-P2-14",
+      "TK-P2-15"
     ],
     "labels": "task, phase-3, prio-medium",
+    "gating_note": "GATED on TK-P2-14 (Countdown) + TK-P2-15 (Match state machine incl. MatchEnd) by producer ruling (2026-07-19, Change Log [0.50]): a real-people playtest session needs a synced countdown into the match AND a defined way for the match to actually END, or the session reads as 'the game never finishes' to testers. Both cards are deferred Phase 2 carry-overs, explicitly ordered to land at the START of Phase 3, before this card runs.",
     "note": "SCOPE CLARIFICATION (2026-07-19, from re-scoping TK-P2-27): this card is now the formal home for the 'is the core loop actually FUN with real people' verdict on Kick + Kick Stagger + Pounce + Tag Sequence + role-swap (previously informally expected out of TK-P2-27's Phase 2 feel-test pass, which has been re-scoped to a solo-only mechanical-feel check since a 2nd tester was not available during Phase 2). Real multiplayer dynamics -- chase/hide/social tension, whether the Tiger's no-sprint-advantage cap reads as fair, whether the ~0.6m Kick Stagger shove is a meaningful escape window against a REAL Tiger player's reflexes rather than a simulated/solo one -- can only be judged with actual other players, which is exactly what this playtest session recruits. Carry forward TK-P2-17 CASE 3 (escape-window feel, already flagged advisory-only there) and TK-P2-18's original 2-instance-flavored CASE 1/2/5 as informal prompts for the test session's questionnaire, alongside the Open Questions already in the GDD this card's own AC references."
   },
   {
@@ -652,8 +655,8 @@
   },
   {
     "id": "TK-P2-11",
-    "phase": "Phase 2",
-    "milestone": "M2 Core Gameplay",
+    "phase": "Phase 3",
+    "milestone": "M3 First Playtest",
     "title": "Jump Kick (กระโดดเตะ): เตะขณะกระโดด/ลอยตัว — signature move สำหรับเตะเสือ",
     "type": "task",
     "priority": "High",
@@ -663,7 +666,8 @@
       "TK-P2-10",
       "TK-P2-01"
     ],
-    "labels": "task, phase-2, prio-high, combat",
+    "labels": "task, phase-3, prio-high, combat, carry-over",
+    "deferral_ruling": "DEFERRED from Phase 2 to Phase 3 by producer ruling (2026-07-19, Change Log [0.50]): never started (still todo) at Phase 2 close. Not a Phase 2 Exit Gate blocker -- the gate is 'core loop playable' (Kick + Tag + Tag Sequence + role swap), which does not require every planned combat variant; Jump Kick is an enhancement on top of an already-working, already-verified Kick. Does not gate TK-P3-03 (unlike TK-P2-14/15) -- a playtest session is coherent without it, it just adds a nice-to-have move. Carry forward and pick up whenever Phase 3 capacity allows.",
     "notes": "ต่อยอดจาก Kick (TK-P2-01) + Jump (TK-P2-10) · host-authoritative: client ส่ง intent ผ่าน RPC, host ตัดสินว่าเตะโดนไหม (กันโกง) · เพิ่ม hitbox/หน้าต่างเวลาตอนลอยตัว (อาจต่างจากเตะพื้น เช่น ระยะ/แรงมากกว่า) · ผูกกับ Tag risk: ระหว่างกระโดดเตะ ผู้เล่นเสี่ยงโดนเสือ Tag ด้วย = เพิ่มความลุ้น · balance (jump height, air-kick range, เวลา active) จูน Phase 3 · ต้องบันทึกใน Change_Log + เพิ่มใน GDD/Balance"
   },
   {
@@ -700,8 +704,8 @@
   },
   {
     "id": "TK-P2-14",
-    "phase": "Phase 2",
-    "milestone": "M2 Core Gameplay",
+    "phase": "Phase 3",
+    "milestone": "M3 First Playtest",
     "title": "Countdown ก่อนเริ่มแมตช์ (synced 3→2→1, host-authoritative)",
     "type": "task",
     "priority": "High",
@@ -710,13 +714,14 @@
     "depends_on": [
       "TK-P2-13"
     ],
-    "labels": "task, phase-2, prio-high, match-flow",
+    "labels": "task, phase-3, prio-high, match-flow, carry-over, playtest-blocker",
+    "deferral_ruling": "DEFERRED from Phase 2 to Phase 3 by producer ruling (2026-07-19, Change Log [0.50]): never started at Phase 2 close, but not itself a Phase 2 Exit Gate blocker (the gate is core-loop-playable, not full match-flow polish). MUST land at the START of Phase 3, BEFORE TK-P3-03 (First Playtest) -- a real-people playtest session needs a visible synced countdown into the match or it reads as broken/abrupt to first-time testers. TK-P3-03 now formally depends_on this card.",
     "notes": "host คุมเวลานับถอยหลังแล้ว sync ให้ทุกเครื่องแสดงเลขตรงกัน (client ไม่นับเอง กัน desync) · จบ 0 → Match Start · DoD: ทุกเครื่องเห็นเลขตรงกัน จบพร้อมกันเข้าสู่ Playing"
   },
   {
     "id": "TK-P2-15",
-    "phase": "Phase 2",
-    "milestone": "M2 Core Gameplay",
+    "phase": "Phase 3",
+    "milestone": "M3 First Playtest",
     "title": "Match state machine (GameManager): WaitingRoom → Countdown → Playing → MatchEnd + ต่อเข้า Round Flow",
     "type": "task",
     "priority": "High",
@@ -726,7 +731,8 @@
       "TK-P2-14",
       "TK-P2-09"
     ],
-    "labels": "task, phase-2, prio-high, match-flow",
+    "labels": "task, phase-3, prio-high, match-flow, carry-over, playtest-blocker",
+    "deferral_ruling": "DEFERRED from Phase 2 to Phase 3 by producer ruling (2026-07-19, Change Log [0.50]): never started at Phase 2 close. Phase 2 proved the CORE LOOP (Kick/Tag/Tag Sequence/role-swap via RoundManager's round-to-round Tiger swap), which is enough for the Exit Gate -- but there is currently NO defined MatchEnd state anywhere in the codebase (rounds just keep swapping Tigers forever). MUST land at the START of Phase 3, BEFORE TK-P3-03 (First Playtest) for the same reason as TK-P2-14 -- a playtest session needs the match to be able to actually END, or it reads as unfinished to real testers. TK-P3-03 now formally depends_on this card (and TK-P2-14). OPEN QUESTION carried forward unresolved from the original filing -- still must be decided when this is implemented, not before: whether GameManager needs to become an autoload to persist across WaitingRoom<->Arena scene transitions, or stay scene-local with the match state machine starting at Countdown (in-arena) plus a hand-off/snapshot mechanism for pre-arena state.",
     "notes": "โครง state ระดับแมตช์ ครอบ Round Flow เดิม · เข้า Playing → เรียก assign_first_tiger (TK-P2-09) · เชื่อม RoundManager (TK-P2-07) สำหรับลูปรอบ · host-authoritative · DoD: ไหลครบ WaitingRoom→Countdown→Playing, สลับ state ตรงกันทุกเครื่อง, จบแมตช์กลับ Waiting Room ได้ ·· OPEN QUESTION from TK-P2-03 (architect ruling 2026-07-14, design doc §8a): GameManager currently exists as a scene-local node (not autoload), scoped only to the Tag Sequence. This card must decide whether to promote it to an autoload (to persist across WaitingRoom↔Arena scene transitions) or keep it scene-local with the match state machine starting only at Countdown (in-arena) and pre-arena state owned elsewhere + a hand-off/snapshot mechanism. Do not resolve this silently — pick one and record why."
   },
   {
@@ -846,8 +852,8 @@
   },
   {
     "id": "TK-P2-20",
-    "phase": "Phase 2",
-    "milestone": "M2 Core Gameplay",
+    "phase": "Phase 3",
+    "milestone": "M3 First Playtest",
     "title": "Late-join / late-connect after Match Start: refuse or route peers that connect (or click Join) after the host has started the match",
     "type": "task",
     "priority": "Medium",
@@ -856,8 +862,9 @@
     "depends_on": [
       "TK-P2-13"
     ],
-    "labels": "task, phase-2, prio-medium, network, match-flow",
-    "note": "From TK-P2-13 code-review (round1 finding4) + qa. Two reachable states once Start fires: (a) a peer connecting during the spawn barrier window is deferred by PlayerSpawner (_deferred_join_peers) but NEVER spawned -> connected-but-Player-less; (b) a peer connecting after the host has left the WaitingRoom lands in a WaitingRoom whose host counterpart is freed (its _rpc_client_hello targets /root/WaitingRoom on a host that isn't there -> dead empty roster, can never start), and PlayerSpawner._on_peer_connected would spawn a driverless ghost avatar for everyone. Decide + implement: either REFUSE joins after Start (host rejects/closes the lobby on match start) or properly ROUTE late joiners into the running match (spawn them cleanly, put them in the arena). Server-authoritative. Not an S1 in the happy path (guarded), but a correctness/UX gap that must close before the Phase 2 Exit Gate."
+    "labels": "task, phase-3, prio-medium, network, match-flow, carry-over",
+    "deferral_ruling": "DEFERRED from Phase 2 to Phase 3 by producer ruling (2026-07-19, Change Log [0.50]), OVERRIDING this card's own original note ('must close before the Phase 2 Exit Gate'). Re-assessed: not an S0/S1 in the happy path (already guarded per this note's own text), and every human 2-instance test conducted through Phase 2 deliberately controlled the join sequence (nobody joins mid-barrier or post-Start), so the gap is real but not currently reachable by this project's own testing process. Does not gate TK-P3-03 either -- a scheduled playtest session can simply ask testers to join before Start (a process workaround), same as every Phase 2 human pass did. Pick up in Phase 3 before this stops being controllable (i.e. before external/less-coordinated playtesters start joining on their own schedule).",
+    "note": "From TK-P2-13 code-review (round1 finding4) + qa. Two reachable states once Start fires: (a) a peer connecting during the spawn barrier window is deferred by PlayerSpawner (_deferred_join_peers) but NEVER spawned -> connected-but-Player-less; (b) a peer connecting after the host has left the WaitingRoom lands in a WaitingRoom whose host counterpart is freed (its _rpc_client_hello targets /root/WaitingRoom on a host that isn't there -> dead empty roster, can never start), and PlayerSpawner._on_peer_connected would spawn a driverless ghost avatar for everyone. Decide + implement: either REFUSE joins after Start (host rejects/closes the lobby on match start) or properly ROUTE late joiners into the running match (spawn them cleanly, put them in the arena). Server-authoritative."
   },
   {
     "id": "TK-P2-21",
@@ -982,6 +989,7 @@
       "TK-P2-06"
     ],
     "labels": "task, phase-2, prio-medium, followup",
+    "closure_ruling": "KEPT open in Phase 2, by producer ruling (2026-07-19, Change Log [0.50]): reaffirmed non-blocking for the Exit Gate. This is a pure math/data internal-consistency fix (ex-Tiger exit position vs. the now-real Safe Circle boundary) with no observed user-visible bug and no new RPC surface -- not an S0/S1, and this card's own original filing already said so. Stays in the Phase 2 backlog as open cross-phase debt (same pattern as Phase 1's carried-over items in CURRENT_PHASE.md) rather than being relabeled to Phase 3 -- pick up opportunistically whenever gameplay-engineer next touches GameManager.gd/Tag Sequence.",
     "note": "Filed from TK-P2-06's human-pass closure (2026-07-16, non-blocking). `managers/GameManager.gd`'s Tag Sequence step 6 (old Tiger exits the circle on role swap) still computes its exit position via a PLACEHOLDER (`_compute_old_tiger_exit_position` / `exit_radius_m`, see the file's own `[TAG-SEQ] step4+5 ... step6 exit=%s (placeholder, TK-P2-06 pending)` log line and the class-doc comments citing 'TK-P2-06 replaces this') that predates the real Safe Circle boundary landing. Now that `SafeCircleRules.gd` + `safe_circle_radius` (5.0m, locked) are real, step 6 should use them directly instead of its own separate placeholder radius/math -- confirm the ex-Tiger's landing position is unambiguously OUTSIDE `safe_circle_radius` (not just past the old placeholder `exit_radius_m` guess) so it can never immediately re-trigger the boundary clamp on its very next physics tick as an Outer (it shouldn't clamp anyway, Outer is unrestricted, but the exit math should still be internally consistent with the real boundary it's supposed to clear). Update/remove the now-stale 'placeholder, TK-P2-06 pending' log wording and class-doc comments once done. Scope: GameManager.gd only, no new RPC surface expected (step 6 already rides the existing apply_role_switch broadcast) -- confirm that assumption holds during implementation, escalate to network-engineer only if it doesn't. Regression: full GUT + net probes, no human pass expected to be required unless the RPC surface changes (this is a pure math/data swap inside an already-authoritative broadcast)."
   },
   {
@@ -1032,6 +1040,7 @@
       "TK-P2-07"
     ],
     "labels": "task, phase-2, prio-low, followup",
+    "closure_ruling": "KEPT open in Phase 2, by producer ruling (2026-07-19, Change Log [0.50]): reaffirmed non-blocking for the Exit Gate. A genuinely empty/solo lobby is an edge case this card's own filing already said 'doesn't block Phase 2 loop-proving' -- not an S0/S1, no crash/desync confirmed or expected (just unverified). Stays in the Phase 2 backlog as open cross-phase debt rather than being relabeled to Phase 3 -- worth a quick look if a real playtest session (TK-P3-03) ever drops to 1 remaining player mid-round, but not scheduled work.",
     "note": "Filed from TK-P2-07 human 2-instance pass (2026-07-16, non-blocking -- did not block that card closing). The test checklist did not exercise the N=1 case: what should RoundManager.start_new_round do when a round times out and TigerSelector.pick_first_tiger() has no candidate left to swap to (avoid=the just-expired Tiger id excludes the only other player, or there is no other player at all -- e.g. everyone else disconnected mid-round)? Current behavior in this scenario is UNVERIFIED -- confirm what TigerSelector.pick_first_tiger() actually returns when avoid excludes every candidate (falls back to re-picking the same Tiger? returns null/invalid and start_new_round mishandles it? crashes?) and decide + implement the intended behavior (likely: fall back to re-picking the same Tiger rather than erroring, since a solo Tiger has no one else to hand the reign to). Add a GUT case to test_round_rules.gd / test_tiger_assignment.gd covering the N=1 fallback explicitly. Low priority -- a genuinely empty/solo lobby is an edge case, not a blocker for Phase 2 loop-proving, but should not crash or desync if a real playtest session happens to hit it (e.g. players dropping mid-round down to 1)."
   },
   {
@@ -1067,8 +1076,8 @@
   },
   {
     "id": "TK-P2-33",
-    "phase": "Phase 2",
-    "milestone": "M2 Core Gameplay",
+    "phase": "Phase 3",
+    "milestone": "M3 First Playtest",
     "title": "Add regression coverage that positively asserts an ability's side-effect actually fired (not just no-crash) -- 2nd wiring dead-code bug slipped past 300+ green GUT tests",
     "type": "task",
     "priority": "Medium",
@@ -1077,7 +1086,8 @@
     "depends_on": [
       "TK-BUG-P2-01"
     ],
-    "labels": "task, phase-2, prio-medium, test, followup",
+    "labels": "task, phase-3, prio-medium, test, carry-over",
+    "deferral_ruling": "DEFERRED from Phase 2 to Phase 3 by producer ruling (2026-07-19, Change Log [0.50]), OVERRIDING this card's own original note ('should land before Phase 2 Exit Gate'). Re-assessed: this is test-infrastructure hardening against a bug CLASS, not an open instance of the bug itself -- both known occurrences (TK-P2-32, TK-BUG-P2-01) are already fixed and closed. Nothing currently broken is waiting on this card; it reduces risk of a 3rd recurrence going forward, which is valuable but not a gate criterion (CLAUDE.md: only open S0/S1 block the gate). Pick up early in Phase 3, ideally before TK-P3-06 (Charged Kick) implements its own on_confirmed()-adjacent counter/trigger logic -- that card's own note already flags it as exactly the kind of glue this pattern should protect from day one.",
     "note": "Filed by the human (2026-07-18) alongside TK-BUG-P2-01. Two occurrences now of the same bug CLASS in this codebase: TK-P2-32 (host_validate() targeted the wrong player at N>=3) and TK-BUG-P2-01 (on_confirmed()'s stagger gate checked the wrong node, permanently-false condition, start_stagger() never reachable) -- both are glue/wiring bugs where the pure-function logic (KickRules.nearest_target(), StaggerRules.decayed_speed()/direction_away_from()) is correctly unit-tested in isolation, but the code that WIRES a live RPC broadcast to the right node in a real scene tree was never actually exercised, so 300+ green GUT asserts (and a full automation-green QA verdict) missed a completely dead code path both times. GOAL: add a regression pattern (probe and/or GUT scene-tree test, whichever fits each case) that asserts the ability's OBSERVABLE SIDE-EFFECT actually occurred after a simulated confirm -- e.g. for Kick Stagger: instantiate a real Tiger Player node owned by the local peer, simulate a rpc_confirm-equivalent call with that Tiger as target_id, then assert MovementComponent.is_staggered == true (or grep the [KICK] stagger applied locally log line) -- not merely that no error/crash occurred. Scope: (a) retrofit this pattern onto TK-P2-17 (Kick Stagger) once TK-BUG-P2-01 lands, as the first case; (b) survey characters/abilities/*.gd (TagAbility, PounceAbility, KickAbility) for any other on_confirmed()/local-apply path with a similar 'runs on every peer, must resolve the right node' shape and confirm each has an equivalent positive-effect assertion, not just an absence-of-crash one; (c) write up the pattern briefly (in this card's note or a short addition to 03_QA/_shared/01_Test_Strategy.md) so future ability cards apply it from the start instead of retrofitting after a 2nd/3rd recurrence. Not itself a bug or a gate-blocker, but should land before Phase 2 Exit Gate given it's now recurred twice."
   },
   {

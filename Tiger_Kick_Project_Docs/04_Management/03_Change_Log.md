@@ -3,6 +3,17 @@
 บันทึกการเปลี่ยนแปลงสำคัญของโปรเจกต์และเอกสาร (รูปแบบ Keep a Changelog)
 เวอร์ชันล่าสุดอยู่บนสุด
 
+## [0.50] — 2026-07-19 — Producer ruling: TK-P2-11/14/15/20/33 deferred to Phase 3 as carry-overs; TK-P2-14/15 gate TK-P3-03; TK-P2-29/31 kept open in Phase 2 (non-blocking); exact Phase 2 closure conditions recorded
+
+- **Context:** following up on `[0.49]`'s Exit Gate reaffirmation, the human reviewed the full list of open Phase 2 cards and made an explicit deferral ruling rather than leaving them ambiguously open when Phase 2 closes.
+- **Deferred to Phase 3 (phase/milestone relabeled, `deferral_ruling` recorded on each):**
+  - `TK-P2-11` Jump Kick — never started; enhancement on an already-working, already-verified Kick, not a gate blocker.
+  - `TK-P2-14` Countdown + `TK-P2-15` Match state machine (incl. **MatchEnd** — currently undefined anywhere in the codebase) — never started. **Both now block `TK-P3-03`** (`TK-P3-03.depends_on` updated): a real-people playtest session needs a visible synced countdown and a way for the match to actually end, or the session reads as broken/unfinished to first-time testers. Must land at the **start** of Phase 3, before playtesting begins.
+  - `TK-P2-20` Late-join/late-connect handling — re-assessed: not S0/S1 in the happy path, and every Phase 2 human pass controlled the join sequence so the gap was never actually reachable; overrides this card's own prior "must close before Exit Gate" note.
+  - `TK-P2-33` positive-side-effect regression pattern — hardens against a bug *class* (2 already-fixed occurrences: `TK-P2-32`, `TK-BUG-P2-01`); nothing currently broken depends on it. Recommended early in Phase 3, ideally before `TK-P3-06` (Charged Kick) adds its own similar glue code.
+- **Kept open in Phase 2 (not relabeled, reaffirmed non-blocking, `closure_ruling` recorded):** `TK-P2-29` (Tag Sequence step 6 / Safe Circle wiring) and `TK-P2-31` (RoundManager N=1 edge case) — both pure edge-case/consistency items their own original filings already called non-blocking. Tracked as Phase 2 carry-over debt, same pattern as the existing "Open cross-phase items" section for Phase 1.
+- **Phase 2 closure conditions (recorded, not yet met — Phase 2 remains OPEN):** the gate closes only once (1) `TK-P2-27`'s solo feel pass (re-scoped in `[0.49]`) has actually been run and recorded PASS — not yet run as of this entry, (2) `TK-P2-29`/`TK-P2-31` have a recorded ruling — done, this entry, and (3) the full regression suite is re-confirmed green at the moment of closing, per the pre-existing Exit Gate rule in `CLAUDE.md`. No S0/S1 bugs are open. Producer flips `CURRENT_PHASE.md`'s Phase 2 section to CLOSED only after (1) is reported PASS.
+
 ## [0.49] — 2026-07-19 — Producer ruling: TK-P2-27 re-scoped to solo feel-test; "fun with real people" verdict formally moved to TK-P3-03; Phase 2 Exit Gate reaffirmed as core-loop-playable + no S0/S1
 
 - **Context:** with `TK-P2-30`, `TK-P2-17`, `TK-P2-18`, and `TK-BUG-P2-01` all closed (human 2-instance PASS), the only Phase 2 item left open was `TK-P2-27`'s human feel-test pass — but no second tester is currently available for a live N≥2 session.
