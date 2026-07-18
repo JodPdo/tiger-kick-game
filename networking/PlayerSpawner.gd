@@ -192,11 +192,31 @@ extends MultiplayerSpawner
 const PLAYER_SCENE: PackedScene = preload("res://characters/Player.tscn")
 
 ## Host-only: how long (seconds) the host waits for EVERY already-connected
-## peer to announce arena readiness before it force-spawns with whoever IS
-## ready. A generous window (normal Start-Match readiness lands in well under a
-## second); it only ever fires if a peer never reaches the arena (e.g. crashed
-## during scene load), so one hung peer cannot hold the whole match hostage.
+## peer to announce arena readiness before it re-evaluates the barrier. Normal
+## Start-Match readiness lands in well under a second; this only elapses if a
+## peer is slow/unreachable. When it elapses, the host does NOT immediately kill
+## the laggards (TK-P2-30 fix): a peer that is still connected at the ENet layer
+## is alive and merely slow, so the grace is EXTENDED (up to
+## ARENA_READY_MAX_GRACE_EXTENSIONS times, this same interval each) rather than
+## force-disconnecting a healthy-but-backgrounded client. Only a peer that is
+## truly gone, or that burns the whole extension budget while still connected
+## (genuinely wedged), is finally dropped -- so one hung peer still cannot hold
+## the match hostage forever. See ArenaBarrierRules for the decision logic.
 const ARENA_READY_GRACE_SEC: float = 8.0
+
+## Host-only (TK-P2-30): how many times the grace window may be EXTENDED for a
+## still-connected-but-not-yet-ready peer before the host gives up on it and
+## falls back to the original TK-P2-13 force-disconnect-then-spawn behavior.
+## Total worst-case barrier hold = ARENA_READY_GRACE_SEC * (1 + this) before a
+## genuinely wedged (ENet-alive but never-ready) peer is dropped -- 8s * 4 = 32s
+## here. Sized as real headroom for an unfocused/backgrounded client whose frame
+## loop (and therefore its scene-load completion + reliable-RPC flush) is
+## throttled hard by the OS compositor + vsync while occluded, on a slow machine
+## or link -- WELL past the 8s that killed healthy clients before -- while still
+## bounding the deadlock protection to a finite, defensible ceiling. This is an
+## evidence-gated wait (only extended while the peer is provably still connected),
+## NOT a blind bigger timeout.
+const ARENA_READY_MAX_GRACE_EXTENSIONS: int = 3
 
 var _players_root: Node3D
 var _spawn_count: int = 0
@@ -219,6 +239,14 @@ var _initial_spawn_done: bool = false
 ## follow-up card has a hook; today they simply do not receive a Player until
 ## that card lands.
 var _deferred_join_peers: Dictionary = {}
+
+## Host-only readiness-barrier grace state (TK-P2-30). The single reused grace
+## Timer (kept as a reference so we can re-arm it for an extension and stop it
+## cleanly once the barrier releases -- also resolves the TK-P2-22 "stop the
+## grace timer on normal release" nit) and how many extensions we have already
+## granted a still-connected-but-slow peer.
+var _grace_timer: Timer = null
+var _grace_extensions_used: int = 0
 
 
 func _ready() -> void:
@@ -308,6 +336,14 @@ func _do_initial_barrier_spawn() -> void:
 		return
 	_initial_spawn_done = true
 
+	# TK-P2-30 / TK-P2-22 nit: the barrier is releasing now, so stop the grace
+	# timer -- prevents a stray timeout (or a pending extension) from firing after
+	# the spawn. (_on_ready_grace_timeout()'s own `if _initial_spawn_done: return`
+	# guard already neutralizes a late fire; stopping is belt-and-suspenders and
+	# keeps no orphan Timer ticking.)
+	if _grace_timer:
+		_grace_timer.stop()
+
 	_spawn_player(multiplayer.get_unique_id())
 
 	var ready_expected: Array = []
@@ -331,19 +367,40 @@ func _start_ready_grace_timer() -> void:
 	grace.one_shot = true
 	add_child(grace)
 	grace.timeout.connect(_on_ready_grace_timeout)
+	# TK-P2-30: keep the reference so _on_ready_grace_timeout() can re-arm this
+	# same one-shot timer for a grace EXTENSION (.start() again) instead of
+	# leaking a fresh "ArenaReadyGrace" node per extension, and so
+	# _do_initial_barrier_spawn() can stop it once the barrier releases normally.
+	_grace_timer = grace
 	grace.start()
 
 
-## BARRIER GRACE RELEASE (TK-P2-13 review blocker 3): when the grace window
-## elapses with peers still not ready, we must NOT simply spawn host + ready and
-## leave the laggards behind -- an expected peer that is still CONNECTED but
-## merely slow-loading is not in the arena yet, so spawning now would poison the
-## path cache toward it and its own spawn would drop PERMANENTLY (a silent,
-## unrecoverable S1 for that one peer). Producer decision: force-disconnect the
-## still-unready peers BEFORE spawning, converting that silent desync into an
-## explicit, recoverable disconnect (the peer's client falls back to MainMenu
-## via server/peer-disconnect handling). Peers that ARE ready keep their clean
-## path cache and spawn normally.
+## BARRIER GRACE RELEASE (TK-P2-13 review blocker 3, revised by TK-P2-30):
+## when the grace window elapses with peers still not ready, we must NOT simply
+## spawn host + ready and leave the laggards behind -- an expected peer that is
+## still CONNECTED but merely slow-loading is not in the arena yet, so spawning
+## now would poison the path cache toward it and its own spawn would drop
+## PERMANENTLY (a silent, unrecoverable S1 for that one peer). The original
+## producer decision was to force-disconnect the laggards immediately, converting
+## that silent desync into an explicit, recoverable disconnect.
+##
+## TK-P2-30 (S2 bug: a healthy but UNFOCUSED/backgrounded client got killed here)
+## refines the "immediately" part. Root cause: an occluded window's frame loop is
+## throttled hard by the OS compositor + vsync, and Godot drives BOTH scene-load
+## completion AND the multiplayer poll/flush that actually sends the queued
+## reliable _rpc_arena_ready packet from that same loop -- so a perfectly alive
+## client's readiness can legitimately land well past 8s. A peer that is still
+## present in NetworkManager.get_connected_peer_ids() is proven alive at the ENet
+## layer (not crashed), so we EXTEND the grace (keep the whole barrier held --
+## still never spawning toward an absent peer, so zero new poison risk) instead of
+## killing it, for up to ARENA_READY_MAX_GRACE_EXTENSIONS intervals. Only a peer
+## that is truly gone from the transport, or that burns the entire extension
+## budget while still connected (genuinely wedged: ENet alive but its game thread
+## never progresses), reaches the original force-disconnect-then-spawn fallback --
+## so one hung peer still cannot deadlock the match forever. Decision logic is the
+## pure ArenaBarrierRules.decide_grace_action(); server authority is unchanged
+## (the host alone decides membership + release; it just waits longer, and only on
+## live transport-level evidence the peer is alive).
 func _on_ready_grace_timeout() -> void:
 	if _initial_spawn_done:
 		return
@@ -353,12 +410,29 @@ func _on_ready_grace_timeout() -> void:
 		if not _ready_peers.has(peer_id):
 			still_unready.append(peer_id)
 
+	var connected_ids: Array = NetworkManager.get_connected_peer_ids()
+	var action: ArenaBarrierRules.GraceAction = ArenaBarrierRules.decide_grace_action(
+		still_unready, connected_ids, _grace_extensions_used, ARENA_READY_MAX_GRACE_EXTENSIONS)
+
+	if action == ArenaBarrierRules.GraceAction.EXTEND:
+		_grace_extensions_used += 1
+		GameLog.info("[SPAWN] arena-ready grace elapsed but %d unready peer(s) still connected (slow/backgrounded load, NOT crashed) -- extending grace %d/%d (+%.1fs) instead of force-disconnecting a healthy peer" % [still_unready.size(), _grace_extensions_used, ARENA_READY_MAX_GRACE_EXTENSIONS, ARENA_READY_GRACE_SEC])
+		if _grace_timer:
+			_grace_timer.start()
+		return
+
+	# RELEASE: give up waiting. Anyone still unready now is either already gone
+	# from the transport (peer_disconnected pruning will have handled it, but we
+	# defensively drop it from the barrier sets too) or has burned the whole
+	# extension budget while connected (genuinely wedged) -- the original TK-P2-13
+	# tradeoff applies: an explicit, recoverable force-disconnect beats a silent
+	# path-cache-poison S1.
 	for peer_id in still_unready:
-		GameLog.info("[SPAWN] arena-ready grace elapsed -- force-disconnecting unready peer %d (avoids silent path-cache-poison S1)" % peer_id)
+		GameLog.info("[SPAWN] arena-ready grace fully elapsed (%d/%d extensions used) -- force-disconnecting still-unready peer %d (avoids silent path-cache-poison S1)" % [_grace_extensions_used, ARENA_READY_MAX_GRACE_EXTENSIONS, peer_id])
 		_expected_ready_peers.erase(peer_id)
 		NetworkManager.disconnect_peer(peer_id)
 
-	GameLog.info("[SPAWN] arena-ready grace elapsed -- spawning host + ready peers")
+	GameLog.info("[SPAWN] arena-ready grace released -- spawning host + ready peers")
 	_do_initial_barrier_spawn()
 
 

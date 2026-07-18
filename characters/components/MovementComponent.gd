@@ -78,6 +78,63 @@ extends Node
 ## not this assignment).
 var _is_jumping: bool = false
 
+## TK-P2-18 (Pounce, gameplay-engineer): this component's own authoritative
+## "pounce burst in flight" state -- same "short-lived LOCAL physics override
+## _physics_process() consults instead of the normal WASD velocity calc"
+## precedent `_is_jumping`/step_jump() immediately above already establishes,
+## just overriding the HORIZONTAL axes instead of the vertical one. Sentinel
+## convention matches KickRules/TagAbilityRules/PounceRules' own
+## `last_fire_ms < 0` == "not active" shape: `_pounce_end_ms < 0` means no
+## burst is currently in flight; once set, it holds the wall-clock ms
+## (Time.get_ticks_msec()) the burst naturally expires -- see
+## resolve_horizontal_velocity() below, which owns clearing it again.
+##
+## Owner-side ONLY: this state exists purely so the OWNING peer's own
+## _physics_process() can apply the burst velocity locally (see
+## characters/abilities/PounceAbility.gd's on_activate_local() doc for why
+## Pounce's owner-side "prediction" is the actual movement itself, going
+## further than Kick/Tag's windup-only prediction). host_validate()/
+## host_apply() on PounceAbility never read or write this -- they only gate
+## LEGALITY (cooldown/sequence_active); the movement already happened here,
+## owner-side, by the time the host round-trip resolves.
+var _pounce_end_ms: int = -1
+var _pounce_velocity: Vector3 = Vector3.ZERO
+
+## TK-P2-17 (Kick Stagger, gameplay-engineer): this component's own
+## authoritative "stagger knockback in flight" state -- same "short-lived
+## LOCAL physics state _physics_process() consults" precedent
+## _pounce_end_ms/_pounce_velocity immediately above already establishes,
+## but ADDITIVE rather than an override (see resolve_horizontal_velocity()
+## below for exactly why that difference is the load-bearing part of this
+## card's "stagger, not stun" requirement). Sentinel convention matches
+## _pounce_end_ms's own `< 0` == "not active" shape: `_stagger_start_ms < 0`
+## means no stagger is currently in flight; once set, it holds the wall-clock
+## ms (Time.get_ticks_msec()) the knockback BEGAN (not when it ends -- unlike
+## Pounce's fixed-speed burst, the knockback continuously DECAYS from
+## `_stagger_speed` toward 0 over `_stagger_duration_ms`, so the caller needs
+## the start time to compute "how far into the decay am I right now", see
+## resolve_stagger_knockback() below).
+##
+## Owner-side ONLY, same reasoning _pounce_end_ms's own doc gives: this state
+## exists purely so the STAGGERED player's own peer can apply the knockback
+## to itself locally (see characters/abilities/KickAbility.gd's on_confirmed()
+## doc for why the TARGET's own client -- not the kicker's -- is the one that
+## calls start_stagger(), reusing the existing rpc_confirm broadcast rather
+## than a new RPC). There is no host-side ledger for this at all: unlike
+## Kick/Tag/Pounce, Kick Stagger has no legality/cooldown decision of its own
+## to make -- by the time on_confirmed() runs, the KICK itself has already
+## been authoritatively decided (KickAbility.host_validate()); the stagger is
+## purely a COSMETIC/local movement consequence of that already-confirmed
+## result, same "cosmetic, not authoritative, a cheating client can ignore
+## this locally" caveat every other owner-side effect in this codebase already
+## documents (Pounce's burst, the Safe Circle owner clamp, both per Change Log
+## [0.45]/TK-P2-28's ruling that this class of limitation is accepted for
+## Phase 2).
+var _stagger_start_ms: int = -1
+var _stagger_duration_ms: int = 0
+var _stagger_direction: Vector3 = Vector3.ZERO
+var _stagger_speed: float = 0.0
+
 ## -- Tunables (TDD §11 Game Balance; design-owned, NOT hard-coded) ----------
 ## Moved verbatim from Player.gd, TK-P2-16 Step 1. Values were UNCHANGED at
 ## that step -- per-role balance tuning was explicitly OUT of scope there.
@@ -246,6 +303,11 @@ func _physics_process(delta: float) -> void:
 	var horizontal: Vector3 = compute_velocity(
 		Vector2(relative_dir.x, relative_dir.z), walk_speed, sprint_multiplier, sprinting
 	)
+	# TK-P2-18 (Pounce, gameplay-engineer): while a burst is in flight this
+	# OVERRIDES the normal WASD result outright (see resolve_horizontal_velocity()
+	# below for why override-not-blend is the right shape, same relationship
+	# step_jump() already has with gravity on the vertical axis).
+	horizontal = resolve_horizontal_velocity(Time.get_ticks_msec(), horizontal)
 	_body.velocity.x = horizontal.x
 	_body.velocity.z = horizontal.z
 
@@ -359,6 +421,174 @@ func step_jump(is_grounded: bool, current_velocity_y: float, jump_input_pressed:
 ## card.
 func is_jumping() -> bool:
 	return _is_jumping
+
+
+## TK-P2-18 (Pounce, gameplay-engineer): starts a horizontal velocity-override
+## burst -- called from characters/abilities/PounceAbility.gd's
+## on_activate_local() (owner-side IMMEDIATE execution, not a host round-trip
+## -- see that method's own doc for why Pounce's "prediction" IS the actual
+## movement, unlike Kick/Tag's windup-only prediction). `direction` need not
+## already be flat/normalized on entry -- flattened (Y zeroed) and normalized
+## here so a caller passing a raw camera-relative direction (which may carry
+## residual Y, or a non-unit length from diagonal input) can't accidentally
+## scale the burst speed; a degenerate zero-length direction (e.g. a caller
+## bug) safely no-ops to Vector3.ZERO rather than dividing by zero in
+## normalized().
+func start_pounce_burst(direction: Vector3, speed: float, duration_sec: float) -> void:
+	var flat_dir: Vector3 = Vector3(direction.x, 0.0, direction.z)
+	if flat_dir.length() > 0.0001:
+		flat_dir = flat_dir.normalized()
+	_pounce_velocity = flat_dir * speed
+	_pounce_end_ms = Time.get_ticks_msec() + int(duration_sec * 1000.0)
+
+
+## TK-P2-18: owner-only cancel. Called from PounceAbility.on_rejected() when
+## the host rejects an activation that ALREADY started moving owner-side (see
+## that method's own doc for why this is the one step genuinely different
+## from Kick/Tag's on_rejected() template -- a windup animation has nothing
+## physical to undo; a Pounce burst does). Also usable generically as "stop
+## whatever burst is active right now" without needing to know its remaining
+## time.
+func cancel_pounce_burst() -> void:
+	_pounce_end_ms = -1
+	_pounce_velocity = Vector3.ZERO
+
+
+## TK-P2-18: the horizontal-velocity-override DECISION, extracted out of
+## _physics_process the same "GUT-testable without a live physics tick"
+## reason step_jump()/apply_safe_circle_boundary() are already extracted for
+## -- callable directly with a hand-built `now_ms`/`wasd_velocity` pair, no
+## scene tree required. While a burst is active (`_pounce_end_ms >= 0`) this
+## OVERRIDES the caller's normal WASD compute_velocity() result outright (not
+## blended/added) -- a burst is meant to feel like a committed dash, not
+## something WASD can fight against mid-flight, the same "override, not
+## additive" relationship step_jump() already has with gravity on the
+## vertical axis. Auto-expires the burst once `now_ms` reaches
+## `_pounce_end_ms` -- this method owns clearing that state itself (same
+## self-clearing shape step_jump()'s landing-clear already has for
+## `_is_jumping`), so callers never need to separately notice/cancel a burst
+## that simply ran its course.
+##
+## TK-P2-17 (Kick Stagger, gameplay-engineer): a stagger knockback (see
+## resolve_stagger_knockback() below) is then ADDED on top of whichever base
+## result the Pounce check above produced (Pounce-override or plain WASD) --
+## this is the ONE deliberate, load-bearing difference from how Pounce's own
+## burst is handled just above, and it is exactly what satisfies this card's
+## hard "ห้าม stun เต็ม" (no full stun) requirement: an override (like
+## Pounce's, or like a hypothetical "freeze velocity to knockback_vector for
+## 0.3s") would remove 100% of the Tiger's own WASD control for the whole
+## window, which the card explicitly forbids. Adding instead means the
+## staggered Tiger can immediately fight the knockback with WASD, walk out of
+## it sideways, or lean into it to get pushed further -- full agency is
+## retained the entire ~0.3s, only the NET displacement is affected (pushed
+## back on top of whatever they were already doing), which is what "stagger"
+## (impaired, still playable) means as distinct from "stun" (frozen). See
+## characters/components/StaggerRules.gd's own class doc for the matching
+## "why linear decay, not a flat cutoff" half of this same reasoning.
+func resolve_horizontal_velocity(now_ms: int, wasd_velocity: Vector3) -> Vector3:
+	var base_velocity: Vector3 = wasd_velocity
+	if _pounce_end_ms >= 0:
+		if now_ms >= _pounce_end_ms:
+			cancel_pounce_burst()
+		else:
+			base_velocity = _pounce_velocity
+	return base_velocity + resolve_stagger_knockback(now_ms)
+
+
+## TK-P2-18 HOOK: owner-side query for "is a Pounce burst currently in
+## flight" -- same plain-getter-over-internal-state shape is_jumping() above
+## already uses (no new ability-shaped API here; this file stays a movement
+## primitive, per the design doc). Not consumed by any other card yet; left
+## available for e.g. a future can_activate() precheck ("don't let a Tiger
+## re-trigger Pounce mid-burst") should design ever want one -- see
+## PounceAbility.gd's own can_activate()/host_validate() docs for why that
+## guard is NOT added there yet (cooldown_sec alone already prevents
+## back-to-back bursts at the current placeholder tuning).
+func is_pouncing() -> bool:
+	return _pounce_end_ms >= 0
+
+
+## TK-P2-17 (Kick Stagger, gameplay-engineer): starts a decaying knockback --
+## called from characters/abilities/KickAbility.gd's on_confirmed() on the
+## STAGGERED player's OWN peer (not the kicker's), once that peer recognizes
+## itself as the confirmed kick's `target_id` (see that method's own doc for
+## the full "why the target's own client calls this, reusing rpc_confirm's
+## existing broadcast" reasoning -- no new RPC). `direction` need not already
+## be flat/normalized on entry -- flattened (Y zeroed) and normalized here,
+## same guard shape start_pounce_burst() above already uses, so a caller
+## passing a raw kicker->target vector (which may carry residual Y from
+## slightly different ground heights) can't accidentally scale the knockback
+## speed. A degenerate zero-length direction (see
+## characters/components/StaggerRules.gd's own direction_away_from() doc for
+## when that can happen) safely no-ops to Vector3.ZERO -- the stagger's TIME
+## WINDOW still starts (is_staggered() still reports true, for any future
+## cosmetic/animation use), it just carries no actual push, rather than
+## crashing on normalized().
+func start_stagger(direction: Vector3, speed: float, duration_sec: float) -> void:
+	var flat_dir: Vector3 = Vector3(direction.x, 0.0, direction.z)
+	if flat_dir.length() > 0.0001:
+		flat_dir = flat_dir.normalized()
+	else:
+		flat_dir = Vector3.ZERO
+	_stagger_direction = flat_dir
+	_stagger_speed = speed
+	_stagger_start_ms = Time.get_ticks_msec()
+	_stagger_duration_ms = int(duration_sec * 1000.0)
+
+
+## TK-P2-17: owner-only cancel/reset -- clears the stagger immediately,
+## regardless of how far through its decay it was. Not currently called by
+## any real gameplay path (Kick Stagger has no owner-predicted "on_rejected"
+## undo the way Pounce's cancel_pounce_burst() does -- see
+## characters/components/MovementComponent.gd's own `_stagger_start_ms` doc
+## above for why there is no legality decision left to reject by the time
+## on_confirmed() runs the stagger already happened, authoritatively, on the
+## host). Kept available the same "generic stop-whatever's-active-right-now"
+## utility reason cancel_pounce_burst() itself documents -- e.g. a future
+## role-swap-mid-stagger edge case, or test cleanup, might want it.
+func cancel_stagger() -> void:
+	_stagger_start_ms = -1
+	_stagger_duration_ms = 0
+	_stagger_direction = Vector3.ZERO
+	_stagger_speed = 0.0
+
+
+## TK-P2-17: owner-side query for "is a stagger currently in flight" -- same
+## plain-getter-over-internal-state shape is_pouncing()/is_jumping() above
+## already use (no new ability-shaped API here; this file stays a movement
+## primitive). Available for e.g. a future animation/pose flag (staggered
+## Tigers could play a stumble animation for the ~0.3s window) -- NOT
+## currently consumed for any movement-RESTRICTION purpose anywhere in this
+## codebase, which is the point: per this card's hard "no full stun"
+## requirement, nothing gates WASD input on this flag. See
+## resolve_horizontal_velocity() above for the one place this state actually
+## affects movement (an ADDITIVE knockback, never a control override).
+func is_staggered() -> bool:
+	return _stagger_start_ms >= 0
+
+
+## TK-P2-17: the knockback-velocity DECISION for THIS tick, extracted out of
+## resolve_horizontal_velocity() the same "GUT-testable without a live
+## physics tick" reason step_jump()/is_pouncing()'s own resolve method
+## already are -- callable directly with a hand-built `now_ms`, no scene tree
+## required. Returns Vector3.ZERO when no stagger is active. Delegates the
+## actual decay MATH to StaggerRules.decayed_speed() (pure, GUT-tested
+## directly with no MovementComponent instance at all) -- this method's own
+## job is just the STATEFUL half: turning "how long ago did the stagger
+## start" into the `elapsed_ms` that pure function expects, and self-clearing
+## (calling cancel_stagger()) once the decay reaches 0, the same self-clearing
+## shape resolve_horizontal_velocity()'s own Pounce-expiry branch already has
+## for `_pounce_end_ms` -- callers never need to separately notice/cancel a
+## stagger that simply ran its course.
+func resolve_stagger_knockback(now_ms: int) -> Vector3:
+	if _stagger_start_ms < 0:
+		return Vector3.ZERO
+	var elapsed_ms: int = now_ms - _stagger_start_ms
+	var speed: float = StaggerRules.decayed_speed(elapsed_ms, _stagger_duration_ms, _stagger_speed)
+	if speed <= 0.0:
+		cancel_stagger()
+		return Vector3.ZERO
+	return _stagger_direction * speed
 
 
 ## TK-P2-06 (Safe Circle, gameplay-engineer): role-gated Safe Circle clamp,

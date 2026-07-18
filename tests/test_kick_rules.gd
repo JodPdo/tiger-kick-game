@@ -9,13 +9,26 @@ extends GutTest
 ## `_owner_last_fire_ms`/`cooldown_sec` members -- no scene tree, no
 ## multiplayer context, so a bare `KickAbility.new()` (never added to a
 ## tree, @onready `_body` left unresolved) is safe to exercise directly, same
-## as tests/test_ability_system.gd's bare Ability instances. host_validate()/
-## host_apply()/on_confirmed() DO need a live scene tree + multiplayer
-## context (sibling Players, `multiplayer.is_server()`) and are covered by
-## the manual 2-instance pipeline proof in this card's handoff note instead.
+## as tests/test_ability_system.gd's bare Ability instances. host_apply()/
+## on_confirmed() DO need a live scene tree + multiplayer context and are
+## covered by the manual 2-instance pipeline proof in this card's handoff
+## note instead.
+##
+## TK-P2-32 (gameplay-engineer, bug fix): host_validate() itself IS covered
+## below now (the "--- KickAbility.host_validate role filter ---" section),
+## despite the note above -- unlike can_activate()/on_rejected(), the bug
+## this card fixes lives entirely in host_validate()'s candidate-building
+## loop (a role filter on live sibling Players), so a real Player.tscn scene
+## tree is unavoidable to exercise it meaningfully. Same
+## `PlayerScene.instantiate()` + `add_child_autofree()` pattern
+## tests/test_ability_system.gd and tests/test_role_state_machine.gd already
+## use for their own Player.tscn-touching tests -- multiplayer.is_server()
+## defaults true offline (headless GUT, no peer ever assigned), which is all
+## host_validate()'s own assert requires.
 
 const KickRulesScript := preload("res://characters/abilities/KickRules.gd")
 const KickAbilityScript := preload("res://characters/abilities/KickAbility.gd")
+const PlayerScene := preload("res://characters/Player.tscn")
 
 
 # --- KickRules.is_in_range (pure) ------------------------------------------
@@ -93,6 +106,214 @@ func test_can_fire_true_well_after_cooldown_elapsed() -> void:
 
 func test_can_fire_zero_cooldown_always_allows() -> void:
 	assert_true(KickRulesScript.can_fire(1000, 0.0, 1000), "cooldown_sec == 0.0 must never block a fire")
+
+
+# --- KickAbility.host_validate role filter (TK-P2-32 bug fix) --------------
+# Regression coverage for the bug this card fixes: host_validate()'s
+# candidate-building loop used to accept EVERY other CharacterBody3D under the
+# Players root with no role filter at all, so an Outer's Kick could land on
+# (and be host-CONFIRMED against) ANOTHER OUTER instead of the Tiger whenever
+# that Outer happened to be the nearest candidate to the kicker. This was
+# invisible at N=2 (where "nearest other player" trivially IS the Tiger) --
+# it only surfaces once a 3rd player is present, which every prior
+# human-pass/probe run at N=2 never exercised. Each test below builds a real
+# "Players" root with a MIX of roles so KickRules.nearest_target() would have
+# a wrong (non-Tiger) candidate to pick if host_validate() no longer filtered
+# by role -- a test that only used one Outer + one Tiger would NOT catch this
+# regression (see the class doc SCOPE NOTE this card's fix updates).
+#
+# Needs a real Player.tscn scene tree (role lives on the live CharacterBody3D,
+# not anything KickRules' pure statics touch) -- same
+# `PlayerScene.instantiate()` + `add_child_autofree()` pattern
+# tests/test_ability_system.gd and tests/test_role_state_machine.gd already
+# use. host_validate()'s own `assert(multiplayer.is_server())` is satisfied
+# for free: headless GUT's SceneMultiplayer defaults to server=true offline
+# (no ENet peer is ever assigned in this file).
+
+const ROLE_TIGER: StringName = &"tiger"
+const ROLE_OUTER: StringName = &"outer"
+
+var _kick_players_root: Node3D
+var _kick_kicker: CharacterBody3D
+
+
+## Instantiates a real Player.tscn under `_kick_players_root`, named/positioned/
+## role-assigned as requested. Player.gd defaults to Outer (Player.gd:106), so
+## `set_role()` is only called when a non-default role is actually needed.
+func _spawn_kick_candidate(peer_name: String, role: StringName, position: Vector3) -> CharacterBody3D:
+	var player: CharacterBody3D = PlayerScene.instantiate()
+	# Naming contract (TK-BUG-P1-01, node.name == str(peer_id)): set BEFORE
+	# entering the tree, same pattern the other Player.tscn-touching test
+	# files already use.
+	player.name = peer_name
+	_kick_players_root.add_child(player)
+	player.global_position = position
+	if role != ROLE_OUTER:
+		player.set_role(role)
+	return player
+
+
+func test_host_validate_targets_the_tiger_even_when_a_closer_outer_exists() -> void:
+	_kick_players_root = Node3D.new()
+	add_child_autofree(_kick_players_root)
+
+	_kick_kicker = _spawn_kick_candidate("1", ROLE_OUTER, Vector3.ZERO)
+	# Deliberately CLOSER to the kicker than the Tiger -- this is exactly the
+	# wrong-target regression: an un-filtered KickRules.nearest_target() would
+	# pick THIS Outer over the Tiger below.
+	_spawn_kick_candidate("2", ROLE_OUTER, Vector3(0.3, 0, 0))
+	var tiger: CharacterBody3D = _spawn_kick_candidate("3", ROLE_TIGER, Vector3(1.0, 0, 0))
+
+	var ability_controller: Node = _kick_kicker.get_node("AbilityController")
+	var kick_ability: KickAbility = ability_controller._abilities[&"kick"]
+
+	var verdict: Dictionary = kick_ability.host_validate({"sender_id": 1})
+
+	assert_true(verdict.get("ok", false), "a Tiger IS in range -- host_validate must accept the kick")
+	var result: Dictionary = verdict.get("result", {})
+	assert_eq(String(result.get("target_id")), String(tiger.name),
+		"Kick must land on the TIGER, not the objectively closer Outer candidate (TK-P2-32 regression)")
+
+
+func test_host_validate_never_substitutes_an_in_range_outer_when_no_tiger_is_reachable() -> void:
+	_kick_players_root = Node3D.new()
+	add_child_autofree(_kick_players_root)
+
+	_kick_kicker = _spawn_kick_candidate("1", ROLE_OUTER, Vector3.ZERO)
+	_spawn_kick_candidate("2", ROLE_OUTER, Vector3(0.5, 0, 0)) # in range, but not the Tiger
+	_spawn_kick_candidate("3", ROLE_TIGER, Vector3(10.0, 0, 0)) # the Tiger, but out of range
+
+	var ability_controller: Node = _kick_kicker.get_node("AbilityController")
+	var kick_ability: KickAbility = ability_controller._abilities[&"kick"]
+
+	var verdict: Dictionary = kick_ability.host_validate({"sender_id": 1})
+
+	assert_false(verdict.get("ok", false),
+		"no Tiger is in range -- an in-range Outer must never be accepted as a substitute target")
+	assert_eq(verdict.get("reason"), "no_target_in_range")
+
+
+# --- KickAbility.on_confirmed() Kick Stagger targeting (TK-BUG-P2-01 bug fix)
+# Regression coverage for the bug this card fixes: on_confirmed() runs, via
+# AbilityController's rpc_confirm `call_local` broadcast, in the context of
+# the KICKER's own KickAbility node (Kick is a HumanAbility living on the
+# ACTING OUTER's own AbilityController/Player subtree) -- so `_body` inside
+# on_confirmed() is ALWAYS the kicker's own Player node, never the target's.
+# The pre-fix version gated directly on `_body.role == RoleRules.TIGER` and
+# `String(_body.name) == String(target_id)` -- both permanently false for the
+# node this code actually runs on (the kicker is by definition never the
+# Tiger it just kicked, and never equal to its own target_id), so
+# MovementComponent.start_stagger() was structurally unreachable at any N.
+# Live-tested: 12 kicks landed on the Tiger, zero stagger, zero
+# "[KICK] stagger applied locally" log line (see this card's own backlog
+# note). This is the SAME bug CLASS as TK-P2-32 above (dead/misrouted wiring
+# invisible to green unit tests) -- the pure StaggerRules math stays correct
+# in isolation; the defect is entirely in on_confirmed()'s node resolution
+# under a real broadcast, which is exactly what a scene-tree-level test (not
+# a mock) is needed to exercise.
+#
+# Same `PlayerScene.instantiate()` + `add_child_autofree()` +
+# `_spawn_kick_candidate()` scene-tree pattern the TK-P2-32 section above
+# already established, reused here rather than inventing a new one.
+# `is_multiplayer_authority()` needs no live ENet peer to be meaningful
+# offline: headless GUT's own SceneMultiplayer defaults to unique_id 1 (see
+# tests/test_ability_system.gd's own authority tests, e.g.
+# test_player_root_keeps_owner_authority_when_controller_overrides), and
+# Player._enter_tree() derives each Player's own multiplayer authority from
+# `int(name)` -- so a Player named "1" reports is_multiplayer_authority() ==
+# true (this local/headless peer "owns" it), and a Player named anything else
+# reports false, with no networking setup required.
+#
+# LOAD-BEARING: these assertions read the TARGET Tiger's own
+# MovementComponent.is_staggered() (the actual OBSERVABLE side effect this
+# card's fix must produce), not just "on_confirmed() ran without crashing".
+# Against the pre-fix `_body`-anchored gates, test_on_confirmed_stagger_
+# applies_to_the_resolved_target_not_the_kicker() below fails RED (the Tiger
+# named "1" is never `_body` -- `_body` is always the kicker -- so neither
+# pre-fix gate ever passes and start_stagger() is never called on anything);
+# against the fix, it passes GREEN.
+
+func test_on_confirmed_stagger_applies_to_the_resolved_target_not_the_kicker() -> void:
+	_kick_players_root = Node3D.new()
+	add_child_autofree(_kick_players_root)
+
+	# Kicker: an Outer, deliberately NOT named "1" -- must never be the one
+	# who ends up staggered.
+	var kicker: CharacterBody3D = _spawn_kick_candidate("2", ROLE_OUTER, Vector3.ZERO)
+	# Target: a Tiger named "1" -- the local headless-GUT peer's own id, so
+	# is_multiplayer_authority() reports true for it (see section doc above),
+	# simulating "this machine owns the Tiger that just got kicked".
+	var tiger: CharacterBody3D = _spawn_kick_candidate("1", ROLE_TIGER, Vector3(1.0, 0, 0))
+
+	var ability_controller: Node = kicker.get_node("AbilityController")
+	var kick_ability: KickAbility = ability_controller._abilities[&"kick"]
+
+	var tiger_movement: Node = tiger.get_node("MovementComponent")
+	var kicker_movement: Node = kicker.get_node("MovementComponent")
+	assert_false(tiger_movement.is_staggered(), "sanity: the Tiger must not already be staggered before on_confirmed() runs")
+
+	kick_ability.on_confirmed({"kicker_id": 2, "target_id": tiger.name})
+
+	assert_true(tiger_movement.is_staggered(),
+		"TK-BUG-P2-01: on_confirmed() must resolve+stagger the TARGET Player (the Tiger), not identity-match _body -- MovementComponent.is_staggered() should now be true")
+	assert_false(kicker_movement.is_staggered(),
+		"the KICKER's own MovementComponent must never be staggered -- confirms the fix resolves the TARGET, not _body")
+
+
+func test_on_confirmed_does_nothing_when_this_local_peer_does_not_own_the_target() -> void:
+	_kick_players_root = Node3D.new()
+	add_child_autofree(_kick_players_root)
+
+	var kicker: CharacterBody3D = _spawn_kick_candidate("2", ROLE_OUTER, Vector3.ZERO)
+	# Target Tiger named "3" -- NOT the local headless-GUT peer's own id (1),
+	# so is_multiplayer_authority() must report false for it: simulates a 3rd
+	# peer's own window observing a kick that landed on someone ELSE's Tiger
+	# -- it still runs on_confirmed() (the broadcast reaches everyone) but
+	# must apply no local physics effect of its own.
+	var tiger: CharacterBody3D = _spawn_kick_candidate("3", ROLE_TIGER, Vector3(1.0, 0, 0))
+
+	var ability_controller: Node = kicker.get_node("AbilityController")
+	var kick_ability: KickAbility = ability_controller._abilities[&"kick"]
+
+	kick_ability.on_confirmed({"kicker_id": 2, "target_id": tiger.name})
+
+	var tiger_movement: Node = tiger.get_node("MovementComponent")
+	assert_false(tiger_movement.is_staggered(),
+		"a peer that does not own the targeted Player must never apply a local stagger, even though it still runs on_confirmed() via the broadcast")
+
+
+func test_on_confirmed_ignores_a_non_tiger_target_even_if_locally_owned() -> void:
+	_kick_players_root = Node3D.new()
+	add_child_autofree(_kick_players_root)
+
+	var kicker: CharacterBody3D = _spawn_kick_candidate("2", ROLE_OUTER, Vector3.ZERO)
+	# An Outer named "1" (locally owned) -- host_validate() would never
+	# actually confirm a kick against a non-Tiger (TK-P2-32's role filter),
+	# but this defense-in-depth gate must still hold on its own if it ever
+	# somehow ran against an Outer id.
+	var outer: CharacterBody3D = _spawn_kick_candidate("1", ROLE_OUTER, Vector3(1.0, 0, 0))
+
+	var ability_controller: Node = kicker.get_node("AbilityController")
+	var kick_ability: KickAbility = ability_controller._abilities[&"kick"]
+
+	kick_ability.on_confirmed({"kicker_id": 2, "target_id": outer.name})
+
+	var outer_movement: Node = outer.get_node("MovementComponent")
+	assert_false(outer_movement.is_staggered(), "Kick Stagger must never apply to a non-Tiger target, even when locally owned")
+
+
+func test_on_confirmed_does_not_crash_when_the_target_node_is_gone() -> void:
+	_kick_players_root = Node3D.new()
+	add_child_autofree(_kick_players_root)
+
+	var kicker: CharacterBody3D = _spawn_kick_candidate("2", ROLE_OUTER, Vector3.ZERO)
+	var ability_controller: Node = kicker.get_node("AbilityController")
+	var kick_ability: KickAbility = ability_controller._abilities[&"kick"]
+
+	# "9" was never spawned under _kick_players_root -- simulates the target
+	# disconnecting between the kick landing and this confirm arriving.
+	kick_ability.on_confirmed({"kicker_id": 2, "target_id": "9"})
+	assert_true(true, "on_confirmed must not crash when the confirmed target_id no longer resolves to a live node")
 
 
 # --- KickAbility owner-side cooldown prediction (can_activate/on_rejected) -

@@ -25,6 +25,12 @@ class_name AbilityCatalog
 ## TK-P3-05) are the cards that append the rest of Tiger's design doc §6
 ## catalog.
 ##
+## TK-P2-18: Tiger's catalog now also has PounceAbility -- the Tiger's short
+## burst dash (see characters/abilities/PounceAbility.gd's own class doc).
+## Same purely-additive registration, one more line appended below exactly as
+## this file's own doc predicts. Crouch/Lean/Peek (TK-P3-05) remain the last
+## entries of Tiger's design doc §6 catalog still to land.
+##
 ## Original scaffold note (TK-P2-16, kept for history): every role's list
 ## used to be EMPTY -- no concrete ability existed yet.
 ## AbilityController.set_role() already calls abilities_for_role()
@@ -55,9 +61,13 @@ static func abilities_for_role(role: StringName) -> Array:
 			# TigerAbility catalog (design doc §6): Crouch, Lean, Pounce, Peek --
 			# plus the Tag ACTION (TK-P2-03), which design doc §3's Resolution
 			# table lists alongside Kick/Jump-Kick/Pounce but is not part of the
-			# §6 body-language/movement list. TK-P3-05 (Crouch->Lean->Peek) and
-			# TK-P2-18 (Pounce) are the cards that will each append one more entry.
-			return [preload("res://characters/abilities/TagAbility.gd")]
+			# §6 body-language/movement list. TK-P2-18 (Pounce) is now registered
+			# below; TK-P3-05 (Crouch->Lean->Peek) is the card that will append
+			# the remaining entries.
+			return [
+				preload("res://characters/abilities/TagAbility.gd"),
+				preload("res://characters/abilities/PounceAbility.gd"),
+			]
 		ROLE_OUTER:
 			# HumanAbility catalog (design doc §6): Kick, Hide, Emote (+ Jump-Kick).
 			# TK-P2-01 (Kick) is the first entry -- Hide/Emote/Jump-Kick are still

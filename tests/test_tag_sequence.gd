@@ -162,6 +162,12 @@ func test_on_rejected_clears_the_owner_predicted_cooldown() -> void:
 # --- AbilityCatalog registration (TK-P2-03) ---------------------------------
 
 func test_tiger_role_has_tag_registered() -> void:
+	# TK-P2-18: Tiger's catalog now has a second entry (PounceAbility)
+	# alongside TagAbility -- see tests/test_ability_system.gd's own
+	# test_tiger_role_has_tag_registered()/test_tiger_role_has_pounce_
+	# registered() for the full catalog-registration coverage; this test
+	# stays as a light TagAbility-specific sanity check (TagAbility.gd is
+	# still present, still first).
 	var result: Array = AbilityCatalog.abilities_for_role(&"tiger")
-	assert_eq(result.size(), 1, "Tiger catalog should have exactly one entry (TagAbility) at this step")
-	assert_eq(result[0], TagAbilityScript, "Tiger's single catalog entry should be TagAbility.gd")
+	assert_eq(result.size(), 2, "Tiger catalog should have exactly two entries (TagAbility, PounceAbility) at this step")
+	assert_eq(result[0], TagAbilityScript, "Tiger's first catalog entry should be TagAbility.gd")
