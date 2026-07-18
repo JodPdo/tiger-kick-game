@@ -32,6 +32,10 @@
 | **Pounce burst** | ~8 m/s ระยะสั้น | การ์ด TK-P2-18 (TigerAbility, HOST validate) |
 | **Round length** | 3–5 นาที | GDD (ยังไม่ทำ) |
 | Cooldowns (Kick/Pounce) | TBD | จูน P3 |
+| **Charged Kick threshold** | **5 ครั้ง** (นับต่อผู้เล่น, host นับ, รีเซ็ตเมื่อ trigger) | **locked** (2026-07-19) — การ์ด `TK-P3-06`, ยังไม่ implement |
+| **Super Kick launch distance** | **= ระยะ Pounce burst ของเสือ** (ไม่ใช่ค่าใหม่แยกต่างหาก — ผูกกับค่า Pounce burst ด้านบน ~8 m/s ชั่วขณะ/~2.8m ปัจจุบัน; ถ้า Pounce จูนใหม่ ค่านี้ตามไปด้วย) | **locked** (2026-07-19) — การ์ด `TK-P3-06` |
+| **Super Kick knockdown duration** | **1.0 วินาที** | **locked** (2026-07-19) — การ์ด `TK-P3-06` |
+| **Super Kick post-knockdown invuln** | **0.5 วินาที** | **locked** (2026-07-19) — การ์ด `TK-P3-06`; กัน chain-knockdown |
 
 ## 5. Ability resolution (สรุปจาก Ability_System_Design.md)
 - **HOST_AUTHORITATIVE:** Kick, Jump-Kick, Tag, **Pounce**, Hide(default)

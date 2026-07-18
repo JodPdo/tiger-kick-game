@@ -710,7 +710,8 @@
     "type": "task",
     "priority": "High",
     "owner_agent": "gameplay-engineer",
-    "status": "todo",
+    "status": "doing",
+    "assignment_note": "Assigned by the human (2026-07-19) as the Phase 3 critical path: gameplay-engineer does this card, then continues straight into TK-P2-15 (Match state machine) on top of it -- both are the gate for TK-P3-03.",
     "depends_on": [
       "TK-P2-13"
     ],
@@ -1083,7 +1084,8 @@
     "type": "task",
     "priority": "Medium",
     "owner_agent": "qa-engineer",
-    "status": "todo",
+    "status": "doing",
+    "assignment_note": "Assigned by the human (2026-07-19), explicitly prioritized as a bug-prevention track ahead of TK-P3-06: TK-P3-06 now formally depends_on this card (hard gate) and must not start implementation until this lands.",
     "depends_on": [
       "TK-BUG-P2-01"
     ],
@@ -1101,9 +1103,11 @@
     "owner_agent": "gameplay-engineer",
     "status": "todo",
     "depends_on": [
-      "TK-P2-17"
+      "TK-P2-17",
+      "TK-P2-33"
     ],
-    "labels": "task, phase-3, prio-medium, ability, design-pending",
+    "labels": "task, phase-3, prio-medium, ability, design-locked",
+    "design_lock": "DESIGN VALUES LOCKED by the human/designer (2026-07-19, Game_Balance.md updated, Change Log [0.52]) -- the 'design-pending' placeholders below are now RESOLVED, do not re-litigate: (1) Super Kick LAUNCH DISTANCE = the Tiger's own Pounce burst distance -- reuse/derive from PounceAbility's existing burst values (~8 m/s / ~0.35s, currently ~2.8m reach), do NOT hand-pick an independent number; if Pounce's tuning changes later, this should track it rather than drift out of sync. (2) KNOCKDOWN duration = 1.0s (was placeholder ~1.0s, now the actual locked value -- happens to match). (3) POST-KNOCKDOWN INVULN window = 0.5s (was 'placeholder duration, designer to lock', now locked). Threshold stays 5 confirmed kicks per player (already stated, now also formally locked). HARD GATE ADDED: this card now depends_on TK-P2-33 as well as TK-P2-17 -- per the human's explicit instruction, TK-P2-33's positive-side-effect regression pattern must land BEFORE this card's on_confirmed()-adjacent counter/trigger glue is written (this card's own note already flagged it as exactly the kind of glue that pattern exists to harden; do not start implementation until TK-P2-33 is done).",
     "note": "Filed by the human (2026-07-19) alongside closing TK-P2-30/17/18. New Phase 3 mechanic on top of the already-verified Kick pipeline (TK-P2-01/17/32/TK-BUG-P2-01) and Kick Stagger. DESIGN-PENDING (same pattern as Pounce/Stagger placeholders): the exact threshold count, knockdown duration, and invuln duration below are the human's initial spec -- designer must lock final tunable values in Game_Balance.md before/while implementing (do not silently change the human's stated defaults without a design ruling + Change Log entry per CLAUDE.md change-control). SPEC: (1) COUNTER -- host tracks, per Outer player, a count of CONFIRMED kicks landed on the Tiger (reuses the existing host-authoritative rpc_confirm pipeline that TK-P2-01/32/TK-BUG-P2-01 already established and human-verified; do not add a new RPC surface if the existing confirm broadcast can carry this). Counter is PER-PLAYER (not shared/team-wide) and is host-authoritative -- no client can inflate it. (2) TRIGGER -- on that player's 5th confirmed kick on the Tiger, the NEXT kick from that player is a 'Super Kick': counter resets to 0 immediately on trigger (not on the super kick landing) per the human's spec 'ตัวนับรีเซ็ต' -- confirm this exact reset-timing interpretation with designer if ambiguous. (3) SUPER KICK EFFECT -- Tiger is launched (knockback significantly stronger than normal Kick Stagger's ~0.6m shove) and enters a short KNOCKDOWN state (~1.0s placeholder, tunable) during which -- unlike normal Stagger, which is explicitly ADDITIVE and never blocks input (TK-P2-17's core AC) -- movement/ability input IS suppressed (this is a deliberate escalation beyond Stagger, confirm the exact input-lock scope with designer: full lockout vs partial). (4) BALANCE GUARDS (explicit, must hold): NO CHAIN-KNOCKDOWN -- a Tiger already in or just exiting knockdown cannot be re-knocked-down immediately; Tiger gets a short INVULNERABILITY window after getting back up (placeholder duration, designer to lock) during which further kicks/supers cannot land or count. Both guards are anti-frustration/anti-lock requirements from the human -- do not implement the counter/trigger without them, they are part of this card's Acceptance Criteria, not a follow-up. (5) AUTHORITY -- both the per-player counter AND the super-kick outcome (launch direction/distance, knockdown timing, invuln window) are HOST-AUTHORITATIVE, matching every other confirmed-ability outcome in this codebase (TK-P2-01/06/07/09/17). (6) OUT OF SCOPE FOR THIS CARD (filed separately, see depends_on/linked cards): UI display of the per-player accumulated-kick counter is Phase 4 (see TK-P4-09); launch/knockdown animation is Phase 4 (see TK-P4-10, ties into the Animation Set in Character_Art_Bible.md Section7 and the Mixamo import TK-P4-01). This card is host-authoritative GAMEPLAY LOGIC ONLY -- ship it with placeholder visuals (existing capsule/no-anim knockback is fine, same bootstrap approach TK-P2-17/18 used) so the mechanic can be feel-tested in Phase 3 playtests (TK-P3-03/04) before Phase 4 art lands. REGRESSION EXPECTATION: given this repo's now-TWICE-recurred wiring-dead-code bug class (TK-P2-32, TK-BUG-P2-01 -- both were glue code that resolved the wrong node/identity under a real RPC broadcast, invisible to green pure-function GUT), this card's on_confirmed()-adjacent counter/trigger logic is EXACTLY the kind of glue TK-P2-33 exists to harden -- apply TK-P2-33's positive-side-effect-assertion pattern here from the start (assert the counter actually increments on the correct player's node, assert knockdown/invuln states actually flip on the correct resolved target) rather than retrofitting after a 3rd recurrence. Human 2-instance pass will be required before Done (same host-authoritative-outcome-on-a-live-broadcast risk class as TK-P2-06/07/09/17/18/BUG-P2-01's surface)."
   },
   {
@@ -1146,7 +1150,8 @@
     "type": "task",
     "priority": "Medium",
     "owner_agent": "tools-devops",
-    "status": "todo",
+    "status": "doing",
+    "assignment_note": "Assigned by the human (2026-07-19) as an independent tooling track, prioritized to land soon -- unblocks solo testing with an actual moving target rather than an idle Outer.",
     "depends_on": [
       "TK-P2-01",
       "TK-P2-09",

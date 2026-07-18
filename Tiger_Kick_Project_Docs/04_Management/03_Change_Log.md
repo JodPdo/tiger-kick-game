@@ -3,6 +3,17 @@
 บันทึกการเปลี่ยนแปลงสำคัญของโปรเจกต์และเอกสาร (รูปแบบ Keep a Changelog)
 เวอร์ชันล่าสุดอยู่บนสุด
 
+## [0.52] — 2026-07-19 — Design lock: TK-P3-06 (Charged Kick / Knockdown) tunable values locked
+
+- **Designer ruling (human):** the three placeholder tunables on `TK-P3-06` are now locked in `Game_Balance.md` §4:
+  - **Super Kick launch distance = the Tiger's own Pounce burst distance** (derived from Pounce's existing ~8 m/s / ~0.35s burst, ~2.8m reach today — not an independent new number; if Pounce is retuned later this value should track it).
+  - **Knockdown duration = 1.0s.**
+  - **Post-knockdown invulnerability window = 0.5s** (anti chain-knockdown).
+  - Threshold (5 confirmed kicks per player, host-counted, resets on trigger) reconfirmed as already-stated and now formally locked alongside the above.
+- `TK-P3-06`'s `design-pending` label removed → `design-locked`; a `design_lock` field added to the card recording the above so gameplay-engineer does not re-litigate when picking it up.
+- **New hard dependency:** `TK-P3-06` now `depends_on` `TK-P2-33` (positive-side-effect regression pattern) in addition to `TK-P2-17` — explicit human instruction that TK-P2-33 must land before this card's `on_confirmed()`-adjacent counter/trigger glue is written, given that exact code shape has already caused two prior dead-code bugs (`TK-P2-32`, `TK-BUG-P2-01`).
+- **Phase 3 work assigned:** `TK-P2-14` (Countdown, gameplay-engineer, critical path → continues into `TK-P2-15`), `TK-P3-07` (test bot, tools-devops, independent), `TK-P2-33` (regression pattern, qa-engineer, gates `TK-P3-06`). All three set to `doing`.
+
 ## [0.51] — 2026-07-19 — 🏁 PHASE 2 EXIT GATE: PASS — Phase 2 (Core Loop) CLOSED
 
 - **`TK-P2-27` solo feel pass: PASS.** Speed-profile feel (Outer 4.0/x1.5 vs Tiger 4.0/4.0-capped), Pounce feel, and kick-flee rhythm all read fine — nothing broken or off enough to need a fix before other people play. This was the last open item blocking Phase 2's closure per the conditions recorded in `[0.50]`.
