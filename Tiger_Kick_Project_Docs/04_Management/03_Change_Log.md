@@ -3,6 +3,14 @@
 บันทึกการเปลี่ยนแปลงสำคัญของโปรเจกต์และเอกสาร (รูปแบบ Keep a Changelog)
 เวอร์ชันล่าสุดอยู่บนสุด
 
+## [0.51] — 2026-07-19 — 🏁 PHASE 2 EXIT GATE: PASS — Phase 2 (Core Loop) CLOSED
+
+- **`TK-P2-27` solo feel pass: PASS.** Speed-profile feel (Outer 4.0/x1.5 vs Tiger 4.0/4.0-capped), Pounce feel, and kick-flee rhythm all read fine — nothing broken or off enough to need a fix before other people play. This was the last open item blocking Phase 2's closure per the conditions recorded in `[0.50]`.
+- **Final regression re-run (2026-07-19, Godot 4.7.stable win64 headless, own run, not trusting any prior report):** `--headless --import` clean, zero SCRIPT ERROR / Parse Error. **GUT 351/351 passing (1723 asserts, 23 scripts, 7.8s)**, no S0/S1, no orphans. All 5 net probes PASS: `run_net_smoke.sh`, `run_spawn_probe.sh`, `run_spawn_probe_together.sh`, `run_tag_detect_probe.sh` (only the known benign engine-teardown noise lines), `run_spawn_probe_slowjoin.sh`.
+- **Exit Gate verdict: MET.** Per `CLAUDE.md`'s rule (regression green + no open S0/S1 + Exit Gate criteria satisfied), and the goal recorded since Phase 2 started ("Kick + Tag + 7-step Tag Sequence + role swap on the ability scaffold; core loop playable") — every one of those mechanics carries both an automation-green regression and a human 2-instance (or solo, for TK-P2-27) PASS on record.
+- **Phase 2 is now CLOSED.** `CURRENT_PHASE.md` updated: header table now points at Phase 3 (M3 First Playtest), a new "Phase 2 — CLOSED ✅" section summarizes what shipped + final numbers + the `[0.50]` deferral ruling, and "Next" now describes the Phase 3 board.
+- **Phase 3 board opened:** `TK-P2-14` (Countdown) and `TK-P2-15` (Match state machine + MatchEnd) — both carried over from Phase 2 per `[0.50]` — are first up, since they gate `TK-P3-03` (First Playtest). Then `TK-P3-01` → `TK-P3-02` → `TK-P3-03` → `TK-P3-04`, with `TK-P3-05` (Tiger body-language), `TK-P3-06` (Charged Kick/Knockdown), `TK-P3-07` (test bot), `TK-P2-11` (Jump Kick), `TK-P2-20` (late-join), and `TK-P2-33` (regression pattern) available in parallel.
+
 ## [0.50] — 2026-07-19 — Producer ruling: TK-P2-11/14/15/20/33 deferred to Phase 3 as carry-overs; TK-P2-14/15 gate TK-P3-03; TK-P2-29/31 kept open in Phase 2 (non-blocking); exact Phase 2 closure conditions recorded
 
 - **Context:** following up on `[0.49]`'s Exit Gate reaffirmation, the human reviewed the full list of open Phase 2 cards and made an explicit deferral ruling rather than leaving them ambiguously open when Phase 2 closes.

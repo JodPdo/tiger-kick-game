@@ -963,7 +963,8 @@
     "type": "task",
     "priority": "Medium",
     "owner_agent": "qa-engineer",
-    "status": "todo",
+    "status": "done",
+    "human_pass_result": "PASS (2026-07-19, solo feel pass): speed-profile feel (Outer 4.0/x1.5 vs Tiger 4.0/4.0-capped), Pounce feel, and kick-flee rhythm all read fine -- nothing broken or off enough to require a fix before other people play. This clears the last open item for Phase 2's Exit Gate. Producer closes TK-P2-27.",
     "depends_on": [
       "TK-P2-04",
       "TK-P2-05",
