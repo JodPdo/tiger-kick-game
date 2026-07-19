@@ -23,6 +23,17 @@ const ROLE_TIGER: StringName = &"tiger"
 const ROLE_OUTER: StringName = &"outer"
 
 
+## TK-P2-33: reset the shared-process root MultiplayerAPI to a pristine default
+## before this file's Player.tscn + GameManager scene-tree tests, so
+## is_multiplayer_authority() behaves as "offline" regardless of what an
+## earlier-run test file left behind (this file previously relied on an
+## alphabetically-earlier file's reset; making it explicit keeps it order-
+## independent). See tests/test_role_state_machine.gd's own before_all() for the
+## full writeup.
+func before_all() -> void:
+	get_tree().set_multiplayer(MultiplayerAPI.create_default_interface(), NodePath(""))
+
+
 # --- SafeCircleRules.horizontal_distance (pure) -----------------------------
 
 func test_horizontal_distance_ignores_y() -> void:
@@ -289,3 +300,79 @@ func test_correction_target_still_snaps_to_the_true_radius_not_the_tolerance_wid
 	var radius: float = 5.0
 	var result: Vector3 = SafeCircleRulesScript.clamp_to_circle(Vector3(radius + 0.5, 0.0, 0.0), radius)
 	assert_almost_eq(result.x, radius, 0.0001)
+
+
+# --- GameManager._apply_tiger_position_correction node resolution (TK-P2-33) --
+# POSITIVE-SIDE-EFFECT regression coverage, same bug CLASS as TK-P2-32 /
+# TK-BUG-P2-01 (glue that resolves "which live node does this RPC broadcast's
+# result apply to" being silently wrong under green pure-function tests). The
+# section above covers the PURE tolerance/boundary math GameManager's host-side
+# correction calls; this section covers the separate scene-tree step
+# _apply_tiger_position_correction() performs -- resolving Players/<peer_id> off
+# the "Players" root and writing the corrected position ONLY if this peer owns
+# that node (is_multiplayer_authority() gate) -- the exact same "resolve a
+# peer-id to a live node under a broadcast, act only on the correct owned node"
+# shape as both prior bugs, previously unasserted at the observable-effect
+# level. Real Player.tscn instances (no mocks).
+#
+# SETUP is decoupled from GameManager._ready() -- _apply_tiger_position_
+# correction() depends ONLY on GameManager's `_players_root`, so the real
+# Player.tscn Tigers are spawned under an in-tree "Players" root (so each
+# Player's own authority resolves) and that root is injected into a GameManager
+# NOT added to the tree, so its host-only _ready() / _physics_process()
+# (CountdownManager wiring, match-end watch, the Safe-Circle host correction
+# loop) never run and cannot fire a competing correction mid-test. See
+# tests/test_tag_sequence.gd's own "apply_role_switch" SETUP note for the full
+# rationale (this is the same helper shape).
+
+func _build_players_root() -> Node:
+	var root := Node3D.new()
+	add_child_autofree(root)
+	var players := Node3D.new()
+	players.name = "Players"
+	root.add_child(players)
+	return players
+
+
+func _make_game_manager(players: Node) -> Node:
+	var gm: Node = GameManagerScript.new()
+	autofree(gm)
+	gm._players_root = players
+	return gm
+
+
+func _spawn_correction_player(players: Node, peer_name: String, pos: Vector3) -> CharacterBody3D:
+	var p: CharacterBody3D = PlayerScene.instantiate()
+	p.name = peer_name
+	players.add_child(p)
+	p.set_role(ROLE_TIGER)
+	p.position = pos
+	return p
+
+
+func test_apply_tiger_position_correction_writes_only_to_the_owned_resolved_node() -> void:
+	var players: Node = _build_players_root()
+	var gm: Node = _make_game_manager(players)
+
+	# Owned Tiger (name "1" == headless GUT own id).
+	var owned: CharacterBody3D = _spawn_correction_player(players, "1", Vector3(5.0, 0.0, 0.0))
+
+	gm._apply_tiger_position_correction(1, Vector3(4.0, 0.0, 0.0))
+
+	assert_almost_eq(owned.position.x, 4.0, 0.001,
+		"the correction must resolve Players/1 and land on THAT owned node's position -- the observable effect must hit the correct node")
+
+
+func test_apply_tiger_position_correction_is_a_no_op_on_a_non_owned_node() -> void:
+	var players: Node = _build_players_root()
+	var gm: Node = _make_game_manager(players)
+
+	# Named "2" -- NOT this peer's id, so is_multiplayer_authority() is false:
+	# position is owner-authoritative one-way sync, so this peer must never write
+	# a Player it does not own (even though the node resolves fine).
+	var remote: CharacterBody3D = _spawn_correction_player(players, "2", Vector3(4.0, 0.0, 0.0))
+
+	gm._apply_tiger_position_correction(2, Vector3(0.0, 0.0, 0.0))
+
+	assert_almost_eq(remote.position.x, 4.0, 0.001,
+		"a Player this peer does not own must be left untouched by the correction (authority gate on the resolved node)")

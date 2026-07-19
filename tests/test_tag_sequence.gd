@@ -23,6 +23,29 @@ const TagAbilityRulesScript := preload("res://characters/abilities/TagAbilityRul
 const TagSequenceRulesScript := preload("res://managers/TagSequenceRules.gd")
 const TagAbilityScript := preload("res://characters/abilities/TagAbility.gd")
 
+# TK-P2-33: scene-tree-level regression coverage for the Tag OUTCOME's actual
+# node-resolution (see the "GameManager.apply_role_switch" section at the bottom
+# of this file).
+const PlayerScene := preload("res://characters/Player.tscn")
+const GameManagerScript := preload("res://managers/GameManager.gd")
+
+const ROLE_TIGER: StringName = &"tiger"
+const ROLE_OUTER: StringName = &"outer"
+
+
+## TK-P2-33: see tests/test_role_state_machine.gd's own before_all() for the
+## full writeup of the shared-process multiplayer-state hazard this resets. In
+## short: GUT runs every tests/*.gd in ONE SceneTree, and any earlier-run file
+## that assigned a real ENet peer (tests/test_network_manager.gd) leaves the
+## shared root MultiplayerAPI in a "disconnected" (not "offline") state, which
+## breaks is_multiplayer_authority()/get_unique_id() for the Player.tscn +
+## GameManager scene-tree tests added at the bottom of this file. Resetting to
+## a pristine default interface makes this file order-independent, exactly as
+## test_role_state_machine.gd/test_camera_mode.gd already do for their own
+## Player.tscn tests.
+func before_all() -> void:
+	get_tree().set_multiplayer(MultiplayerAPI.create_default_interface(), NodePath(""))
+
 
 # --- TagAbilityRules.can_fire (pure cooldown ledger) ------------------------
 
@@ -157,6 +180,133 @@ func test_on_rejected_clears_the_owner_predicted_cooldown() -> void:
 	assert_false(_tag.can_activate({}), "sanity: cooldown should be active before the rejection")
 	_tag.on_rejected("no_target_in_range")
 	assert_true(_tag.can_activate({}), "on_rejected must roll back the owner-predicted cooldown -- the tag never actually landed")
+
+
+# --- GameManager.apply_role_switch node resolution (TK-P2-33) ---------------
+# POSITIVE-SIDE-EFFECT regression coverage for the bug CLASS that has now
+# recurred twice in this codebase (TK-P2-32 host_validate() targeted the wrong
+# player; TK-BUG-P2-01 on_confirmed()'s stagger gate checked the wrong node) --
+# glue code that resolves "which live node under an RPC broadcast is the actual
+# target" being silently wrong while 300+ pure-function GUT asserts stay green.
+#
+# TagAbility itself (TK-P2-03) is the OTHER host-authoritative "outcome changes
+# who is the Tiger" surface, structurally the same shape as the two bugs above.
+# But TagAbility.on_confirmed() is log-only -- the OBSERVABLE Tag outcome (the
+# role swap every peer must agree on) is applied by
+# managers/GameManager.gd's apply_role_switch(), which resolves BOTH the old and
+# new Tiger's Player nodes off the shared "Players" root
+# (players_root.get_node_or_null(str(id))) and calls set_role() on each. That
+# resolution step is EXACTLY the kind of glue the two prior bugs lived in, yet
+# before this card only the pure managers/TagSequenceRules.gd helpers were GUT-
+# covered -- nothing asserted the role actually lands on the CORRECT resolved
+# node. These tests instantiate real Player.tscn instances (no mocks) under a
+# real "Players" root and assert the observable role flip landed on the right
+# node, matching the TK-P2-32/TK-BUG-P2-01 pattern in tests/test_kick_rules.gd.
+#
+# SETUP (decoupled from GameManager's own _ready, deliberately): all three
+# handlers under test here (apply_role_switch/assign_first_tiger/_apply_tiger_
+# position_correction) depend ONLY on GameManager's `_players_root`. So these
+# tests spawn the real Player.tscn instances under a real "Players" root IN the
+# tree (so each Player's own is_multiplayer_authority()/_enter_tree authority
+# resolves), then inject that root into a GameManager instance that is NOT added
+# to the tree -- so GameManager's host-only _ready() (which since TK-P2-14/15
+# wires a CountdownManager sibling + a match-end watch and can fire broadcast
+# RPCs) never runs, and the stable, human-verified role RESOLUTION handler is
+# exercised in isolation from that match-flow scaffolding. This mirrors how
+# tests/test_kick_rules.gd calls KickAbility.on_confirmed() directly with a
+# synthesized payload rather than driving a live rpc_confirm broadcast.
+# Headless GUT's own multiplayer id is 1, so a Player named "1" reports
+# is_multiplayer_authority() == true (this peer "owns" it) and any other name
+# reports false -- no live ENet peer needed, same basis
+# tests/test_kick_rules.gd / tests/test_safe_circle.gd already rely on.
+
+## Builds a real, in-tree "Players" root (freed via add_child_autofree) that the
+## injected GameManager below resolves its swaps against.
+func _build_players_root() -> Node:
+	var root := Node3D.new()
+	add_child_autofree(root)
+	var players := Node3D.new()
+	players.name = "Players"
+	root.add_child(players)
+	return players
+
+
+## A GameManager instance with `_players_root` injected but NOT added to the
+## tree (see SETUP note) -- freed via autofree(). Its @onready _players_root is
+## never resolved (never in a tree), so this manual assignment is authoritative.
+func _make_game_manager(players: Node) -> Node:
+	var gm: Node = GameManagerScript.new()
+	autofree(gm)
+	gm._players_root = players
+	return gm
+
+
+## Instantiates a real Player.tscn under `players`, named/positioned/role-
+## assigned as requested. Same naming-contract (name BEFORE add_child) +
+## default-Outer-so-only-set-non-default pattern tests/test_kick_rules.gd's own
+## _spawn_kick_candidate() uses.
+func _spawn_player(players: Node, peer_name: String, role: StringName, pos: Vector3) -> CharacterBody3D:
+	var p: CharacterBody3D = PlayerScene.instantiate()
+	p.name = peer_name
+	players.add_child(p)
+	p.global_position = pos
+	if role != ROLE_OUTER:
+		p.set_role(role)
+	return p
+
+
+func test_apply_role_switch_flips_the_two_resolved_players_to_the_correct_roles() -> void:
+	var players: Node = _build_players_root()
+	var gm: Node = _make_game_manager(players)
+
+	# Old Tiger owned by this local peer (name "1" == headless GUT own id);
+	# new Tiger + an untouched bystander are remote-owned.
+	var old_tiger: CharacterBody3D = _spawn_player(players, "1", ROLE_TIGER, Vector3(1.0, 0.0, 0.0))
+	var new_tiger: CharacterBody3D = _spawn_player(players, "2", ROLE_OUTER, Vector3(2.0, 0.0, 0.0))
+	var bystander: CharacterBody3D = _spawn_player(players, "3", ROLE_OUTER, Vector3(3.0, 0.0, 0.0))
+
+	assert_eq(old_tiger.role, ROLE_TIGER, "sanity: the old tiger is the Tiger before the swap")
+
+	gm.apply_role_switch(1, 2, Vector3(6.0, 0.0, 0.0))
+
+	assert_eq(new_tiger.role, ROLE_TIGER,
+		"apply_role_switch must resolve Players/2 and make IT the new Tiger -- the observable 'who is the Tiger' outcome must land on the correct node, not just run without crashing")
+	assert_eq(old_tiger.role, ROLE_OUTER,
+		"apply_role_switch must resolve Players/1 and flip IT back to Outer")
+	assert_eq(bystander.role, ROLE_OUTER,
+		"a Player not named in the swap must be left untouched (resolution must be selective, not blanket)")
+
+
+func test_apply_role_switch_teleports_only_the_owned_old_tiger_to_the_exit_position() -> void:
+	var players: Node = _build_players_root()
+	var gm: Node = _make_game_manager(players)
+
+	var old_tiger: CharacterBody3D = _spawn_player(players, "1", ROLE_TIGER, Vector3(1.0, 0.0, 0.0))
+	_spawn_player(players, "2", ROLE_OUTER, Vector3(2.0, 0.0, 0.0))
+
+	gm.apply_role_switch(1, 2, Vector3(6.0, 0.0, 0.0))
+
+	# The step-6 placeholder exit teleport is authority-gated -- it must apply to
+	# the OWNED old tiger's own resolved node (name "1" == this peer's id).
+	assert_almost_eq(old_tiger.position.x, 6.0, 0.001,
+		"the resolved, owned old-tiger node must be teleported to the exit_position -- the observable step-6 side effect must land on the correct node")
+
+
+func test_apply_role_switch_does_not_teleport_a_non_owned_old_tiger() -> void:
+	var players: Node = _build_players_root()
+	var gm: Node = _make_game_manager(players)
+
+	# Old tiger named "9" -- NOT this peer's id, so is_multiplayer_authority()
+	# is false for it: its role still flips (that is not authority-gated), but
+	# position is owner-authoritative so this peer must not write it.
+	var old_tiger: CharacterBody3D = _spawn_player(players, "9", ROLE_TIGER, Vector3(1.0, 0.0, 0.0))
+	_spawn_player(players, "2", ROLE_OUTER, Vector3(2.0, 0.0, 0.0))
+
+	gm.apply_role_switch(9, 2, Vector3(6.0, 0.0, 0.0))
+
+	assert_eq(old_tiger.role, ROLE_OUTER, "role flip is not authority-gated -- it still resolves + applies on every peer")
+	assert_almost_eq(old_tiger.position.x, 1.0, 0.001,
+		"a non-owned old tiger's position must NOT be written locally -- only its own owning peer may move it (owner-authoritative position)")
 
 
 # --- AbilityCatalog registration (TK-P2-03) ---------------------------------
