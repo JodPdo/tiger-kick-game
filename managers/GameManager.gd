@@ -13,15 +13,19 @@ extends Node
 ## Player -> Players -> TestArena -> GameManager.
 ##
 ## SCOPE (TK-P2-03 card note, flagged for architect placement review the
-## same way TK-P2-02's sensor placement was): this node owns ONLY the Tag
-## Sequence + its lock. It is explicitly NOT the full match state machine
-## (WaitingRoom -> Countdown -> Playing -> MatchEnd, TK-P2-15, a separate
-## still-todo card) -- step 7 ("return to Playing") here means "clear this
-## lock", nothing more; no global match-state enum is introduced by this
-## file. Assigning the first Tiger (TK-P2-09) and the Role state machine
-## itself (TK-P2-04) are also separate, still-todo cards -- this file only
-## reacts to a Tag Sequence that TagAbility already validated as legitimate;
-## it does not decide who becomes Tiger on its own initiative.
+## same way TK-P2-02's sensor placement was): this node originally owned ONLY
+## the Tag Sequence + its lock -- step 7 ("return to Playing") here still
+## means exactly "clear this lock", nothing more, the Tag Sequence's own scope
+## is unchanged. TK-P2-15 (see that section further down this doc) has since
+## ADDED the full match-level state machine (WaitingRoom -> Countdown ->
+## Playing -> MatchEnd) on top, so a global match-state enum now DOES exist on
+## this file (`match_state`, backed by managers/MatchStateRules.gd) -- see the
+## "TK-P2-15 (Match state machine, gameplay-engineer) ADDITION" doc section
+## below for the full picture. Assigning the first Tiger (TK-P2-09) and the
+## Role state machine itself (TK-P2-04, characters/RoleRules.gd) remain
+## separate concerns this file only reacts to -- this file still does not
+## decide who becomes Tiger on its own initiative outside of the Tag
+## Sequence's own already-validated role swap and TK-P2-09's first-pick.
 ##
 ## Step 2 (throw-to-ground) and step 3 (transform-effect) below are TIMER
 ## STUBS ONLY -- Phase 4 polish (TK-P4-0x) replaces both with real
@@ -80,15 +84,100 @@ extends Node
 ## "pure static helper, thin host-only shell" split every other file in this
 ## class doc already follows).
 ##
-## INTERIM CALL SITE (per the card note -- RoundManager/TK-P2-07 and the full
-## match state machine/TK-P2-15 do not exist yet): "once at round start" is
-## approximated here as "once every initially-connected peer's Player has
-## actually spawned under ../Players" (see _try_assign_first_tiger() doc for
-## why spawn-completion, not _ready(), is the trigger). TK-P2-15 will replace
-## this call site with the real Playing-state entry point per its own OPEN
-## QUESTION (design doc §8a) -- this is explicitly a placeholder trigger, not
-## a decision about the eventual match SM; the round-loop RE-ROLL trigger
-## (next round -> new Tiger) is TK-P2-07's job, not built here.
+## FORMER INTERIM CALL SITE, NOW SUPERSEDED BY TK-P2-15 BELOW: this doc
+## paragraph used to describe "once at round start" as approximated by "once
+## every initially-connected peer's Player has actually spawned under
+## ../Players" as the DIRECT trigger for the first-Tiger pick. That
+## spawn-completion signal still exists and is still the right trigger --
+## but it now starts the COUNTDOWN (see next doc section), not the pick
+## itself; _try_assign_first_tiger() has moved one step later, to
+## _on_countdown_finished().
+##
+## TK-P2-15 (Match state machine, gameplay-engineer) ADDITION -- WaitingRoom
+## -> Countdown -> Playing -> MatchEnd: this file now also owns the
+## match-level state machine layered ON TOP of everything documented above
+## (the Tag Sequence, first-Tiger assignment, Safe Circle correction all keep
+## their exact same scope and behavior; TK-P2-15 only changes WHEN
+## _try_assign_first_tiger() fires and adds what happens once the match is
+## over). Pure state-transition logic lives on the new
+## managers/MatchStateRules.gd (valid-edge guard, same "pure static helper"
+## split as characters/RoleRules.gd); the live host-only shell (state var,
+## the broadcast, the round-count-based MatchEnd trigger, the return-to-
+## WaitingRoom scene switch) lives here.
+##
+## FLOW: PlayerSpawner's readiness barrier finishes spawning everyone ->
+## GameManager observes the same "every expected Player has spawned" signal
+## the old first-Tiger trigger used (_on_player_entered_watch_match_ready(),
+## renamed from _on_player_entered_watch_first_tiger()) -> broadcasts
+## WAITING_ROOM -> COUNTDOWN and calls CountdownManager.start_countdown()
+## (TK-P2-14, managers/CountdownManager.gd, a new sibling node under
+## world/TestArena.tscn) -> once CountdownManager's `finished` signal fires
+## (host-only), broadcasts COUNTDOWN -> PLAYING and immediately calls
+## _try_assign_first_tiger() (per the card's own note: "เข้า Playing -> เรียก
+## assign_first_tiger") -> RoundManager (TK-P2-07) takes over the
+## round-to-round Tiger-swap loop exactly as it already did, unchanged -> once
+## a MatchEnd trigger fires (see next paragraph), broadcasts PLAYING ->
+## MATCH_END, waits match_end_grace_sec, then broadcasts a scene switch back
+## to ui/WaitingRoom.tscn (mirroring world/TestArena.gd's own
+## change_scene_to_file "return to menu" pattern) -- which frees this whole
+## arena scene, GameManager included, closing the loop.
+##
+## MATCH-END TRIGGER (Phase 3 placeholder, per the card's own instruction: "ship
+## a placeholder, designer locks the real value later" -- same pattern already
+## used for Pounce/Stagger/Charged-Kick's tunables): the GDD is silent on match-
+## length/end-condition (Game_Balance.md only locks a per-ROUND length, 3-5 min,
+## already RoundManager's own scope -- TK-P2-07's own doc already flags GDD §9 as
+## leaving round-END conditions open for TK-P3-04, and nothing anywhere defines a
+## MATCH-end condition at all). This file picks the simplest defensible trigger:
+## a FIXED NUMBER OF ROUNDS (`rounds_per_match`, @export, placeholder = 3).
+## GameManager counts a "round" the exact same way RoundManager's own class doc
+## already reasons about "a Tiger's timed reign began" -- by watching every
+## Player's PRE-EXISTING role_changed signal (the identical hook RoundManager
+## itself, and TK-P2-05's CameraComponent, already subscribe to) and counting
+## every transition INTO Tiger while match_state == PLAYING, regardless of
+## whether that transition was caused by GameManager's OWN first-Tiger pick, a
+## completed Tag Sequence (also this file), or RoundManager's own independent
+## timeout-driven start_new_round() broadcast -- the only way to observe ALL
+## THREE causes uniformly without RoundManager exposing a new "round changed"
+## signal of its own (which would mean touching that reviewed, human-tested, live-
+## RPC file for this card, the same "don't touch a proven file if you don't have
+## to" reasoning RoundManager's own doc gives for reusing Player.role_changed
+## instead of a new GameManager signal). This is explicitly NOT a durable design
+## decision -- TK-P3-04 (GDD Open Questions, balance tuning from real playtest
+## data) owns picking the real match-end feel (fixed rounds vs. a total match
+## timer vs. something else entirely).
+##
+## AUTOLOAD-VS-SCENE-LOCAL DECISION (open question carried forward from the
+## original TK-P2-03 architect ruling / design doc §8a, explicitly required to
+## be resolved by this card, not silently): GameManager STAYS scene-local (NOT
+## promoted to an autoload). Reasoning: (1) nothing about this match SM actually
+## needs to persist across the WaitingRoom<->Arena scene boundary -- every
+## "hand-off" this SM needs is ALREADY carried by mechanisms that predate this
+## card and are already human-tested: the WaitingRoom -> Arena edge is carried by
+## ui/WaitingRoom.gd's existing _rpc_start_match() scene-switch broadcast
+## (TK-P2-13), and this card's own new MATCH_END -> WaitingRoom edge is carried
+## the exact same way, symmetrically, by this file's new return_to_waiting_room()
+## broadcast (see below) -- neither edge needs a persistent node watching across
+## the transition, both are "host broadcasts a synced scene switch" the same way
+## TestArena.gd's own "return to MainMenu" flow already works; (2) promoting
+## GameManager to an autoload is a project-wide architecture change (a new
+## project.godot autoload entry reachable from every scene, including
+## MainMenu/WaitingRoom where match-scoped state like `_is_tag_sequence_active`/
+## `_tiger_rng`/`_round_count` would be meaningless most of the time) that
+## CLAUDE.md and this agent's own contract (`.claude/agents/gameplay-engineer.md`
+## §7 "MUST NOT ... hard-code tunables the GDD marks design-owned" / architecture
+## changes need architect approval) require escalating to `architect` BEFORE
+## implementing -- and per (1), nothing here actually NEEDS that change, so there
+## is nothing to escalate; (3) staying scene-local keeps every one of this file's
+## existing host-authoritative guarantees (the is_server() gates, the RPC
+## call_local patterns, the whole reviewed/human-tested Tag Sequence + Safe Circle
+## + first-Tiger surface) completely untouched -- a fresh GameManager instance is
+## created every time a fresh TestArena is entered, with zero risk of stale
+## match-scoped state leaking from a previous match into a new one (an autoload
+## would need EXPLICIT reset logic on every "return to WaitingRoom" to avoid
+## exactly that class of bug). Per this card's own instruction, this decision is
+## recorded here AND in the card's own `notes` in `_backlog.json` -- NOT escalated
+## to architect, since (a) is not the call being made.
 
 ## Seconds the stub throw-to-ground step "plays" before the transform stub
 ## starts. Placeholder pending TK-P4-0x real animation -- @export so
@@ -156,6 +245,68 @@ extends Node
 ## "should I bother correcting at all" check, never where a correction lands.
 const SAFE_CIRCLE_CORRECTION_TOLERANCE_M: float = 0.05
 
+## TK-P2-15 Phase 3 PLACEHOLDER match-end trigger (see class doc
+## "MATCH-END TRIGGER" section for why a fixed round count, and why this is
+## explicitly not a locked design value yet) -- @export per CLAUDE.md's
+## "expose design-owned tunables, never hard-code" rule.
+@export var rounds_per_match: int = 3
+
+## TK-P2-15: seconds MATCH_END stays broadcast before GameManager switches
+## every peer back to the Waiting Room -- a brief window for whatever future
+## "Match Over" HUD polish-agent builds to actually be visible, same
+## "placeholder timing, @export so it can be retuned without touching logic"
+## posture as throw_stub_sec/transform_stub_sec above.
+@export var match_end_grace_sec: float = 3.0
+
+## TK-P2-15: scene switched to once a match ends -- mirrors
+## ui/MainMenu.gd's own WAITING_ROOM_SCENE const and
+## ui/WaitingRoom.gd's own MATCH_SCENE const (same "runtime-only scene
+## switch via change_scene_to_file, one const per file that needs the path"
+## convention already used throughout this codebase's scene-transition
+## call sites).
+const WAITING_ROOM_SCENE: String = "res://ui/WaitingRoom.tscn"
+
+## TK-P2-15: fires whenever set_match_state() actually applies a (possibly
+## no-op) transition, carrying the new MatchStateRules.State value. No
+## subscriber exists yet in this card's scope (a HUD match-state indicator is
+## polish-agent/Phase-4 territory, same posture as CountdownManager's own
+## `tick_changed` hook comment) -- this is the obvious hook a future HUD would
+## need, emitted locally on every peer inside set_match_state() itself so it
+## fires identically host-side and client-side.
+signal match_state_changed(new_state: MatchStateRules.State)
+
+## TK-P2-15: this file's own current match state (see class doc's
+## AUTOLOAD-VS-SCENE-LOCAL DECISION for why WAITING_ROOM is a nominal
+## starting value here, not a state any live code branches on). Every peer's
+## copy is kept in sync exclusively via set_match_state()'s
+## @rpc("authority", "call_local", "reliable") broadcast below -- never
+## written directly anywhere else, same "only ever mutated through the
+## broadcast RPC, host decides, everyone applies" rule apply_role_switch/
+## assign_first_tiger/RoundManager.start_new_round all already follow.
+var match_state: MatchStateRules.State = MatchStateRules.State.WAITING_ROOM
+
+## HOST-ONLY (TK-P2-15). True once _start_countdown() has run -- guards
+## against re-entering the Countdown trigger a second time (mirrors
+## _first_tiger_assigned's own idempotency-guard shape below).
+var _countdown_started: bool = false
+
+## HOST-ONLY (TK-P2-15). How many rounds (Tiger-assignment transitions while
+## match_state == PLAYING) have been observed so far this match -- see class
+## doc "MATCH-END TRIGGER". Compared against rounds_per_match to decide when
+## to end the match.
+var _round_count: int = 0
+
+## HOST-ONLY (TK-P2-15). Guards return_to_waiting_room() the same way
+## ui/WaitingRoom.gd's own _match_started guards _rpc_start_match() --
+## change_scene_to_file() is deferred, so a duplicate/retried reliable RPC
+## must not queue two scene switches.
+var _match_ended_locally: bool = false
+
+## Cached "CountdownManager" sibling (TK-P2-14, managers/CountdownManager.gd)
+## under this node's parent (world/TestArena.tscn's root) -- same
+## relative-lookup pattern as _players_root above.
+@onready var _countdown_manager: Node = get_node("../CountdownManager")
+
 ## HOST-ONLY re-trigger guard (mandatory per TK-P2-02's human-test finding:
 ## boundary jitter re-fired tag_target_in_range/left_range repeatedly within
 ## the same second -- a cooldown ledger alone is NOT enough since this lock
@@ -213,16 +364,32 @@ var _first_tiger_grace_elapsed: bool = false
 var _tiger_rng: RandomNumberGenerator = null
 
 
-## TK-P2-09: host-only setup for the interim first-Tiger trigger (see class
-## doc). Never runs any of this on a client -- clients only ever receive
-## assign_first_tiger's broadcast below, they never decide or wait for
-## anything here.
+## TK-P2-09/TK-P2-15: host-only setup for (a) the match-ready ->
+## Countdown trigger (formerly the DIRECT first-Tiger trigger -- see class
+## doc "TK-P2-15 ADDITION" section for the retasking) and (b) the
+## round-counting watch this file's own MatchEnd trigger needs (see class
+## doc "MATCH-END TRIGGER"). Never runs any of this on a client -- clients
+## only ever receive this file's broadcasts (assign_first_tiger,
+## set_match_state, ...), they never decide or wait for anything here.
 func _ready() -> void:
 	if not multiplayer.is_server():
 		return
 
 	_tiger_rng = RandomNumberGenerator.new()
 	_tiger_rng.randomize() # ONE call, host-only -- see _tiger_rng doc above.
+
+	_countdown_manager.finished.connect(_on_countdown_finished)
+
+	# TK-P2-15 match-end round counter: watch every currently-spawned AND every
+	# future-spawned Player's role_changed the same way RoundManager.gd's own
+	# _ready() does (see that file's class doc + this file's own "MATCH-END
+	# TRIGGER" doc section for why this duplicates, rather than reuses,
+	# RoundManager's watch -- two managers independently observing the same
+	# pre-existing signal for two different purposes, the established
+	# convention in this codebase).
+	for child in _players_root.get_children():
+		_watch_player_role_for_match_end(child)
+	_players_root.child_entered_tree.connect(_on_player_spawned_watch_match_end)
 
 	# host id + every peer already connected at the moment GameManager enters
 	# the tree -- same NetworkManager.get_connected_peer_ids() source
@@ -237,7 +404,7 @@ func _ready() -> void:
 		# synchronously, earlier in this same _ready() pass (PlayerSpawner is
 		# the earlier sibling in world/TestArena.tscn) -- nothing left to wait
 		# for.
-		_try_assign_first_tiger()
+		_start_countdown()
 	else:
 		_players_root.child_entered_tree.connect(_on_player_entered_watch_first_tiger)
 		_start_first_tiger_grace_timer()
@@ -258,44 +425,84 @@ func _start_first_tiger_grace_timer() -> void:
 ## rather than firing in _ready() directly, is what keeps the eventual RPC
 ## broadcast from racing a client's own still-loading scene). Once every
 ## expected Player has arrived (or the grace window already elapsed and at
-## least one Player exists), triggers the actual pick + broadcast.
+## least one Player exists), triggers Countdown -> (once it finishes)
+## the actual first-Tiger pick + broadcast.
 ##
-## DEFERRED ON PURPOSE (bug found + fixed during this card's own probe
+## RETASKED BY TK-P2-15 (name kept as-is -- "match-ready" IS still "first
+## Tiger roster ready", just one step earlier than before; see class doc
+## "TK-P2-15 ADDITION"): this used to call _try_assign_first_tiger() directly.
+## It now calls _start_countdown() instead, which itself calls
+## _try_assign_first_tiger() only once CountdownManager's `finished` signal
+## fires (_on_countdown_finished() below) -- so this is now "match-ready ->
+## Countdown", not "match-ready -> first Tiger" directly.
+##
+## DEFERRED ON PURPOSE (bug found + fixed during TK-P2-09's own probe
 ## testing, see tests/net/run_spawn_probe_together.sh output): Node's
 ## `child_entered_tree` fires as soon as THIS SAME child enters the tree --
 ## confirmed EMPIRICALLY to run before that child's own _ready() (and
 ## therefore its @onready ability_controller/movement_component) has been
-## assigned yet. Calling set_role() synchronously here, on the very Player
-## whose spawn just satisfied the roster count, would hit Player.set_role()'s
-## existing "caller before ready" null-guards (see that method's own doc) and
-## silently skip distributing the role to ability_controller/
-## movement_component for exactly that Player -- `role`/`role_changed` would
-## still update, but the new Tiger's ability catalog would never swap to
-## TigerAbility and its speed profile would never apply. call_deferred()
-## pushes the actual pick+broadcast past the current call stack, so by the
-## time it runs, this Player's own _ready() (queued/processed as part of the
-## same node-entering sequence) has already completed.
+## assigned yet. That timing hazard was specifically about calling
+## set_role() synchronously on the very Player whose spawn just satisfied the
+## roster count (see Player.set_role()'s own "caller before ready"
+## null-guard doc) -- _start_countdown() itself never calls set_role() (it
+## only starts CountdownManager's Timer), so this call_deferred() is no
+## longer strictly REQUIRED for correctness, but is kept anyway (harmless,
+## one extra frame of latency before Countdown starts) rather than removed,
+## since the actual _try_assign_first_tiger() call this eventually leads to
+## (via _on_countdown_finished(), several seconds later) still benefits from
+## every spawned Player's own _ready() being long since complete by then.
 func _on_player_entered_watch_first_tiger(_node: Node) -> void:
-	if _first_tiger_assigned:
+	if _countdown_started:
 		return
 	var have_everyone: bool = _players_root.get_child_count() >= _expected_first_tiger_roster_size
 	if have_everyone or (_first_tiger_grace_elapsed and _players_root.get_child_count() > 0):
-		_try_assign_first_tiger.call_deferred()
+		_start_countdown.call_deferred()
 
 
 ## Rescue timer (mirrors networking/PlayerSpawner.gd's ARENA_READY_GRACE_SEC):
 ## if some expected peer's Player never actually spawns (e.g. it crashed
 ## mid-load, or PlayerSpawner's OWN grace timer force-disconnected it first),
-## this must not wait forever -- assign the first Tiger among whoever HAS
-## spawned by now instead of deadlocking the round before it even starts.
+## this must not wait forever -- start the Countdown (and, once it finishes,
+## assign the first Tiger) among whoever HAS spawned by now instead of
+## deadlocking the match before it even starts.
 func _on_first_tiger_grace_timeout() -> void:
-	if _first_tiger_assigned:
+	if _countdown_started:
 		return
 	_first_tiger_grace_elapsed = true
 	if _players_root.get_child_count() > 0:
-		_try_assign_first_tiger()
+		_start_countdown()
 	else:
-		GameLog.error("[TIGER] first-tiger grace elapsed with zero Players spawned -- will assign as soon as the first Player appears")
+		GameLog.error("[TIGER] match-ready grace elapsed with zero Players spawned -- will start Countdown as soon as the first Player appears")
+
+
+## TK-P2-15: host-only trigger for the WAITING_ROOM -> COUNTDOWN edge (see
+## class doc "FLOW"). Broadcasts the state transition, then starts
+## CountdownManager's timer -- once it finishes, _on_countdown_finished()
+## below continues the flow into PLAYING + the first-Tiger pick.
+func _start_countdown() -> void:
+	if _countdown_started:
+		return
+	_countdown_started = true
+
+	if _players_root.child_entered_tree.is_connected(_on_player_entered_watch_first_tiger):
+		_players_root.child_entered_tree.disconnect(_on_player_entered_watch_first_tiger)
+
+	GameLog.info("[MATCH] match-ready (%d players present) -- entering Countdown" % _players_root.get_child_count())
+	set_match_state.rpc(MatchStateRules.State.COUNTDOWN)
+	_countdown_manager.start_countdown()
+
+
+## TK-P2-15: host-only handler for CountdownManager's `finished` signal (a
+## LOCAL signal, never broadcast over RPC itself -- see
+## managers/CountdownManager.gd's own class doc for why only the host needs
+## to react here). Per the card's own note ("เข้า Playing -> เรียก
+## assign_first_tiger"): broadcasts COUNTDOWN -> PLAYING first, then performs
+## the exact same first-Tiger pick TK-P2-09 already built (unchanged
+## _try_assign_first_tiger()/_pick_first_tiger_with_reroll() logic -- only
+## the CALL SITE and its timing moved, per class doc "TK-P2-15 ADDITION").
+func _on_countdown_finished() -> void:
+	set_match_state.rpc(MatchStateRules.State.PLAYING)
+	_try_assign_first_tiger()
 
 
 ## HOST-ONLY: the peer ids of every Player CURRENTLY spawned under
@@ -391,6 +598,103 @@ func assign_first_tiger(tiger_id: int) -> void:
 		var pid: int = child.name.to_int()
 		var is_tiger: bool = roles.get(pid, TigerSelector.ROLE_OUTER) == TigerSelector.ROLE_TIGER
 		child.set_role(RoleRules.TIGER if is_tiger else RoleRules.OUTER)
+
+
+# --- TK-P2-15: match-level state machine (WaitingRoom -> Countdown ->     --
+# --- Playing -> MatchEnd -> back to WaitingRoom). See class doc "TK-P2-15 --
+# --- ADDITION" for the full flow writeup.                                 --
+
+## Host -> everyone. The ONE place match_state is ever mutated (see that
+## var's own doc) -- validates the transition via
+## MatchStateRules.is_valid_transition() (fail-closed: an invalid/out-of-order
+## transition is logged and dropped rather than silently applied, same
+## defensive posture apply_role_switch's own TagSequenceRules.is_valid_role_swap()
+## check uses) before applying it and emitting match_state_changed for any
+## future subscriber (HUD polish, etc.). call_local so the host's own copy
+## applies this identically to every client, same pattern as every other
+## broadcast RPC in this file.
+@rpc("authority", "call_local", "reliable")
+func set_match_state(new_state: MatchStateRules.State) -> void:
+	if not MatchStateRules.is_valid_transition(match_state, new_state):
+		GameLog.error("[MATCH] refusing invalid state transition: %s -> %s" % [
+			MatchStateRules.state_name(match_state), MatchStateRules.state_name(new_state)])
+		return
+	match_state = new_state
+	GameLog.info("[MATCH] state -> %s" % MatchStateRules.state_name(new_state))
+	match_state_changed.emit(new_state)
+
+
+## Wires the match-end round-counting watch (see class doc "MATCH-END
+## TRIGGER") onto a Player -- mirrors RoundManager.gd's own
+## _watch_player_role()/_on_player_spawned() shape exactly (two managers
+## independently watching the SAME pre-existing role_changed signal for two
+## different purposes, the established convention in this codebase -- see
+## RoundManager.gd's own class doc for why a shared utility is deliberately
+## NOT used here either).
+func _watch_player_role_for_match_end(player: Node) -> void:
+	player.role_changed.connect(_on_any_player_role_changed_for_match_end.bind(player))
+
+
+func _on_player_spawned_watch_match_end(node: Node) -> void:
+	_watch_player_role_for_match_end(node)
+
+
+## The match-end round counter (see class doc "MATCH-END TRIGGER"). Counts
+## every transition INTO Tiger while match_state == PLAYING, regardless of
+## which of the three causes fired it (this file's own first-Tiger pick, this
+## file's own Tag-Sequence role swap, or RoundManager's independent
+## timeout-driven start_new_round()) -- exactly the same "any Player's role
+## becomes Tiger" trigger condition RoundManager._on_any_player_role_changed()
+## uses for its own (different) purpose. Deliberately ignores every
+## role_changed emission OUTSIDE of PLAYING (e.g. none currently fire during
+## WAITING_ROOM/COUNTDOWN/MATCH_END in this card's scope, but the guard keeps
+## this correct if a future card ever changes that) so a stray/edge-case role
+## flip can never accidentally end a match early.
+func _on_any_player_role_changed_for_match_end(new_role: StringName, player: Node) -> void:
+	if match_state != MatchStateRules.State.PLAYING:
+		return
+	if new_role != RoleRules.TIGER:
+		return
+	_round_count += 1
+	GameLog.info("[MATCH] round %d/%d started (tiger=%s)" % [_round_count, rounds_per_match, player.name])
+	if _round_count >= rounds_per_match:
+		_end_match()
+
+
+## HOST-ONLY: the MatchEnd trigger fired (see class doc "MATCH-END TRIGGER").
+## Broadcasts PLAYING -> MATCH_END immediately, then -- after
+## match_end_grace_sec -- broadcasts the scene switch back to the Waiting
+## Room (see return_to_waiting_room() below). Not awaited by any caller (this
+## runs from a signal handler, same "fire-and-forget coroutine" shape
+## _run_sequence()'s own await chain already uses in this file).
+func _end_match() -> void:
+	GameLog.info("[MATCH] match-end trigger reached (%d/%d rounds) -- ending match" % [_round_count, rounds_per_match])
+	set_match_state.rpc(MatchStateRules.State.MATCH_END)
+	await get_tree().create_timer(match_end_grace_sec).timeout
+	return_to_waiting_room.rpc()
+
+
+## Host -> everyone (call_local, mirrors ui/WaitingRoom.gd's own
+## _rpc_start_match() exactly -- same idempotency-guard/deferred-scene-switch/
+## push_warning-on-error shape, just running the switch in the OPPOSITE
+## direction). Frees this entire world/TestArena.tscn scene -- GameManager,
+## RoundManager, CountdownManager, every Player, all of it -- the moment the
+## new scene is instanced, closing the WAITING_ROOM -> COUNTDOWN -> PLAYING ->
+## MATCH_END -> WAITING_ROOM loop. A fresh WaitingRoom + (if a match starts
+## again) a fresh GameManager are created next time, with zero risk of
+## match-scoped state (this instance's _round_count, _tiger_rng,
+## _is_tag_sequence_active, ...) leaking into a future match -- see class doc
+## "AUTOLOAD-VS-SCENE-LOCAL DECISION" point 3.
+@rpc("authority", "call_local", "reliable")
+func return_to_waiting_room() -> void:
+	if _match_ended_locally:
+		return
+	_match_ended_locally = true
+
+	GameLog.info("[MATCH] match over -- returning to %s" % WAITING_ROOM_SCENE)
+	var err: Error = get_tree().change_scene_to_file(WAITING_ROOM_SCENE)
+	if err != OK:
+		push_warning("[MATCH] failed to switch to %s (error %d)" % [WAITING_ROOM_SCENE, err])
 
 
 ## Read-only accessor for TagAbility.host_validate() (design doc section 3
