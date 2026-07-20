@@ -96,18 +96,16 @@ extends SceneTree
 ## exactly per this card's "not a shortcut that bypasses host_validate()"
 ## requirement.
 ##
-## BEHAVIOR (v1, per the card -- kept deliberately simple, this is a test
-## tool, not game AI): every BOT_TICK_SEC this bot re-derives the CURRENT
-## Tiger (scans TestArena/Players for role == RoleRules.TIGER, same
-## "resolve off the shared Players root" convention this file's class doc
-## cites above -- re-derived fresh every tick, so a mid-session Tag Sequence
-## role swap is picked up automatically with no extra event wiring) and:
-##   - no Tiger exists yet, or this bot's OWN Player currently IS the Tiger
-##     (v1 simplification -- a Tiger has no Kick ability registered at all,
-##     see characters/abilities/AbilityCatalog.gd, and there is no "other"
-##     Tiger to chase by definition; a future card could give a Tiger-bot its
-##     own Pounce-based behavior, deliberately NOT attempted here) -> idle
-##     (movement input cleared).
+## BEHAVIOR (v2, TK-P3-08 -- kept deliberately simple, this is a test tool,
+## not game AI): every BOT_TICK_SEC this bot re-derives the CURRENT Tiger
+## (scans TestArena/Players for role == RoleRules.TIGER, same "resolve off
+## the shared Players root" convention this file's class doc cites above --
+## re-derived fresh every tick, so a mid-session Tag Sequence role swap is
+## picked up automatically with no extra event wiring). Two mutually
+## exclusive branches depending on this bot's OWN Player's OWN role:
+##
+## OUTER (unchanged from TK-P3-07 v1):
+##   - no Tiger exists yet -> idle (movement input cleared).
 ##   - Tiger exists and is farther than KICK_ATTEMPT_RANGE_M -> steer WASD
 ##     input toward it (camera-relative, matching MovementComponent's own
 ##     camera_relative_dir()/CameraRig.rotation.y convention -- this bot never
@@ -126,6 +124,43 @@ extends SceneTree
 ##     the real outcome, same as for any real client.
 ##   - FLEE window elapsed -> clear flee input, resume the Tiger check above
 ##     on the very next tick (no idle gap).
+##
+## TIGER (TK-P3-08 -- was a v1 idle "frozen tiger mannequin", the bug this
+## card fixes; a Tiger has no Kick ability registered at all, see
+## characters/abilities/AbilityCatalog.gd, so this branch is genuinely new
+## behavior, not a re-target of the Outer logic above):
+##   - WANDER: every WANDER_MIN/MAX_DURATION_SEC (re-rolled per window, same
+##     RandomNumberGenerator this file already uses for FLEE direction), pick
+##     a new uniformly random world-space direction and hold it via the exact
+##     same _steer_toward()/simulated-Input approach the Outer branch already
+##     uses for approach/flee movement -- no new movement-driving mechanism.
+##     Deliberately NO boundary-awareness logic here: MovementComponent's own
+##     host+owner Safe Circle clamp (TK-P2-06) already confines a Tiger body
+##     to the arena's Safe Circle regardless of input direction, so undirected
+##     wandering is sufficient and correct per the card's own instruction --
+##     this bot does not need to know the radius, or that a boundary exists
+##     at all.
+##   - TAG WHEN NEAR: every tick, before (re-)rolling a wander direction, this
+##     bot polls its OWN Player's OWN TagDetector sibling
+##     (characters/components/TagDetectorComponent.gd, TK-P2-02, unchanged) via
+##     get_candidates_in_range() and feeds that straight into
+##     TagRules.nearest_candidate() (characters/components/TagRules.gd,
+##     TK-P2-02, unchanged) -- the EXACT same "poll the detector, hand off to
+##     the pure static" call shape TagAbility.host_validate() itself uses (see
+##     that file's own doc), reused here rather than hand-rolled distance
+##     math, per the card's explicit instruction. If the result is NOT
+##     empty, this bot fires AbilityController.try_activate(&"tag") ONCE (same
+##     real call-path-fidelity principle as Kick above: this goes through the
+##     ability's own can_activate() prediction -> rpc_request_activate ->
+##     host_validate() -> rpc_confirm/rpc_reject -- no shortcut, host_validate()
+##     alone decides whether the tag actually lands). No flee/cooldown state
+##     is layered on top of this: a CONFIRMED tag ends this bot's Tiger role
+##     entirely (role swap makes this bot an Outer again, and the very next
+##     tick's role check routes it back into the OUTER branch above with no
+##     extra wiring needed); a REJECTED tag (cooldown/sequence_active/out of
+##     range by the time host_validate() actually runs) just lets the wander
+##     loop resume on the very next tick, same "no idle gap" shape FLEE's own
+##     state-elapsed fallthrough already uses.
 ##
 ## Run directly with (see tests/net/run_bot_outer.sh for the full launcher a
 ## human actually runs):
@@ -170,6 +205,17 @@ const FLEE_DURATION_SEC := 1.6 # short fixed window, per the card -- arbitrary p
 const MOVE_DEADZONE := 0.35 # WASD is digital (action_press/release), not analog -- a small deadzone avoids flapping between two actions when a direction is nearly axis-aligned.
 const BOT_TICK_SEC := 0.1 # AI decision cadence; actual movement/physics still runs every physics tick off whichever WASD actions are currently held, exactly like a human holding a key between decisions.
 
+# TK-P3-08 -- TIGER-branch wander window, re-rolled (new random direction)
+# every WANDER_MIN..MAX_DURATION_SEC. Arbitrary placeholder, same class of
+# value as FLEE_DURATION_SEC (not a Game_Balance.md tunable) -- "a few
+# seconds" per the card, randomized rather than fixed purely so a wandering
+# Tiger doesn't look mechanically identical every cycle in a live-watched
+# test session. Deliberately NO boundary-awareness constant here (no radius,
+# no arena-size math) -- see this file's class doc TIGER/WANDER note for why
+# that is correct, not an oversight.
+const WANDER_MIN_DURATION_SEC := 1.5
+const WANDER_MAX_DURATION_SEC := 3.5
+
 enum State { APPROACH, FLEE }
 
 var _net: Node
@@ -194,11 +240,25 @@ var _players_root: Node
 var _own_player: CharacterBody3D
 var _ability_controller: Node
 var _camera_rig: Node3D
+# TK-P3-08 -- own Player's own TagDetector sibling (see
+# characters/components/TagDetectorComponent.gd, TK-P2-02), cached the same
+# way/place as _ability_controller/_camera_rig above. Only ever queried while
+# this bot's OWN role is Tiger (see _tiger_tick() below) -- an Outer's own
+# TagDetector still exists/tracks overlap (that component is role-agnostic,
+# see its own class doc), this bot just never has a reason to read it in the
+# OUTER branch.
+var _tag_detector: Area3D
 
 var _state: int = State.APPROACH
 var _flee_end_ms: int = 0
 var _rng := RandomNumberGenerator.new()
-var _idle_tiger_role_logged := false
+var _tiger_ai_started_logged := false # TK-P3-08 -- renamed from _idle_tiger_role_logged (the bot no longer idles as Tiger); same one-shot "log the role transition once" purpose, reset back to false the moment role != TIGER so a LATER Tiger stint (e.g. a future round) logs its own transition again.
+# TK-P3-08 -- next wander re-roll deadline (Time.get_ticks_msec()-space, same
+# convention as _flee_end_ms above). 0 is a safe "never wandered yet"
+# sentinel: Time.get_ticks_msec() is already > 0 by the time this script's
+# AI loop can possibly run (engine + connection/spawn handshake time has
+# already elapsed), so the very first Tiger tick always re-rolls immediately.
+var _wander_end_ms: int = 0
 
 # -- host-only roster-wait state ---------------------------------------------
 var _expected_players := 2
@@ -424,13 +484,15 @@ func _start_own_spawn_watch() -> void:
 		_own_player = candidate as CharacterBody3D
 		_ability_controller = _own_player.get_node("AbilityController")
 		_camera_rig = _own_player.get_node("CameraRig") as Node3D
-		print("[BOT][%s] own Player ready (id=%d) -- starting approach/kick/flee loop" % [_role, _own_id])
+		_tag_detector = _own_player.get_node("TagDetector") as Area3D
+		print("[BOT][%s] own Player ready (id=%d) -- starting approach/kick/flee/wander/tag loop" % [_role, _own_id])
 		_start_ai_loop()
 	)
 	t.start()
 
 # =============================================================================
-# BOT AI: approach -> kick -> flee -> approach (see class doc BEHAVIOR).
+# BOT AI: OUTER branch approach -> kick -> flee -> approach; TIGER branch
+# wander -> tag -> wander (see class doc BEHAVIOR, TK-P3-07 + TK-P3-08).
 # =============================================================================
 
 func _start_ai_loop() -> void:
@@ -448,20 +510,22 @@ func _bot_tick() -> void:
 
 	var now_ms: int = Time.get_ticks_msec()
 
+	# TK-P3-08: TIGER and OUTER are mutually exclusive branches with entirely
+	# separate state (TIGER uses _wander_end_ms, OUTER uses _state/_flee_end_ms)
+	# -- route to _tiger_tick() and return before touching any OUTER state at
+	# all, so a role swap mid-session (either direction) never leaves stale
+	# FLEE/wander state to trip over on the next tick as the wrong role.
+	if _own_player.role == RoleRules.TIGER:
+		_tiger_tick(now_ms)
+		return
+	_tiger_ai_started_logged = false # reset so a LATER Tiger stint logs its own transition again (see this var's own doc).
+
 	if _state == State.FLEE:
 		if now_ms < _flee_end_ms:
 			return # still fleeing -- input was already set once when the flee began, hold it.
 		_state = State.APPROACH
 		_clear_movement_input()
 		# fall through to re-evaluate APPROACH the same tick, no idle gap.
-
-	if _own_player.role == RoleRules.TIGER:
-		if not _idle_tiger_role_logged:
-			_idle_tiger_role_logged = true
-			print("[BOT][%s] own Player is now the Tiger -- v1 idles (no Kick ability, no other Tiger to chase; see class doc)" % _role)
-		_clear_movement_input()
-		return
-	_idle_tiger_role_logged = false
 
 	var tiger: Node3D = _find_tiger()
 	if tiger == null:
@@ -479,6 +543,51 @@ func _bot_tick() -> void:
 		return
 
 	_steer_toward(to_tiger)
+
+
+# TK-P3-08: TIGER-branch AI tick -- wander undirected within the (already
+# host+owner clamped, see class doc TIGER/WANDER note) Safe Circle, tagging
+# any Outer that wanders into this bot's own TagDetector's range. Called ONLY
+# from _bot_tick() above while _own_player.role == RoleRules.TIGER.
+func _tiger_tick(now_ms: int) -> void:
+	if not _tiger_ai_started_logged:
+		_tiger_ai_started_logged = true
+		print("[BOT][%s] own Player is now the Tiger -- wandering the Safe Circle and tagging nearby Outers" % _role)
+
+	# TAG WHEN NEAR (checked every tick, ahead of the wander re-roll below, so
+	# a candidate that wanders into range gets tagged on the very tick it
+	# enters range rather than waiting on an unrelated wander-timer boundary).
+	var candidates: Array = _tag_detector.get_candidates_in_range()
+	var target: Dictionary = TagRules.nearest_candidate(_own_player.global_position, candidates, _tag_detector.tag_range_m)
+	if not target.is_empty():
+		_clear_movement_input()
+		_attempt_tag(target)
+		return # resume wandering next tick regardless of confirm/reject (see class doc TIGER/TAG WHEN NEAR note) -- no idle gap.
+
+	if now_ms >= _wander_end_ms:
+		_pick_new_wander_direction(now_ms)
+
+
+func _attempt_tag(target: Dictionary) -> void:
+	print("[BOT][%s] Outer %s in tag range -- attempting Tag (host_validate() decides the real outcome)" % [_role, target.get("id")])
+	_ability_controller.try_activate(&"tag")
+
+
+# Picks a new uniformly random WORLD-space direction and holds it for a
+# random WANDER_MIN..MAX_DURATION_SEC window -- mirrors _enter_flee()'s own
+# RandomNumberGenerator direction pick below, deliberately NOT reusing that
+# function directly (different duration source: a fixed constant there vs a
+# re-rolled range here) even though the body is similar, so FLEE's and
+# WANDER's tuning stay independently editable per this file's own "Kick/Tag
+# stay free to diverge later" convention (see TagRules.gd's own doc for the
+# precedent on that principle).
+func _pick_new_wander_direction(now_ms: int) -> void:
+	var duration_sec: float = _rng.randf_range(WANDER_MIN_DURATION_SEC, WANDER_MAX_DURATION_SEC)
+	_wander_end_ms = now_ms + int(duration_sec * 1000.0)
+	var angle: float = _rng.randf_range(0.0, TAU)
+	var wander_world_dir := Vector3(cos(angle), 0.0, sin(angle))
+	print("[BOT][%s] Tiger wandering for %.1fs (world dir=%s)" % [_role, duration_sec, wander_world_dir])
+	_steer_toward(wander_world_dir)
 
 
 # Scans the shared Players root for the current Tiger, excluding this bot's
