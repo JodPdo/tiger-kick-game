@@ -21,6 +21,8 @@ Do not guess which doc to read — use the routing table.
 - **Kanban flow:** every task moves one way — `Backlog → Todo → Doing → Review → Done`. WIP in Doing ≤ 1–2 per agent.
 - **Pick work from `_backlog.json`:** take cards where `owner_agent` = you, `status: "todo"`, and every id in `depends_on` is already `done`. Never start a card whose dependencies are unmet.
 - **Review is mandatory:** finished code goes to `code-reviewer`, then `qa-engineer`. A different agent always reviews.
+  - **Exception:** dev-tooling changes that touch neither game code nor runtime behavior (e.g. `tools/`, CI scripts, lint/validation scripts) may close after `code-reviewer` alone — `qa-engineer` is not required.
+  - Anything touching game code — gameplay, engine scenes, RPC/networking, or anything that runs in the shipped build — always needs both `code-reviewer` and `qa-engineer`, no exceptions.
 - **Definition of Done (global minimum):**
   - Meets the card's Acceptance Criteria / DoD
   - Smoke test passes before push (CI runs it too)

@@ -18,3 +18,7 @@ Thumbs.db
 *.tmp
 .~lock.*#
 node_modules/
+
+# --- Python tooling (tools/) ---
+__pycache__/
+*.pyc
