@@ -40,6 +40,39 @@ signal server_disconnected            # TK-BUG-P1-02: fires on a CLIENT when
 
 var _peer: ENetMultiplayerPeer = null
 
+## TEST-HARNESS-ONLY opt-in (TK-P3-10), default OFF -- NOTHING in the shipped
+## game ever sets this. When true AND this instance is the server, the arena's
+## networking/PlayerSpawner.gd skips spawning a Player for the HOST's OWN peer
+## id (see DedicatedHostRules + that file's _do_initial_barrier_spawn()), so the
+## host runs as a TRUE dedicated server body: it never appears under Players/,
+## is therefore never in managers/GameManager._current_player_ids()'s candidate
+## pool (never pickable as first Tiger via characters... TigerSelector), and has
+## no Players/<host_id> node to target, so it can never be Tagged/Kicked. This
+## exists purely so the headless bot harness (tests/net/bot_outer_peer.gd,
+## --role=host) cannot have its own idle, AI-less body picked/tagged into Tiger
+## and softlock a match until RoundManager's round timeout (the live bug this
+## card was filed for). Every OTHER connected peer (bots, and a real human client
+## if one joins) still spawns and plays completely normally; the readiness-
+## barrier / grace-timer machinery for those peers is untouched.
+##
+## WHY IT LIVES HERE (NetworkManager autoload) rather than on PlayerSpawner --
+## same "record the autoload-vs-scene-local choice, don't resolve it silently"
+## discipline as TK-P2-15:
+##   1. The harness (TK-P3-11) sets this at HOST time -- right after host()
+##      succeeds, BEFORE entering the Waiting Room -- when NO PlayerSpawner node
+##      exists yet (it lives inside world/TestArena.tscn, not loaded until Start
+##      Match). A scene-local PlayerSpawner property simply cannot be set then.
+##   2. PlayerSpawner is scene-local and is recreated FRESH on every TestArena
+##      entry (WaitingRoom -> Arena -> WaitingRoom -> 2nd Arena, per TK-P3-09's
+##      re-arm). A scene-local flag would be lost on each scene switch and have
+##      to be re-applied every match, with no natural harness hook to do so.
+##      This autoload survives the WaitingRoom<->Arena boundary, so the flag is
+##      set ONCE for the whole session and every fresh PlayerSpawner reads it.
+## It is host-authoritative session config, never replicated: only the host's
+## own PlayerSpawner reads it, and only to decide whether to spawn the host's own
+## body -- it changes no client-side behavior and no game-deciding state.
+var dedicated_host_no_self_spawn: bool = false
+
 
 func _ready() -> void:
 	multiplayer.peer_connected.connect(_on_peer_connected)

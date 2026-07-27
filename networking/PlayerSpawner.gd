@@ -331,6 +331,15 @@ func _all_expected_peers_ready() -> bool:
 ## session. By the time this runs every spawned-for peer's PlayerSpawner is
 ## known to exist, so each replicated spawn lands cleanly (this is the whole
 ## point of the barrier -- see class doc).
+##
+## TK-P3-10 (TEST-HARNESS-ONLY, default OFF): when
+## NetworkManager.dedicated_host_no_self_spawn is set the host SKIPS its own
+## self-spawn here (via DedicatedHostRules.host_spawns_own_player) -- the peers
+## below are unaffected and still spawn in the same order (the host simply never
+## occupies slot 0; peers still take slots in ascending-id order from slot 0
+## onward, which is harmless -- SpawnPointUtil.spawn_point() wraps _spawn_count
+## and slot identity carries no game meaning). Every real shipped-game session
+## leaves the flag false, so this is a strict no-op there.
 func _do_initial_barrier_spawn() -> void:
 	if _initial_spawn_done:
 		return
@@ -344,7 +353,21 @@ func _do_initial_barrier_spawn() -> void:
 	if _grace_timer:
 		_grace_timer.stop()
 
-	_spawn_player(multiplayer.get_unique_id())
+	# TK-P3-10: a dedicated host (TEST-HARNESS-ONLY opt-in, default OFF) never
+	# spawns a Player for its OWN id -- so its idle, AI-less body can never be
+	# picked/tagged into Tiger and softlock a match. This is the SOLE place the
+	# host's own Player is ever spawned (both the Waiting-Room barrier release
+	# and the offline/no-peers immediate path in _ready() funnel through here;
+	# _on_peer_connected()/_rpc_arena_ready() only ever spawn OTHER peers' ids),
+	# so guarding this one call fully covers the dedicated-host case. When the
+	# flag is OFF (every real shipped-game session) host_spawns_own_player()
+	# returns true and this is unchanged. Every OTHER peer below still spawns
+	# normally in both cases -- the barrier/grace machinery is untouched.
+	if DedicatedHostRules.host_spawns_own_player(
+			multiplayer.is_server(), NetworkManager.dedicated_host_no_self_spawn):
+		_spawn_player(multiplayer.get_unique_id())
+	else:
+		GameLog.info("[SPAWN] dedicated host (TK-P3-10 no-self-spawn) -- host's own Player intentionally NOT spawned; spawning connected peers only")
 
 	var ready_expected: Array = []
 	for peer_id in _expected_ready_peers:

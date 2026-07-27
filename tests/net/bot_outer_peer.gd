@@ -162,12 +162,101 @@ extends SceneTree
 ##     loop resume on the very next tick, same "no idle gap" shape FLEE's own
 ##     state-elapsed fallthrough already uses.
 ##
+## RE-ARM ACROSS MULTIPLE MATCHES (TK-P3-09) -- filed from a human's CASE E
+## bot-harness run (TK-P2-15's qa_verdict checklist: start a SECOND match from
+## a returned Waiting Room, confirm zero stale state). Prior to this, both
+## roles' watch loops were genuinely one-shot: _trigger_match_start() (see its
+## own doc below) is guarded by _match_start_triggered, set true and never
+## reset, and _start_roster_watch()'s own polling Timer self-stops the moment
+## that flag is true -- so once managers/GameManager.gd's
+## return_to_waiting_room() (TK-P2-15, unrelated file, untouched by this card)
+## carried every peer back into a FRESH res://ui/WaitingRoom.tscn instance,
+## this harness's host had nothing left watching for it and just sat idle.
+## Fixed by adding a symmetric "arena disappeared again" watch
+## (_start_arena_leave_watch(), mirrors _start_arena_watch()'s own poll-Timer
+## shape but for the opposite edge) that fires _on_returned_to_waiting_room()
+## once root.get_node_or_null(TEST_ARENA_NODE_NAME) goes non-null -> null --
+## the unambiguous "match over, we are back in WaitingRoom" signal (a plain
+## "WaitingRoom node appeared" poll would be ambiguous with the very FIRST
+## entry, since change_scene_to_file always lands the fresh instance at the
+## same root name/path -- see WAITING_ROOM_ROOT_NODE_NAME's own doc). HOST
+## role re-arms via _rearm_host() (fresh _waiting_room reference,
+## _match_start_triggered reset, roster-wait state vars reset,
+## _start_roster_watch() restarted -- so the NEXT match auto-starts through
+## the exact same real Start-button-emit path as the first, no shortcut) and
+## re-watches for the arena to appear again via _start_host_arena_appear_
+## watch() (same reasoning the host never runs its own AI loop applies here
+## too -- see _trigger_match_start()'s own doc). BOT role re-arms via
+## _rearm_bot() (own Player/AbilityController/CameraRig/TagDetector refs and
+## approach-flee/wander-tag AI state all reset to their pre-match-1 values)
+## and re-enters _start_arena_watch() for the next match -- the already-
+## running AI-loop Timer (_start_ai_loop(), never stopped, only ever created
+## ONCE -- see _ai_loop_started's own doc for why re-arm must NOT create a
+## second one) resumes on its own the moment _own_player is repopulated by
+## the next match's own spawn watch, no idle gap.
+##
+## --matches=N (optional cmdline arg, parsed alongside --role/--port/
+## --expected-players in _parse_args()): once N matches have completed on
+## THIS process (each role counts its own re-arms independently -- host and
+## bot(s) do not cross-check each other's count), calls _finish(0) cleanly
+## instead of re-arming again, so a scripted CASE E session can request an
+## exact number of match cycles rather than relying on --timeout to eventually
+## cut it off mid-match. Default unlimited (keeps re-arming until --timeout).
+##
+## TRUE DEDICATED HOST (TK-P3-11, wiring the opt-in flag TK-P3-10 added to
+## networking/NetworkManager.gd) -- filed from a human CASE E run that hit a
+## real softlock: the host role's own idle Player (no AI by design, see class
+## doc HOST role note) could still be randomly first-picked OR tagged as
+## Tiger, and nobody could ever progress the match again until RoundManager's
+## own round_duration_sec timeout. _start_host() now sets
+## `NetworkManager.dedicated_host_no_self_spawn = true` right after host()
+## succeeds and BEFORE _enter_waiting_room() -- unconditionally, host role
+## only, every session this harness launches from now on. With this set,
+## networking/PlayerSpawner.gd never spawns a Player for the host's own peer
+## id at all (TK-P3-10's own doc): the host is not a passive/idle BODY in the
+## arena any more, it is a true dedicated host with no body, and therefore
+## structurally CANNOT ever be selected as first Tiger or be a Tag/Kick
+## target (managers/GameManager.gd's TigerSelector pool and every tag/kick
+## target resolution both walk _players_root's actual children only -- a
+## never-spawned host simply is not there to find. See TK-P3-10's own note/
+## fix_result in _backlog.json for the full production-side proof). This is
+## an unconditional harness default, not a new cmdline flag -- every real
+## human host clicking the actual game's own Host button is completely
+## unaffected (NetworkManager.dedicated_host_no_self_spawn still defaults
+## false there; only THIS test tool's own host role ever sets it true, and
+## only on its own NetworkManager instance).
+##
+## KNOWN, ACCOUNTED-FOR SIDE EFFECT -- ~12s FIRST-TIGER GRACE DELAY EVERY
+## MATCH: qa-engineer flagged this while independently verifying TK-P3-10 and
+## it is confirmed here by reading managers/GameManager.gd directly.
+## GameManager._expected_first_tiger_roster_size = 1 + connected_peers (its
+## own _ready(), read fresh every TestArena entry) COUNTS the host, but with
+## this flag on the host never actually spawns a Player -- so the "everyone's
+## spawned" fast path (`_players_root.get_child_count() >=
+## _expected_first_tiger_roster_size`) can NEVER be satisfied, not even with
+## every bot present. First-Tiger assignment therefore always falls through
+## to GameManager's own FIRST_TIGER_SPAWN_WAIT_GRACE_SEC rescue timer (12.0s
+## fixed, managers/GameManager.gd) before Countdown can start -- EVERY match,
+## not just the first, since a fresh PlayerSpawner/GameManager pair re-reads
+## the same host-never-spawns state each re-arm (TK-P3-09). This is expected,
+## correct behavior (the grace timer doing exactly the rescue job it was
+## built for), not a bug -- but it means the true wall-clock cost of ONE
+## match cycle under this harness is now (roster settle) + ~12s grace +
+## Countdown + round time, and a --matches=N session pays that extra ~12s
+## EVERY cycle, not once. _start_host() logs a one-line note the moment it
+## sets the flag so this is never a silent surprise to whoever is reading the
+## host log or budgeting --timeout/BOT_TIMEOUT for a session. See also
+## _current_roster_size()'s own doc below -- the WaitingRoom ROSTER (who is
+## connected) and the ARENA Player-spawn are two different things; only the
+## latter is affected by this flag, the roster/--expected-players math is
+## unchanged.
+##
 ## Run directly with (see tests/net/run_bot_outer.sh for the full launcher a
 ## human actually runs):
 ##   godot --headless --path <repo> -s res://tests/net/bot_outer_peer.gd -- \
-##     --role=host --port=7777 --timeout=3600 --expected-players=3
+##     --role=host --port=7777 --timeout=3600 --expected-players=3 --matches=2
 ##   godot --headless --path <repo> -s res://tests/net/bot_outer_peer.gd -- \
-##     --role=bot --address=127.0.0.1 --port=7777 --timeout=3600
+##     --role=bot --address=127.0.0.1 --port=7777 --timeout=3600 --matches=2
 ##
 ## Non-GUT (SceneTree -s script, same pattern as every other tests/net/*_peer.gd
 ## probe) -- GUT -gdir=res://tests -ginclude_subdirs ignores it.
@@ -178,6 +267,16 @@ const DEFAULT_TIMEOUT_SEC := 3600.0 # safety-net ceiling for an interactive dev-
 const TEST_ARENA_NODE_NAME := "TestArena"
 const WAITING_ROOM_SCENE := "res://ui/WaitingRoom.tscn"
 const WAITING_ROOM_SCRIPT_PATH := "res://ui/WaitingRoom.gd"
+# TK-P3-09 -- ui/WaitingRoom.tscn's own [node name="WaitingRoom" type="Control"]
+# root (confirmed by reading that scene file directly). Both this file's own
+# _enter_waiting_room() (scene.instantiate() keeps the scene's authored root
+# name) AND managers/GameManager.gd's return_to_waiting_room()
+# (get_tree().change_scene_to_file(WAITING_ROOM_SCENE), same scene, same
+# authored root name, unrelated file untouched by this card) land the
+# WaitingRoom node at this same name directly under `root` -- used by
+# _on_returned_to_waiting_room() to re-acquire a fresh reference after a
+# match ends and everyone lands back here.
+const WAITING_ROOM_ROOT_NODE_NAME := "WaitingRoom"
 
 const ARENA_POLL_SEC := 0.3
 const SPAWN_POLL_SEC := 0.3
@@ -267,6 +366,27 @@ var _roster_wait_elapsed_sec := 0.0
 var _roster_settle_elapsed_sec := 0.0
 var _roster_last_status_log_sec := 0.0
 
+# TK-P3-09 -- --matches=N support, both roles. -1 is the "unset/unlimited"
+# sentinel (same "documented magic sentinel" convention _wander_end_ms's own
+# doc above uses for 0) -- kept re-arming forever until --timeout cuts it off,
+# same as this file's pre-TK-P3-09 behavior for anyone not passing the flag.
+var _matches_limit := -1
+var _matches_completed := 0
+
+# TK-P3-09 -- true once _start_ai_loop() has been called for the very first
+# time. BOT role's AI-tick Timer (see _start_ai_loop()) is `one_shot = false`
+# and is NEVER stopped -- it already no-ops safely via _bot_tick()'s own
+# `_own_player == null` guard while this bot is sitting in a WaitingRoom
+# between matches, and resumes acting the instant the NEXT match's own spawn
+# watch repopulates _own_player. _rearm_bot() therefore re-enters
+# _start_arena_watch() (to find the next match's arena + own Player again)
+# but must NOT let _start_own_spawn_watch()'s own found-callback create a
+# SECOND _start_ai_loop() Timer on top of the still-running first one -- that
+# would double every AI decision (two Kick/Tag attempts per tick, two
+# independent wander/flee state machines racing each other). This flag is
+# that guard.
+var _ai_loop_started := false
+
 func _initialize() -> void:
 	var args := _parse_args()
 	_role = String(args.get("role", ""))
@@ -280,6 +400,12 @@ func _initialize() -> void:
 	var address: String = String(args.get("address", DEFAULT_ADDRESS))
 	var timeout_sec: float = float(args.get("timeout", DEFAULT_TIMEOUT_SEC))
 	_expected_players = int(args.get("expected-players", 2))
+	# TK-P3-09 -- see _matches_limit's own doc for the -1 sentinel. args.get()
+	# returns `true` (bool) for a bare `--matches` with no `=value` (see
+	# _parse_args()'s own doc) -- int(true) == 1, an acceptable degenerate
+	# "one match then stop" reading, not worth extra guarding against.
+	if args.has("matches"):
+		_matches_limit = int(args.get("matches"))
 
 	_rng.randomize() # flee direction only -- plain GDScript RNG, no game-deciding state (see class doc).
 
@@ -326,6 +452,19 @@ func _start_host(port: int) -> void:
 		_finish(1)
 		return
 	_own_id = _net.multiplayer.get_unique_id()
+
+	# TK-P3-11 -- unconditional, host-role-only. Set right after host()
+	# succeeds and BEFORE _enter_waiting_room() (the earliest possible moment
+	# -- see class doc "TRUE DEDICATED HOST" note above for why: PlayerSpawner
+	# does not exist yet at this point, only lives inside world/TestArena.tscn,
+	# and is recreated fresh every TestArena entry, so this must be set on the
+	# NetworkManager autoload once for the whole session rather than re-applied
+	# per match). Makes this harness's host role a TRUE dedicated host (no
+	# Player of its own, ever) instead of the merely-idle-in-spirit body it
+	# was before -- see TK-P3-10 in _backlog.json for the production-side flag.
+	_net.dedicated_host_no_self_spawn = true
+	print("[BOT][host] set dedicated_host_no_self_spawn=true -- this host will never spawn its own Player (never selectable/taggable as Tiger). NOTE: first-Tiger assignment will therefore always fall through to GameManager's own ~12s FIRST_TIGER_SPAWN_WAIT_GRACE_SEC rescue path every match (expected, not a bug -- see class doc); budget --timeout/BOT_TIMEOUT accordingly.")
+
 	print("[BOT][host] listening on port %d -- waiting for %d total player(s) (host+bot(s)+human) before starting the match" % [port, _expected_players])
 	_enter_waiting_room()
 	_start_roster_watch()
@@ -353,6 +492,16 @@ func _start_roster_watch() -> void:
 
 
 func _current_roster_size() -> int:
+	# TK-P3-11 -- verified UNCHANGED by dedicated_host_no_self_spawn: this
+	# counts the WaitingRoom ROSTER (connections), not arena Players. The host
+	# is still an ordinary connected peer (still shows in the Waiting Room
+	# UI/roster, still counted by NetworkManager.get_connected_peer_ids() on
+	# every OTHER peer) even though its own ARENA Player-spawn is now skipped
+	# once the match starts -- those are two different things (see class doc
+	# "TRUE DEDICATED HOST" note). managers/GameManager.gd's own
+	# _expected_first_tiger_roster_size (same "1 + connected peers" shape)
+	# is a DIFFERENT counter for a DIFFERENT purpose (the arena Player-spawn
+	# fast path) and IS affected -- see that same class doc note for why.
 	return 1 + _net.get_connected_peer_ids().size() # host + every connected peer, same convention managers/GameManager.gd's own _expected_first_tiger_roster_size uses.
 
 
@@ -386,22 +535,58 @@ func _check_roster(dt: float) -> void:
 # a debug hook.
 #
 # DELIBERATELY does NOT call _start_arena_watch()/start its own AI loop here:
-# the headless host is a DEDICATED SERVER + a passive/idle Player body (see
-# class doc), not a second bot -- ui/WaitingRoom.gd's own _rpc_start_match()
+# the headless host is a TRUE DEDICATED SERVER with no Player of its own at
+# all (TK-P3-11 -- NetworkManager.dedicated_host_no_self_spawn is set true in
+# _start_host() before this ever runs, see class doc "TRUE DEDICATED HOST"
+# note), not a second bot -- ui/WaitingRoom.gd's own _rpc_start_match()
 # already carries the host into res://world/TestArena.tscn for free (its
 # call_local also runs on this process), which is all the host needs to keep
 # simulating the match host-authoritatively (GameManager/RoundManager/
 # PlayerSpawner/Safe-Circle correction etc. all already run host-side
-# regardless of anything this script does). A future card could opt the host
-# BODY into the same AI loop too (nothing here would need to change beyond
-# calling _start_arena_watch() from here as well) -- not done in this v1 pass
-# to keep host-vs-bot roles unambiguous in the logs.
+# regardless of anything this script does, and none of them need a host-owned
+# Player node to do so). There is no host BODY left to opt into an AI loop any
+# more (pre-TK-P3-11 this comment described a future "opt the host body into
+# the AI loop" option -- no longer applicable, there is nothing to animate).
+#
+# TK-P3-09: DOES start _start_host_arena_appear_watch() -- a lightweight
+# watch (arena-appear only, no spawn-watch/AI-loop) that exists purely so this
+# host can later detect the arena disappearing again (return to WaitingRoom)
+# and re-arm for the NEXT match. This does not change the "true dedicated
+# host, no Player of its own" reasoning above at all.
 func _trigger_match_start() -> void:
 	if _match_start_triggered:
 		return
 	_match_start_triggered = true
 	_waiting_room.start_button.pressed.emit()
-	print("[BOT][host] match started -- running as dedicated host (own Player stays idle at spawn; see doc above)")
+	print("[BOT][host] match started -- running as a true dedicated host (no Player of its own -- never selectable/taggable as Tiger; see doc above)")
+	_start_host_arena_appear_watch()
+
+
+# TK-P3-09 -- HOST-ONLY thin sibling of _start_arena_watch() (see that
+# function's own doc below): polls for TEST_ARENA_NODE_NAME appearing, same
+# as the bot's own watch, but stops there -- no _players_root/_own_player/
+# AI-loop wiring (the host stays a true dedicated server with no Player of its
+# own, per this file's class doc -- TK-P3-11). Its only job is to arm
+# _start_arena_leave_watch() once the arena genuinely exists, so a LATER
+# "arena disappeared again" edge (match over, back in WaitingRoom) can be
+# detected unambiguously for re-arming (_rearm_host()). Re-entered on every
+# _trigger_match_start() call, first match and every re-armed match alike.
+func _start_host_arena_appear_watch() -> void:
+	var t := Timer.new()
+	t.wait_time = ARENA_POLL_SEC
+	t.one_shot = false
+	root.add_child(t)
+	t.timeout.connect(func() -> void:
+		if _done:
+			t.stop()
+			return
+		var found: Node = root.get_node_or_null(TEST_ARENA_NODE_NAME)
+		if found == null:
+			return
+		t.stop()
+		_start_arena_leave_watch()
+	)
+	t.start()
 
 # =============================================================================
 # BOT: real NetworkManager.join() + the REAL ui/WaitingRoom.tscn scene, then
@@ -462,8 +647,125 @@ func _start_arena_watch() -> void:
 		_players_root = _arena.get_node("Players")
 		print("[BOT][%s] entered arena -- waiting for own Player to spawn" % _role)
 		_start_own_spawn_watch()
+		_start_arena_leave_watch() # TK-P3-09 -- arm the return-to-WaitingRoom detector in parallel, same "started once the arena is confirmed to exist" moment _start_own_spawn_watch() above uses.
 	)
 	t.start()
+
+
+# TK-P3-09 -- symmetric OPPOSITE of the poll above: this arena is confirmed
+# PRESENT by the time this is called (see both call sites -- here, and
+# _start_host_arena_appear_watch() for the host), so waiting for
+# root.get_node_or_null(TEST_ARENA_NODE_NAME) to go null is the unambiguous
+# "match ended, everyone is back in a fresh WaitingRoom" edge (see this
+# file's class doc "RE-ARM ACROSS MULTIPLE MATCHES" section for why a plain
+# "WaitingRoom node appeared" poll would be ambiguous with the very first
+# entry instead). Fires _on_returned_to_waiting_room() exactly once, same
+# role for both HOST and BOT -- role-specific re-arm logic branches from
+# there.
+func _start_arena_leave_watch() -> void:
+	var t := Timer.new()
+	t.wait_time = ARENA_POLL_SEC
+	t.one_shot = false
+	root.add_child(t)
+	t.timeout.connect(func() -> void:
+		if _done:
+			t.stop()
+			return
+		var found: Node = root.get_node_or_null(TEST_ARENA_NODE_NAME)
+		if found != null:
+			return
+		t.stop()
+		print("[BOT][%s] %s freed -- match ended, back in a Waiting Room" % [_role, TEST_ARENA_NODE_NAME])
+		_on_returned_to_waiting_room()
+	)
+	t.start()
+
+
+# TK-P3-09 -- fires once per _start_arena_leave_watch() detection. Waits for
+# the FRESH ui/WaitingRoom.tscn instance managers/GameManager.gd's
+# return_to_waiting_room() (unrelated file, untouched) already put here via
+# change_scene_to_file() (see WAITING_ROOM_ROOT_NODE_NAME's own doc) before
+# dispatching to the role-specific re-arm -- a short extra poll rather than an
+# immediate get_node_or_null() lookup, in case the scene switch has not fully
+# landed the same tick the old TestArena was observed gone.
+func _on_returned_to_waiting_room() -> void:
+	var t := Timer.new()
+	t.wait_time = ARENA_POLL_SEC
+	t.one_shot = false
+	root.add_child(t)
+	t.timeout.connect(func() -> void:
+		if _done:
+			t.stop()
+			return
+		var found: Control = root.get_node_or_null(WAITING_ROOM_ROOT_NODE_NAME) as Control
+		if found == null:
+			return
+		t.stop()
+		_waiting_room = found
+		if _role == "host":
+			_rearm_host()
+		else:
+			_rearm_bot()
+	)
+	t.start()
+
+
+# TK-P3-09 -- shared "did we hit --matches=N yet" check, called by both
+# _rearm_host() and _rearm_bot() right after counting the just-finished match.
+# Kept as one function so the --matches semantics (see this file's class doc)
+# can't drift between the two roles.
+func _matches_limit_reached() -> bool:
+	return _matches_limit >= 0 and _matches_completed >= _matches_limit
+
+
+# TK-P3-09 -- HOST re-arm: refresh the stale _waiting_room reference (already
+# done by the caller, _on_returned_to_waiting_room(), before dispatching
+# here), reset _match_start_triggered + every roster-wait state var back to
+# their _initialize()-time values, and restart _start_roster_watch() so the
+# NEXT match auto-starts through the exact same real Start-button-emit path
+# as the first (_trigger_match_start(), no shortcut -- see that function's
+# own doc).
+func _rearm_host() -> void:
+	_matches_completed += 1
+	if _matches_limit_reached():
+		print("[BOT][host] --matches=%d reached (%d completed) -- ending session" % [_matches_limit, _matches_completed])
+		_finish(0)
+		return
+	_match_start_triggered = false
+	_roster_wait_elapsed_sec = 0.0
+	_roster_settle_elapsed_sec = 0.0
+	_roster_last_status_log_sec = 0.0
+	print("[BOT][host] back in a fresh Waiting Room (match %d done) -- re-arming roster watch for the next match" % _matches_completed)
+	_start_roster_watch()
+
+
+# TK-P3-09 -- BOT re-arm: reset every own-Player/AI-loop reference and
+# approach-flee/wander-tag state var back to its pre-match-1 (_initialize()
+# -time) value, then re-enter _start_arena_watch() for the next match. Does
+# NOT call _start_ai_loop() again -- see _ai_loop_started's own doc for why
+# that Timer is created exactly once and is expected to resume on its own the
+# moment the next match's own spawn watch repopulates _own_player.
+func _rearm_bot() -> void:
+	_matches_completed += 1
+	if _matches_limit_reached():
+		print("[BOT][%s] --matches=%d reached (%d completed) -- ending session" % [_role, _matches_limit, _matches_completed])
+		_finish(0)
+		return
+
+	_arena = null
+	_players_root = null
+	_own_player = null
+	_ability_controller = null
+	_camera_rig = null
+	_tag_detector = null
+
+	_state = State.APPROACH
+	_flee_end_ms = 0
+	_tiger_ai_started_logged = false
+	_wander_end_ms = 0
+
+	print("[BOT][%s] back in a fresh Waiting Room (match %d done) -- re-arming for the next match" % [_role, _matches_completed])
+	_start_arena_watch()
 
 
 func _start_own_spawn_watch() -> void:
@@ -486,7 +788,8 @@ func _start_own_spawn_watch() -> void:
 		_camera_rig = _own_player.get_node("CameraRig") as Node3D
 		_tag_detector = _own_player.get_node("TagDetector") as Area3D
 		print("[BOT][%s] own Player ready (id=%d) -- starting approach/kick/flee/wander/tag loop" % [_role, _own_id])
-		_start_ai_loop()
+		if not _ai_loop_started: # TK-P3-09 -- see _ai_loop_started's own doc; a re-armed match must NOT create a second AI-tick Timer, the already-running one resumes on its own now that _own_player is set again.
+			_start_ai_loop()
 	)
 	t.start()
 
@@ -496,6 +799,7 @@ func _start_own_spawn_watch() -> void:
 # =============================================================================
 
 func _start_ai_loop() -> void:
+	_ai_loop_started = true # TK-P3-09 -- see this var's own doc; guards _rearm_bot()'s re-entry into _start_arena_watch()/_start_own_spawn_watch() from ever creating a second one of these Timers.
 	var t := Timer.new()
 	t.wait_time = BOT_TICK_SEC
 	t.one_shot = false
