@@ -1,0 +1,1568 @@
+{
+  "_comment": "GENERATED FILE - do not edit by hand. Source of truth is _backlog.json. Regenerate with: python3 tools/split_backlog.py",
+  "card_count": 85,
+  "ready_count": 17,
+  "cards": [
+    {
+      "id": "TK-P0-01",
+      "phase": "Phase 0",
+      "milestone": "M0 Networking",
+      "title": "ติดตั้ง Godot 4.7 (เลือก build มาตรฐาน หรือ .NET หากใช้ C#)",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "tools-devops",
+      "status": "done",
+      "depends_on": [],
+      "labels": "task, phase-0, prio-high",
+      "ready": false
+    },
+    {
+      "id": "TK-P0-02",
+      "phase": "Phase 0",
+      "milestone": "M0 Networking",
+      "title": "สร้าง GitHub repo + เพิ่ม .gitignore ของ Godot และตั้งโครงโฟลเดอร์ (scenes/, scripts/, assets/)",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "tools-devops",
+      "status": "done",
+      "depends_on": [
+        "TK-P0-01"
+      ],
+      "labels": "task, phase-0, prio-high",
+      "ready": false
+    },
+    {
+      "id": "TK-P0-03",
+      "phase": "Phase 0",
+      "milestone": "M0 Networking",
+      "title": "สร้าง MainMenu.tscn พร้อมปุ่ม Host / Join และช่องกรอก IP:Port",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "gameplay-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P0-02"
+      ],
+      "labels": "task, phase-0, prio-high",
+      "ready": false
+    },
+    {
+      "id": "TK-P0-04",
+      "phase": "Phase 0",
+      "milestone": "M0 Networking",
+      "title": "เขียน NetworkManager (autoload) สร้าง ENetMultiplayerPeer สำหรับ host และ client",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "network-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P0-02"
+      ],
+      "labels": "task, phase-0, prio-high",
+      "ready": false,
+      "detail_fields": [
+        "handoff"
+      ]
+    },
+    {
+      "id": "TK-P0-05",
+      "phase": "Phase 0",
+      "milestone": "M0 Networking",
+      "title": "สร้าง TestArena.tscn (พื้น + วงกลม) และสลับ scene หลังเชื่อมต่อสำเร็จ",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "gameplay-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P0-02"
+      ],
+      "labels": "task, phase-0, prio-high",
+      "ready": false
+    },
+    {
+      "id": "TK-P0-06",
+      "phase": "Phase 0",
+      "milestone": "M0 Networking",
+      "title": "ทดสอบเปิดสองอินสแตนซ์ให้เชื่อมกันและพิมพ์ log ยืนยันการเชื่อมต่อ",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "network-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P0-03",
+        "TK-P0-04",
+        "TK-P0-05"
+      ],
+      "labels": "task, phase-0, prio-high",
+      "ready": false,
+      "detail_fields": [
+        "handoff"
+      ]
+    },
+    {
+      "id": "TK-PX-01",
+      "phase": "Phase X",
+      "milestone": "MX Dev Infra",
+      "title": "เขียน Logger เป็น Autoload รองรับระดับ log และเขียนลงไฟล์ที่ user://logs/",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "tools-devops",
+      "status": "done",
+      "depends_on": [
+        "TK-P0-06"
+      ],
+      "labels": "task, phase-x, prio-medium",
+      "ready": false
+    },
+    {
+      "id": "TK-PX-02",
+      "phase": "Phase X",
+      "milestone": "MX Dev Infra",
+      "title": "ทำ Debug overlay/console เปิด-ปิดด้วยปุ่มลัด (เช่น F3) แสดง FPS/ping/state",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "tools-devops",
+      "status": "done",
+      "depends_on": [
+        "TK-PX-01"
+      ],
+      "labels": "task, phase-x, prio-medium",
+      "ready": false
+    },
+    {
+      "id": "TK-PX-03",
+      "phase": "Phase X",
+      "milestone": "MX Dev Infra",
+      "title": "ทำ Performance overlay ใช้ค่าจาก Performance singleton ของ Godot",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "tools-devops",
+      "status": "done",
+      "depends_on": [
+        "TK-PX-02"
+      ],
+      "labels": "task, phase-x, prio-medium",
+      "ready": false
+    },
+    {
+      "id": "TK-PX-04",
+      "phase": "Phase X",
+      "milestone": "MX Dev Infra",
+      "title": "ทำ ConfigManager อ่าน/เขียน ConfigFile (user://settings.cfg)",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "tools-devops",
+      "status": "done",
+      "depends_on": [
+        "TK-P0-06"
+      ],
+      "labels": "task, phase-x, prio-medium",
+      "ready": false
+    },
+    {
+      "id": "TK-PX-05",
+      "phase": "Phase X",
+      "milestone": "MX Dev Infra",
+      "title": "ทำเมนู Settings: Graphics, Audio, Controls (rebind ปุ่ม)",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "tools-devops",
+      "status": "done",
+      "depends_on": [
+        "TK-PX-04"
+      ],
+      "labels": "task, phase-x, prio-medium",
+      "ready": false
+    },
+    {
+      "id": "TK-PX-06",
+      "phase": "Phase X",
+      "milestone": "MX Dev Infra",
+      "title": "วางแนวทาง error handling รวมศูนย์ (จับ error สำคัญและ log)",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "tools-devops",
+      "status": "done",
+      "depends_on": [
+        "TK-PX-01"
+      ],
+      "labels": "task, phase-x, prio-medium",
+      "ready": false
+    },
+    {
+      "id": "TK-PX-07",
+      "phase": "Phase X",
+      "milestone": "MX Dev Infra",
+      "title": "ติดตั้ง GUT (Godot Unit Test) และเขียนเทสตัวอย่างสำหรับ NetworkManager/State",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "tools-devops",
+      "status": "done",
+      "depends_on": [
+        "TK-P0-04"
+      ],
+      "labels": "task, phase-x, prio-medium",
+      "ready": false,
+      "detail_fields": [
+        "handoff",
+        "notes"
+      ]
+    },
+    {
+      "id": "TK-P1-01",
+      "phase": "Phase 1",
+      "milestone": "M1 Movement",
+      "title": "สร้าง Player.tscn (CharacterBody3D + Camera3D + MultiplayerSynchronizer)",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "gameplay-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-PX-07"
+      ],
+      "labels": "task, phase-1, prio-high",
+      "ready": false
+    },
+    {
+      "id": "TK-P1-02",
+      "phase": "Phase 1",
+      "milestone": "M1 Movement",
+      "title": "เขียน input การเคลื่อนที่ + Sprint (ปรับความเร็วขณะกด Shift)",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "gameplay-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P1-01"
+      ],
+      "labels": "task, phase-1, prio-high",
+      "ready": false
+    },
+    {
+      "id": "TK-P1-03",
+      "phase": "Phase 1",
+      "milestone": "M1 Movement",
+      "title": "ตั้งค่า camera rig แบบ third person (spring arm)",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "gameplay-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P1-01"
+      ],
+      "labels": "task, phase-1, prio-high",
+      "ready": false
+    },
+    {
+      "id": "TK-P1-04",
+      "phase": "Phase 1",
+      "milestone": "M1 Movement",
+      "title": "ตั้ง MultiplayerSpawner ให้ spawn ผู้เล่นตาม peer id",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "network-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P1-01"
+      ],
+      "labels": "task, phase-1, prio-high",
+      "ready": false
+    },
+    {
+      "id": "TK-P1-05",
+      "phase": "Phase 1",
+      "milestone": "M1 Movement",
+      "title": "กำหนด multiplayer authority ให้แต่ละผู้เล่นควบคุมตัวเอง",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "network-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P1-04"
+      ],
+      "labels": "task, phase-1, prio-high",
+      "ready": false
+    },
+    {
+      "id": "TK-P1-06",
+      "phase": "Phase 1",
+      "milestone": "M1 Movement",
+      "title": "ปรับ MultiplayerSynchronizer ให้ซิงก์เฉพาะ property ที่จำเป็น (ตำแหน่ง/หัน)",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "network-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P1-05"
+      ],
+      "labels": "task, phase-1, prio-high",
+      "ready": false
+    },
+    {
+      "id": "TK-P2-01",
+      "phase": "Phase 2",
+      "milestone": "M2 Core Gameplay",
+      "title": "ทำ Kick: input + hitbox ชั่วคราว + cooldown",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "gameplay-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P1-02"
+      ],
+      "labels": "task, phase-2, prio-high",
+      "ready": false,
+      "detail_fields": [
+        "closed_note"
+      ]
+    },
+    {
+      "id": "TK-P2-02",
+      "phase": "Phase 2",
+      "milestone": "M2 Core Gameplay",
+      "title": "ทำ Tag detection: Area3D รอบเสือ ตรวจผู้เล่นที่เข้าใกล้",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "gameplay-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P1-01"
+      ],
+      "labels": "task, phase-2, prio-high",
+      "ready": false,
+      "detail_fields": [
+        "parked"
+      ]
+    },
+    {
+      "id": "TK-P2-03",
+      "phase": "Phase 2",
+      "milestone": "M2 Core Gameplay",
+      "title": "ทำ Tag Sequence (state machine ย่อย): 1) เสือจับล็อกผู้เล่น 2) ทุ่มลงพื้น 3) เล่นเอฟเฟกต์กลายร่าง 4) ผู้เล่นที่ถูกทุ่มกลายเป็นเสือใหม่ 5) เสือเดิมกลับเป็นคน 6) เสือเดิมย้ายออกนอก Safe Circle 7) กลับสู่สถานะ Playing",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "gameplay-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P2-02"
+      ],
+      "labels": "task, phase-2, prio-high",
+      "ready": false,
+      "detail_fields": [
+        "notes"
+      ]
+    },
+    {
+      "id": "TK-P2-04",
+      "phase": "Phase 2",
+      "milestone": "M2 Core Gameplay",
+      "title": "สร้าง Role state machine (Outer / Tiger) และสลับ property/กล้องเมื่อจบ Tag Sequence",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "gameplay-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P2-03"
+      ],
+      "labels": "task, phase-2, prio-high",
+      "ready": false,
+      "detail_fields": [
+        "handoff",
+        "notes"
+      ]
+    },
+    {
+      "id": "TK-P2-05",
+      "phase": "Phase 2",
+      "milestone": "M2 Core Gameplay",
+      "title": "สลับกล้อง First Person (เสือ) กับ Third Person (ผู้เล่นอื่น) ตามบทบาท",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "gameplay-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P2-04"
+      ],
+      "labels": "task, phase-2, prio-high",
+      "ready": false,
+      "detail_fields": [
+        "handoff",
+        "notes"
+      ]
+    },
+    {
+      "id": "TK-P2-06",
+      "phase": "Phase 2",
+      "milestone": "M2 Core Gameplay",
+      "title": "ทำ Safe Circle เป็นขอบเขตและ logic ที่เกี่ยวข้อง",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "gameplay-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P1-01"
+      ],
+      "labels": "task, phase-2, prio-high",
+      "ready": false,
+      "detail_fields": [
+        "closed_note",
+        "design_ruling",
+        "handoff",
+        "notes",
+        "review_verdicts"
+      ]
+    },
+    {
+      "id": "TK-P2-07",
+      "phase": "Phase 2",
+      "milestone": "M2 Core Gameplay",
+      "title": "ทำ RoundManager: จับเวลา/เงื่อนไขจบรอบ และรีเซ็ตเริ่มรอบใหม่",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "gameplay-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P2-04"
+      ],
+      "labels": "task, phase-2, prio-high",
+      "ready": false,
+      "detail_fields": [
+        "notes"
+      ]
+    },
+    {
+      "id": "TK-P2-08",
+      "phase": "Phase 2",
+      "milestone": "M2 Core Gameplay",
+      "title": "ย้ายการตัดสิน Tag/Kick ไปที่ host: client ส่งคำสั่งผ่าน RPC แล้ว host ยืนยันผล",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "network-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P2-07"
+      ],
+      "labels": "task, phase-2, prio-high",
+      "ready": false,
+      "detail_fields": [
+        "notes"
+      ]
+    },
+    {
+      "id": "TK-P2-09",
+      "phase": "Phase 2",
+      "milestone": "M2 Core Gameplay",
+      "title": "สุ่มเสือตัวแรกตอนเริ่มรอบ (host-authoritative): host สุ่ม 1 peer จากผู้เล่นทั้งหมด แล้ว broadcast ผลให้ทุกเครื่อง (assign_first_tiger / GameManager.assign_tiger)",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "gameplay-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P2-04"
+      ],
+      "labels": "task, phase-2, prio-high, network",
+      "ready": false,
+      "detail_fields": [
+        "closed_note",
+        "handoff",
+        "notes",
+        "parked"
+      ]
+    },
+    {
+      "id": "TK-P3-01",
+      "phase": "Phase 3",
+      "milestone": "M3 First Playtest",
+      "title": "แยกค่าพารามิเตอร์สำคัญออกเป็น export variable / resource ปรับง่าย",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "tools-devops",
+      "status": "todo",
+      "depends_on": [],
+      "labels": "task, phase-3, prio-medium",
+      "ready": true
+    },
+    {
+      "id": "TK-P3-02",
+      "phase": "Phase 3",
+      "milestone": "M3 First Playtest",
+      "title": "ทำ build สำหรับแจกเทส (export preset)",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "tools-devops",
+      "status": "todo",
+      "depends_on": [
+        "TK-P3-01"
+      ],
+      "labels": "task, phase-3, prio-medium",
+      "ready": false,
+      "blocked_by": [
+        "TK-P3-01"
+      ]
+    },
+    {
+      "id": "TK-P3-03",
+      "phase": "Phase 3",
+      "milestone": "M3 First Playtest",
+      "title": "จัด session เทสและบันทึกผล (แบบสอบถามสั้น + คลิป)",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "designer",
+      "status": "todo",
+      "depends_on": [
+        "TK-P3-02",
+        "TK-P2-14",
+        "TK-P2-15"
+      ],
+      "labels": "task, phase-3, prio-medium",
+      "ready": false,
+      "blocked_by": [
+        "TK-P3-02"
+      ],
+      "detail_fields": [
+        "gating_note",
+        "note"
+      ]
+    },
+    {
+      "id": "TK-P3-04",
+      "phase": "Phase 3",
+      "milestone": "M3 First Playtest",
+      "title": "ปรับค่าและทดสอบซ้ำเป็นรอบ ๆ ตามหัวข้อ Open Questions ใน GDD",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "designer",
+      "status": "todo",
+      "depends_on": [
+        "TK-P3-03"
+      ],
+      "labels": "task, phase-3, prio-medium",
+      "ready": false,
+      "blocked_by": [
+        "TK-P3-03"
+      ]
+    },
+    {
+      "id": "TK-P4-01",
+      "phase": "Phase 4",
+      "milestone": "M4 Polish",
+      "title": "import โมเดล/แอนิเมชันจาก Mixamo ผ่าน glTF และตั้ง AnimationTree",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "polish-agent",
+      "status": "todo",
+      "depends_on": [],
+      "labels": "task, phase-4, prio-medium",
+      "ready": true
+    },
+    {
+      "id": "TK-P4-02",
+      "phase": "Phase 4",
+      "milestone": "M4 Polish",
+      "title": "ผูก event เสียง (เตะ/จับ/สลับบทบาท) กับ AudioStreamPlayer",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "polish-agent",
+      "status": "todo",
+      "depends_on": [
+        "TK-P4-01"
+      ],
+      "labels": "task, phase-4, prio-medium",
+      "ready": false,
+      "blocked_by": [
+        "TK-P4-01"
+      ]
+    },
+    {
+      "id": "TK-P4-03",
+      "phase": "Phase 4",
+      "milestone": "M4 Polish",
+      "title": "ทำ particle/VFX ตอนสลับบทบาทให้เห็นชัดว่าใครเป็นเสือ",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "polish-agent",
+      "status": "todo",
+      "depends_on": [
+        "TK-P4-02"
+      ],
+      "labels": "task, phase-4, prio-medium",
+      "ready": false,
+      "blocked_by": [
+        "TK-P4-02"
+      ]
+    },
+    {
+      "id": "TK-P4-04",
+      "phase": "Phase 4",
+      "milestone": "M4 Polish",
+      "title": "ทำ HUD: เวลารอบ, ตัวบ่งชี้บทบาท, feedback ตอนถูกจับ",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "polish-agent",
+      "status": "todo",
+      "depends_on": [
+        "TK-P4-03"
+      ],
+      "labels": "task, phase-4, prio-medium",
+      "ready": false,
+      "blocked_by": [
+        "TK-P4-03"
+      ]
+    },
+    {
+      "id": "TK-P4-05",
+      "phase": "Phase 4",
+      "milestone": "M4 Polish",
+      "title": "ทำโมเดล + rig เสือ ตาม Character Art Bible §3 (low-poly ~1K–2K tris, ส้ม+ลายดำ+พุงครีม+รอยเท้าแมว, สูง ~2.0m) พร้อม rig สำหรับ Animation Set §7",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "polish-agent",
+      "status": "todo",
+      "depends_on": [],
+      "labels": "task, phase-4, prio-medium, art",
+      "ready": true,
+      "detail_fields": [
+        "notes"
+      ]
+    },
+    {
+      "id": "TK-P4-06",
+      "phase": "Phase 4",
+      "milestone": "M4 Polish",
+      "title": "ทำโมเดล + rig ผู้เล่น (base เปล่า) ตาม Art Bible §4 (low-poly ~1K–2K tris, สูง 1.2–1.4m) + แยก material slot (base color + decal layer) รองรับการแต่งตัว",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "polish-agent",
+      "status": "todo",
+      "depends_on": [],
+      "labels": "task, phase-4, prio-medium, art",
+      "ready": true,
+      "detail_fields": [
+        "notes"
+      ]
+    },
+    {
+      "id": "TK-P4-07",
+      "phase": "Phase 4",
+      "milestone": "M4 Polish",
+      "title": "ตั้ง Toon Shader + Rim Light pipeline (cel-shading + rim light + soft lighting/SSAO/subtle bloom) และใช้กับทั้งเสือและผู้เล่น",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "polish-agent",
+      "status": "todo",
+      "depends_on": [
+        "TK-P4-05",
+        "TK-P4-06"
+      ],
+      "labels": "task, phase-4, prio-medium, art",
+      "ready": false,
+      "blocked_by": [
+        "TK-P4-05",
+        "TK-P4-06"
+      ],
+      "detail_fields": [
+        "notes"
+      ]
+    },
+    {
+      "id": "TK-P4-08",
+      "phase": "Phase 4",
+      "milestone": "M4 Polish",
+      "title": "ทำระบบแต่งตัวที่ Lobby (เลือกสีฐาน/decal/accessory — Cosmetic Only) + sync ค่าแต่งตัวข้ามเครื่องตอนกด Ready (broadcast ครั้งเดียว ไม่ real-time)",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "gameplay-engineer",
+      "status": "todo",
+      "depends_on": [
+        "TK-P4-06"
+      ],
+      "labels": "task, phase-4, prio-medium, art, network",
+      "ready": false,
+      "blocked_by": [
+        "TK-P4-06"
+      ],
+      "detail_fields": [
+        "notes"
+      ]
+    },
+    {
+      "id": "TK-P5-01",
+      "phase": "Phase 5",
+      "milestone": "M5 Ship",
+      "title": "ติดตั้ง GodotSteam และตั้งค่า Steam App ID",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "tools-devops",
+      "status": "todo",
+      "depends_on": [],
+      "labels": "task, phase-5, prio-medium",
+      "ready": true
+    },
+    {
+      "id": "TK-P5-02",
+      "phase": "Phase 5",
+      "milestone": "M5 Ship",
+      "title": "ทำ Steam Lobby (สร้าง/เข้าร่วม) แทน/เสริมการต่อ IP ตรง",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "network-engineer",
+      "status": "todo",
+      "depends_on": [
+        "TK-P5-01"
+      ],
+      "labels": "task, phase-5, prio-medium",
+      "ready": false,
+      "blocked_by": [
+        "TK-P5-01"
+      ]
+    },
+    {
+      "id": "TK-P5-03",
+      "phase": "Phase 5",
+      "milestone": "M5 Ship",
+      "title": "เพิ่ม Steam Achievements ตามโมเมนต์เด่นในเกม",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "network-engineer",
+      "status": "todo",
+      "depends_on": [
+        "TK-P5-02"
+      ],
+      "labels": "task, phase-5, prio-medium",
+      "ready": false,
+      "blocked_by": [
+        "TK-P5-02"
+      ]
+    },
+    {
+      "id": "TK-P5-04",
+      "phase": "Phase 5",
+      "milestone": "M5 Ship",
+      "title": "จัดลำดับความสำคัญฟีเจอร์ที่เหลือด้วยเกณฑ์ความสนุก แล้วทำทีละอย่าง",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "tools-devops",
+      "status": "todo",
+      "depends_on": [
+        "TK-P5-03"
+      ],
+      "labels": "task, phase-5, prio-medium",
+      "ready": false,
+      "blocked_by": [
+        "TK-P5-03"
+      ]
+    },
+    {
+      "id": "TK-P2-10",
+      "phase": "Phase 2",
+      "milestone": "M2 Core Gameplay",
+      "title": "Jump (กระโดด): input + physics บนพื้น + ซิงก์แกน Y ข้ามเครื่อง",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "gameplay-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P1-02"
+      ],
+      "labels": "task, phase-2, prio-high, movement",
+      "ready": false,
+      "detail_fields": [
+        "closed_note",
+        "notes",
+        "parked"
+      ]
+    },
+    {
+      "id": "TK-P2-11",
+      "phase": "Phase 3",
+      "milestone": "M3 First Playtest",
+      "title": "Jump Kick (กระโดดเตะ): เตะขณะกระโดด/ลอยตัว — signature move สำหรับเตะเสือ",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "gameplay-engineer",
+      "status": "todo",
+      "depends_on": [
+        "TK-P2-10",
+        "TK-P2-01"
+      ],
+      "labels": "task, phase-3, prio-high, combat, carry-over",
+      "ready": true,
+      "detail_fields": [
+        "deferral_ruling",
+        "notes"
+      ]
+    },
+    {
+      "id": "TK-P2-12",
+      "phase": "Phase 2",
+      "milestone": "M2 Core Gameplay",
+      "title": "Waiting Room: หลัง Host/Join ไปห้องรอ (แทนเข้า arena ตรง) + แสดงรายชื่อผู้เล่นที่เชื่อมต่อ + host เห็นปุ่ม Start",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "gameplay-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P0-06"
+      ],
+      "labels": "task, phase-2, prio-high, match-flow",
+      "ready": false,
+      "detail_fields": [
+        "closed_note",
+        "notes"
+      ]
+    },
+    {
+      "id": "TK-P2-13",
+      "phase": "Phase 2",
+      "milestone": "M2 Core Gameplay",
+      "title": "Host กด Start Match (host-authoritative): เฉพาะ host เริ่มได้ → broadcast เริ่มแมตช์ให้ทุกเครื่อง",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "gameplay-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P2-12"
+      ],
+      "labels": "task, phase-2, prio-high, match-flow, network",
+      "ready": false,
+      "detail_fields": [
+        "closed_note",
+        "notes"
+      ]
+    },
+    {
+      "id": "TK-P2-14",
+      "phase": "Phase 3",
+      "milestone": "M3 First Playtest",
+      "title": "Countdown ก่อนเริ่มแมตช์ (synced 3→2→1, host-authoritative)",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "gameplay-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P2-13"
+      ],
+      "labels": "task, phase-3, prio-high, match-flow, carry-over, playtest-blocker",
+      "ready": false,
+      "detail_fields": [
+        "assignment_note",
+        "code_review",
+        "deferral_ruling",
+        "human_pass_result",
+        "notes",
+        "parked",
+        "qa_verdict"
+      ]
+    },
+    {
+      "id": "TK-P2-15",
+      "phase": "Phase 3",
+      "milestone": "M3 First Playtest",
+      "title": "Match state machine (GameManager): WaitingRoom → Countdown → Playing → MatchEnd + ต่อเข้า Round Flow",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "gameplay-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P2-14",
+        "TK-P2-09"
+      ],
+      "labels": "task, phase-3, prio-high, match-flow, carry-over, playtest-blocker",
+      "ready": false,
+      "detail_fields": [
+        "architect_ruling",
+        "bug_followups",
+        "code_review",
+        "deferral_ruling",
+        "handoff",
+        "human_pass_result",
+        "known_gap_accepted",
+        "notes",
+        "parked",
+        "qa_verdict"
+      ]
+    },
+    {
+      "id": "TK-P2-16",
+      "phase": "Phase 2",
+      "milestone": "M2 Core Gameplay",
+      "title": "Ability System scaffold: refactor PlayerController → Movement / Camera / Ability (+ base HumanAbility / TigerAbility)",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "gameplay-engineer",
+      "status": "done",
+      "depends_on": [],
+      "labels": "task, phase-2, prio-high, architecture, ability",
+      "ready": false,
+      "detail_fields": [
+        "notes"
+      ]
+    },
+    {
+      "id": "TK-P3-05",
+      "phase": "Phase 3",
+      "milestone": "M3 First Playtest",
+      "title": "Tiger Body-Language movement (hunt-not-chase): Crouch → Lean L/R → Peek Around Corner",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "gameplay-engineer",
+      "status": "todo",
+      "depends_on": [
+        "TK-P2-16"
+      ],
+      "labels": "task, phase-3, prio-medium, ability, tiger",
+      "ready": true,
+      "detail_fields": [
+        "notes"
+      ]
+    },
+    {
+      "id": "TK-BUG-P1-01",
+      "phase": "Phase 1",
+      "milestone": "M1 Movement",
+      "title": "[S1] client spawn ทับหัว host / (0,0,0) + engine error ทุก join — ย้าย set_multiplayer_authority ออกจาก _on_spawned (หลัง _ready) ไป Player._enter_tree/spawn_function",
+      "type": "bug",
+      "priority": "High",
+      "owner_agent": "network-engineer",
+      "status": "done",
+      "depends_on": [],
+      "labels": "bug, phase-1, prio-high, S1",
+      "ready": false
+    },
+    {
+      "id": "TK-BUG-P1-02",
+      "phase": "Phase 1",
+      "milestone": "M1 Movement",
+      "title": "[S2] host ปิดเกม → client ค้างในสนามว่าง — เพิ่ม signal server_disconnected ใน NetworkManager → กลับ MainMenu + ปุ่ม/คีย์ Leave ที่เรียก disconnect_from_game()",
+      "type": "bug",
+      "priority": "High",
+      "owner_agent": "network-engineer",
+      "status": "done",
+      "depends_on": [],
+      "labels": "bug, phase-1, prio-high, S2",
+      "ready": false
+    },
+    {
+      "id": "TK-P1-07",
+      "phase": "Phase 1",
+      "milestone": "M1 Movement",
+      "title": "เพิ่ม net smoke เข้า ci.yml + 2-instance integration probe (เกณฑ์: no ERROR in log + client ไม่ spawn ทับ host/origin)",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "network-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-BUG-P1-01",
+        "TK-BUG-P1-02"
+      ],
+      "labels": "task, phase-1, prio-high, test",
+      "ready": false
+    },
+    {
+      "id": "TK-P2-17",
+      "phase": "Phase 2",
+      "milestone": "M2 Core Gameplay",
+      "title": "Kick Stagger: เสือเซ ~0.3s + ดันถอยเล็กน้อยเมื่อโดนเตะ (host-authoritative, ห้าม stun เต็ม — ให้คนที่เตะมีช่องหนี)",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "gameplay-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P2-01"
+      ],
+      "labels": "task, phase-2, prio-high, bug-found",
+      "ready": false,
+      "detail_fields": [
+        "human_pass_result",
+        "human_test_result",
+        "qa_retest_authorization"
+      ]
+    },
+    {
+      "id": "TK-P2-18",
+      "phase": "Phase 2",
+      "milestone": "M2 Core Gameplay",
+      "title": "Pounce (TigerAbility, ดึงมา Phase 2): เสือพุ่งระยะสั้น burst ~8 m/s = กลไกจับหลัก (เพราะเสือช้า), host validate",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "gameplay-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P2-16"
+      ],
+      "labels": "task, phase-2, prio-high",
+      "ready": false,
+      "detail_fields": [
+        "human_pass_result",
+        "notes"
+      ]
+    },
+    {
+      "id": "TK-P2-19",
+      "phase": "Phase 2",
+      "milestone": "M2 Core Gameplay",
+      "title": "CI kick-pipeline probe: 2-instance headless test asserting confirm-broadcast + reject-requester-only over the wire (analog of run_spawn_probe.sh) — closes nit#7 RPC-routing glue gap",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "tools-devops",
+      "status": "todo",
+      "depends_on": [
+        "TK-P2-01"
+      ],
+      "labels": "task, phase-2, prio-medium",
+      "ready": true,
+      "detail_fields": [
+        "note"
+      ]
+    },
+    {
+      "id": "TK-P2-20",
+      "phase": "Phase 3",
+      "milestone": "M3 First Playtest",
+      "title": "Late-join / late-connect after Match Start: refuse or route peers that connect (or click Join) after the host has started the match",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "network-engineer",
+      "status": "todo",
+      "depends_on": [
+        "TK-P2-13"
+      ],
+      "labels": "task, phase-3, prio-medium, network, match-flow, carry-over",
+      "ready": true,
+      "detail_fields": [
+        "deferral_ruling",
+        "note"
+      ]
+    },
+    {
+      "id": "TK-P2-21",
+      "phase": "Phase 2",
+      "milestone": "M2 Core Gameplay",
+      "title": "B2 disconnect-during-barrier: add a falsifiable 2-instance headless probe + CI gate; fix stale harness/CI wording",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "tools-devops",
+      "status": "todo",
+      "depends_on": [
+        "TK-P2-13"
+      ],
+      "labels": "task, phase-2, prio-medium, test, network",
+      "ready": true,
+      "detail_fields": [
+        "note"
+      ]
+    },
+    {
+      "id": "TK-P2-22",
+      "phase": "Phase 2",
+      "milestone": "M2 Core Gameplay",
+      "title": "Barrier + WaitingRoom non-blocking nits bundle (from TK-P2-13 review/qa)",
+      "type": "task",
+      "priority": "Low",
+      "owner_agent": "network-engineer",
+      "status": "todo",
+      "depends_on": [
+        "TK-P2-13"
+      ],
+      "labels": "task, phase-2, prio-low, cleanup",
+      "ready": true,
+      "detail_fields": [
+        "note"
+      ]
+    },
+    {
+      "id": "TK-P2-23",
+      "phase": "Phase 2",
+      "milestone": "M2 Core Gameplay",
+      "title": "Document the scene-transition path-cache-poisoning + readiness-barrier protocol (Change Log + TDD §9)",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "documentation-manager",
+      "status": "done",
+      "depends_on": [
+        "TK-P2-13"
+      ],
+      "labels": "task, phase-2, prio-medium, docs",
+      "ready": false,
+      "detail_fields": [
+        "closed_note",
+        "note"
+      ]
+    },
+    {
+      "id": "TK-P2-24",
+      "phase": "Phase 2",
+      "milestone": "M2 Core Gameplay",
+      "title": "CI headless probe for Tag detection: assert Area3D overlap fires + host-only-emit gate holds + despawn leaves no stale candidate",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "tools-devops",
+      "status": "done",
+      "depends_on": [
+        "TK-P2-02"
+      ],
+      "labels": "task, phase-2, prio-medium, test, network",
+      "ready": false,
+      "detail_fields": [
+        "note"
+      ]
+    },
+    {
+      "id": "TK-P2-25",
+      "phase": "Phase 2",
+      "milestone": "M2 Core Gameplay",
+      "title": "Tag detection nits (from TK-P2-02 review/qa): explicit collision layer/mask + boundary test + comment fix",
+      "type": "task",
+      "priority": "Low",
+      "owner_agent": "gameplay-engineer",
+      "status": "todo",
+      "depends_on": [
+        "TK-P2-02"
+      ],
+      "labels": "task, phase-2, prio-low, cleanup",
+      "ready": true,
+      "detail_fields": [
+        "note"
+      ]
+    },
+    {
+      "id": "TK-P2-26",
+      "phase": "Phase 2",
+      "milestone": "M2 Core Gameplay",
+      "title": "Test-isolation: NetworkManager host()/disconnect_from_game() poisons the shared SceneTree MultiplayerAPI for alphabetically-later GUT scripts (is_server()/get_unique_id() break for any later Player.tscn authority test)",
+      "type": "bug",
+      "priority": "Low",
+      "owner_agent": "tools-devops",
+      "status": "todo",
+      "depends_on": [],
+      "labels": "task, phase-2, prio-low, test, cleanup",
+      "ready": true,
+      "detail_fields": [
+        "note"
+      ]
+    },
+    {
+      "id": "TK-P2-27",
+      "phase": "Phase 2",
+      "milestone": "M2 Core Gameplay",
+      "title": "RE-SCOPED (2026-07-19) -- Solo feel pass: (a) per-role MovementComponent speed-profile feel (Outer 4.0/x1.5 vs Tiger 4.0/4.0-capped, TK-P2-04) + (c) Pounce feel + (d) kick-flee rhythm/escape-window feel. [(b) FP/TP camera swap-by-role already CONFIRMED 2026-07-16, see notes below]",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "qa-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P2-04",
+        "TK-P2-05",
+        "TK-P2-09",
+        "TK-P2-17",
+        "TK-P2-18"
+      ],
+      "labels": "task, phase-2, prio-medium, qa, feel-test, solo",
+      "ready": false,
+      "detail_fields": [
+        "human_pass_result",
+        "note",
+        "notes",
+        "rescope_note"
+      ]
+    },
+    {
+      "id": "TK-P2-29",
+      "phase": "Phase 2",
+      "milestone": "M2 Core Gameplay",
+      "title": "Wire Tag Sequence step 6 (old-Tiger exit teleport) to the real Safe Circle boundary now that TK-P2-06 exists",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "gameplay-engineer",
+      "status": "todo",
+      "depends_on": [
+        "TK-P2-06"
+      ],
+      "labels": "task, phase-2, prio-medium, followup",
+      "ready": true,
+      "detail_fields": [
+        "closure_ruling",
+        "note"
+      ]
+    },
+    {
+      "id": "TK-P2-30",
+      "phase": "Phase 2",
+      "milestone": "M2 Core Gameplay",
+      "title": "[S2] Start-Match readiness-barrier grace-timer (8s) force-disconnects a legit unfocused client -- recurring, blocks team 2-instance testing",
+      "type": "bug",
+      "priority": "High",
+      "owner_agent": "network-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P2-13"
+      ],
+      "labels": "bug, phase-2, prio-high, S2, network, followup",
+      "ready": false,
+      "detail_fields": [
+        "code_review_note",
+        "escalation",
+        "fix_note",
+        "human_pass_result",
+        "note",
+        "qa_verdict"
+      ]
+    },
+    {
+      "id": "TK-P2-28",
+      "phase": "Phase 2",
+      "milestone": "M2 Core Gameplay",
+      "title": "Architect ruling: does Safe Circle's host-authoritative containment (TK-P2-06 point 3) need true host-authoritative Tiger position, or is owner-authoritative + best-effort host correction acceptable for Phase 2?",
+      "type": "task",
+      "priority": "Low",
+      "owner_agent": "architect",
+      "status": "done",
+      "depends_on": [
+        "TK-P2-06"
+      ],
+      "labels": "task, phase-2, prio-low, architecture, followup",
+      "ready": false,
+      "detail_fields": [
+        "note"
+      ]
+    },
+    {
+      "id": "TK-P2-31",
+      "phase": "Phase 2",
+      "milestone": "M2 Core Gameplay",
+      "title": "RoundManager 1-player-round edge case: define behavior when a round times out with no other candidate for TigerSelector to swap to",
+      "type": "task",
+      "priority": "Low",
+      "owner_agent": "gameplay-engineer",
+      "status": "todo",
+      "depends_on": [
+        "TK-P2-07"
+      ],
+      "labels": "task, phase-2, prio-low, followup",
+      "ready": true,
+      "detail_fields": [
+        "closure_ruling",
+        "note"
+      ]
+    },
+    {
+      "id": "TK-P2-32",
+      "phase": "Phase 2",
+      "milestone": "M2 Core Gameplay",
+      "title": "Kick targeting bug: KickAbility.host_validate() still targets nearest-any-player, never filtered to role == tiger",
+      "type": "bug",
+      "priority": "High",
+      "owner_agent": "gameplay-engineer",
+      "status": "done",
+      "depends_on": [],
+      "labels": "bug, phase-2, prio-high",
+      "ready": false,
+      "detail_fields": [
+        "note"
+      ]
+    },
+    {
+      "id": "TK-BUG-P2-01",
+      "phase": "Phase 2",
+      "milestone": "M2 Core Gameplay",
+      "title": "[S2] Kick Stagger never applies -- on_confirmed() gate checks the KICKER's own node instead of resolving the TARGET, permanently-false condition = dead code",
+      "type": "bug",
+      "priority": "High",
+      "owner_agent": "gameplay-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P2-17"
+      ],
+      "labels": "bug, phase-2, prio-high, S2, human-found",
+      "ready": false,
+      "detail_fields": [
+        "fix_result",
+        "note",
+        "qa_verdict",
+        "review_result"
+      ]
+    },
+    {
+      "id": "TK-P2-33",
+      "phase": "Phase 3",
+      "milestone": "M3 First Playtest",
+      "title": "Add regression coverage that positively asserts an ability's side-effect actually fired (not just no-crash) -- 2nd wiring dead-code bug slipped past 300+ green GUT tests",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "qa-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-BUG-P2-01"
+      ],
+      "labels": "task, phase-3, prio-medium, test, carry-over",
+      "ready": false,
+      "detail_fields": [
+        "assignment_note",
+        "close_result",
+        "deferral_ruling",
+        "note"
+      ]
+    },
+    {
+      "id": "TK-P3-06",
+      "phase": "Phase 3",
+      "milestone": "M3 First Playtest",
+      "title": "Charged Kick / Knockdown: 5 confirmed kicks on the Tiger (per-player, host-authoritative counter) -> next kick is a Super Kick (launch + short knockdown)",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "gameplay-engineer",
+      "status": "todo",
+      "depends_on": [
+        "TK-P2-17",
+        "TK-P2-33"
+      ],
+      "labels": "task, phase-3, prio-medium, ability, design-locked",
+      "ready": true,
+      "detail_fields": [
+        "design_lock",
+        "note"
+      ]
+    },
+    {
+      "id": "TK-P4-09",
+      "phase": "Phase 4",
+      "milestone": "M4 Polish",
+      "title": "HUD: per-player Charged Kick progress indicator (accumulated-kick counter toward next Super Kick)",
+      "type": "task",
+      "priority": "Low",
+      "owner_agent": "polish-agent",
+      "status": "todo",
+      "depends_on": [
+        "TK-P3-06",
+        "TK-P4-04"
+      ],
+      "labels": "task, phase-4, prio-low, art, followup",
+      "ready": false,
+      "blocked_by": [
+        "TK-P3-06",
+        "TK-P4-04"
+      ],
+      "detail_fields": [
+        "note"
+      ]
+    },
+    {
+      "id": "TK-P4-10",
+      "phase": "Phase 4",
+      "milestone": "M4 Polish",
+      "title": "Animation: Super Kick launch + knockdown clip pair for the Tiger",
+      "type": "task",
+      "priority": "Low",
+      "owner_agent": "polish-agent",
+      "status": "todo",
+      "depends_on": [
+        "TK-P3-06",
+        "TK-P4-01"
+      ],
+      "labels": "task, phase-4, prio-low, art, followup",
+      "ready": false,
+      "blocked_by": [
+        "TK-P3-06",
+        "TK-P4-01"
+      ],
+      "detail_fields": [
+        "note"
+      ]
+    },
+    {
+      "id": "TK-P3-07",
+      "phase": "Phase 3",
+      "milestone": "M3 First Playtest",
+      "title": "Simple test bot: extend tests/net headless harness into an autonomous Outer client (approach Tiger -> kick -> flee random direction) for solo + future N-player testing",
+      "type": "task",
+      "priority": "Medium",
+      "owner_agent": "tools-devops",
+      "status": "done",
+      "depends_on": [
+        "TK-P2-01",
+        "TK-P2-09",
+        "TK-P2-17"
+      ],
+      "labels": "task, phase-3, prio-medium, test, tooling",
+      "ready": false,
+      "detail_fields": [
+        "assignment_note",
+        "code_review_note",
+        "handoff_note",
+        "note"
+      ]
+    },
+    {
+      "id": "TK-P3-08",
+      "phase": "Phase 3",
+      "milestone": "M3 First Playtest",
+      "title": "TK-P3-07 followup: minimal Tiger AI for the test bot (wander in Safe Circle + Tag when a player is near) -- bot-as-Tiger currently idles, softlocking match-flow/CASE E testing",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "tools-devops",
+      "status": "done",
+      "depends_on": [
+        "TK-P3-07"
+      ],
+      "labels": "task, phase-3, prio-high, test, tooling, followup",
+      "ready": false,
+      "detail_fields": [
+        "handoff",
+        "note",
+        "review_note"
+      ]
+    },
+    {
+      "id": "TK-BUG-P3-01",
+      "phase": "Phase 3",
+      "milestone": "M3 First Playtest",
+      "title": "[S2] RPC/despawn race on MATCH_END -> WaitingRoom scene transition (\"Node not found: WaitingRoom\", despawn ERR_UNAUTHORIZED x3) -- same path-cache-poison class TK-P2-13/TK-P2-30 guard against, but for the reverse (Arena->WaitingRoom) edge, which has no symmetric barrier",
+      "type": "bug",
+      "priority": "High",
+      "owner_agent": "gameplay-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P2-15"
+      ],
+      "labels": "bug, phase-3, prio-high, S2, human-found, match-flow, network",
+      "ready": false,
+      "detail_fields": [
+        "code_review",
+        "fix_result",
+        "handoff",
+        "human_pass_result",
+        "note",
+        "qa_verdict"
+      ]
+    },
+    {
+      "id": "TK-BUG-P3-02",
+      "phase": "Phase 3",
+      "milestone": "M3 First Playtest",
+      "title": "[S2] Tag Sequence can start (and complete: role swap + RoundManager round-restart) AFTER match_state has already flipped to MATCH_END -- start_tag_sequence()/RoundManager have no PLAYING gate",
+      "type": "bug",
+      "priority": "High",
+      "owner_agent": "gameplay-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P2-15"
+      ],
+      "labels": "bug, phase-3, prio-high, S2, human-found, match-flow",
+      "ready": false,
+      "detail_fields": [
+        "code_review",
+        "fix_result",
+        "handoff",
+        "human_pass_result",
+        "note",
+        "qa_verdict"
+      ]
+    },
+    {
+      "id": "TK-BUG-P3-03",
+      "phase": "Phase 3",
+      "milestone": "M3 First Playtest",
+      "title": "[Check/off-by-one] match-end trigger fires at the START of round rounds_per_match, not its end -- a 3-round match only actually plays 2 full rounds",
+      "type": "bug",
+      "priority": "Medium",
+      "owner_agent": "gameplay-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P2-15"
+      ],
+      "labels": "bug, phase-3, prio-medium, human-found, match-flow, design",
+      "ready": false,
+      "detail_fields": [
+        "code_review",
+        "fix_result",
+        "handoff",
+        "human_pass_result",
+        "note",
+        "qa_verdict"
+      ]
+    },
+    {
+      "id": "TK-P3-09",
+      "phase": "Phase 3",
+      "milestone": "M3 First Playtest",
+      "title": "tests/net bot harness: auto-start is one-shot -- add re-arm after return to WaitingRoom (or --matches=N) so CASE E (fresh 2nd/Nth match) can actually be exercised without restarting the whole harness process",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "tools-devops",
+      "status": "done",
+      "depends_on": [
+        "TK-P3-08"
+      ],
+      "labels": "task, phase-3, prio-high, test, tooling, human-found",
+      "ready": false,
+      "detail_fields": [
+        "handoff",
+        "note",
+        "review_note"
+      ]
+    },
+    {
+      "id": "TK-BUG-P3-04",
+      "phase": "Phase 3",
+      "milestone": "M3 First Playtest",
+      "title": "[S2] RoundManager._on_round_timeout() does not consult GameManager.is_sequence_active() -- a round timer expiring DURING an in-flight ~1.2s Tag Sequence stub window can double-swap the Tiger (pre-existing, surfaced during TK-BUG-P3-02/03 QA)",
+      "type": "bug",
+      "priority": "Low",
+      "owner_agent": "gameplay-engineer",
+      "status": "todo",
+      "depends_on": [
+        "TK-BUG-P3-02"
+      ],
+      "labels": "bug, phase-3, prio-low, S2, match-flow, qa-found, pre-existing",
+      "ready": true,
+      "detail_fields": [
+        "handoff",
+        "note"
+      ]
+    },
+    {
+      "id": "TK-P3-10",
+      "phase": "Phase 3",
+      "milestone": "M3 First Playtest",
+      "title": "networking/PlayerSpawner.gd: TEST-MODE-ONLY opt-in so a dedicated host does not spawn its own Player -- prevents the headless bot harness's idle host body from ever being picked/tagged as Tiger and softlocking a match",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "network-engineer",
+      "status": "done",
+      "depends_on": [
+        "TK-P3-08"
+      ],
+      "labels": "task, phase-3, prio-high, network, tooling, human-found",
+      "ready": false,
+      "detail_fields": [
+        "code_review",
+        "fix_result",
+        "handoff",
+        "note",
+        "producer_close",
+        "qa_verdict"
+      ]
+    },
+    {
+      "id": "TK-P3-11",
+      "phase": "Phase 3",
+      "milestone": "M3 First Playtest",
+      "title": "tests/net bot harness: wire the new dedicated-host no-self-spawn flag (TK-P3-10) into --role=host so the host process never has an idle, softlock-prone Player of its own",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "tools-devops",
+      "status": "done",
+      "depends_on": [
+        "TK-P3-10"
+      ],
+      "labels": "task, phase-3, prio-high, test, tooling, human-found",
+      "ready": false,
+      "detail_fields": [
+        "code_review",
+        "fix_result",
+        "handoff",
+        "note"
+      ]
+    }
+  ]
+}

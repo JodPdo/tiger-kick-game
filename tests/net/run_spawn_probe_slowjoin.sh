@@ -44,11 +44,16 @@
 set -u
 
 GODOT_BIN="${GODOT_BIN:-C:/Tools/Godot/Godot_v4.7-stable_win64_console.exe}"
-PORT="${SPAWN_SLOWJOIN_PORT:-7781}"
 TIMEOUT="${SPAWN_SLOWJOIN_TIMEOUT:-45}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# SPAWN_SLOWJOIN_PORT wins if set; otherwise 7781 in the primary tree, or this
+# worktree's own band when running in parallel. See tests/net/_port_alloc.sh.
+# shellcheck source=tests/net/_port_alloc.sh
+. "$SCRIPT_DIR/_port_alloc.sh"
+PORT="$(tk_alloc_port "${SPAWN_SLOWJOIN_PORT:-}" 7781 "$REPO_ROOT" "SPAWN SLOWJOIN")"
 
 BASE_TMP="${TMPDIR:-${TMP:-/tmp}}"
 LOG_DIR="$(mktemp -d "$BASE_TMP/tigerkick_spawn_slowjoin.XXXXXX" 2>/dev/null || mktemp -d)"

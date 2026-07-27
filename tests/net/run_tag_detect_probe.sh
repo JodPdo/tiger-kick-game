@@ -40,12 +40,17 @@
 set -u
 
 GODOT_BIN="${GODOT_BIN:-C:/Tools/Godot/Godot_v4.7-stable_win64_console.exe}"
-PORT="${TAG_PROBE_PORT:-7780}"
 TIMEOUT="${TAG_PROBE_TIMEOUT:-35}"
 WAIT_SEC="${TAG_PROBE_WAIT_SEC:-25}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# TAG_PROBE_PORT wins if set; otherwise 7780 in the primary tree, or this
+# worktree's own band when running in parallel. See tests/net/_port_alloc.sh.
+# shellcheck source=tests/net/_port_alloc.sh
+. "$SCRIPT_DIR/_port_alloc.sh"
+PORT="$(tk_alloc_port "${TAG_PROBE_PORT:-}" 7780 "$REPO_ROOT" "TAG DETECT PROBE")"
 
 BASE_TMP="${TMPDIR:-${TMP:-/tmp}}"
 LOG_DIR="$(mktemp -d "$BASE_TMP/tigerkick_tag_detect_probe.XXXXXX" 2>/dev/null || mktemp -d)"
@@ -105,8 +110,10 @@ if kill -0 "$CLIENT_PID" 2>/dev/null; then
 fi
 
 # --- wait for both to finish (each bounded by its own --timeout) ---
-wait "$CLIENT_PID" 2>/dev/null
-CLIENT_EXIT=$?
+# The client was force-killed just above, so its exit status reports the signal
+# rather than anything about the run; it is deliberately not captured (see the
+# NOTE below). The host's exit code IS meaningful and is gated on.
+wait "$CLIENT_PID" 2>/dev/null || true
 wait "$HOST_PID"
 HOST_EXIT=$?
 

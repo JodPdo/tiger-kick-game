@@ -12,19 +12,25 @@
 #
 # Env overrides:
 #   GODOT_BIN         path to the Godot executable (default: local Windows console build)
-#   NET_SMOKE_PORT    ENet port to use (default: 7777)
+#   NET_SMOKE_PORT    ENet port to use (default: 7777 here, auto-shifted in a
+#                     parallel git worktree -- see tests/net/_port_alloc.sh)
 #   NET_SMOKE_TIMEOUT per-instance timeout in seconds (default: 10)
 
 set -u
 
 GODOT_BIN="${GODOT_BIN:-C:/Tools/Godot/Godot_v4.7-stable_win64_console.exe}"
-PORT="${NET_SMOKE_PORT:-7777}"
 ADDRESS="127.0.0.1"
 TIMEOUT="${NET_SMOKE_TIMEOUT:-10}"
 
 # Repo root = two levels up from this script (tests/net/..).
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# NET_SMOKE_PORT wins if set. Otherwise 7777 in the primary tree (and in CI),
+# or this worktree's own band so parallel agents never fight over the port.
+# shellcheck source=tests/net/_port_alloc.sh
+. "$SCRIPT_DIR/_port_alloc.sh"
+PORT="$(tk_alloc_port "${NET_SMOKE_PORT:-}" 7777 "$REPO_ROOT" "NET SMOKE")"
 
 # Transient logs go to the OS temp dir -- never into the repo working tree.
 BASE_TMP="${TMPDIR:-${TMP:-/tmp}}"
