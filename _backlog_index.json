@@ -482,6 +482,7 @@
       "labels": "task, phase-3, prio-medium",
       "ready": false,
       "detail_fields": [
+        "code_review",
         "fix_result",
         "handoff",
         "note"
