@@ -193,6 +193,24 @@ func on_activate_local(_ctx: Dictionary) -> void:
 func host_validate(ctx: Dictionary) -> Dictionary:
 	assert(multiplayer.is_server(), "KickAbility.host_validate must only ever run on the host (design doc section 4a)")
 
+	# TK-BUG-P3-02 consistency fix (gameplay-engineer): the human's bug report
+	# for TagAbility's own identical gap explicitly flagged Kick's
+	# stagger-applying path too, "for consistency/future-proofing", even
+	# though it was not observed racing in the trace that filed the bug --
+	# Kick never changes who is the Tiger/round count, so this is not the
+	# TK-BUG-P3-03 off-by-one's concern, but a Kick (and the stagger it
+	# produces on every peer via on_confirmed() below) landing after the
+	# match has already broadcast MATCH_END is the same class of "stale
+	# ability outcome after match flow moved on" this bug card is about.
+	# GameManager may not exist in every scene this ability could theoretically
+	# run in (see _game_manager()'s own get_node_or_null doc below) -- fail
+	# OPEN (do not block Kick) if it is missing, rather than newly requiring a
+	# GameManager for Kick to function at all; only reject on match_state once
+	# GameManager is confirmed present.
+	var gm: Node = _game_manager()
+	if gm != null and not gm.is_match_playing():
+		return {"ok": false, "reason": "match_not_playing", "result": null}
+
 	if not KickRules.can_fire(_host_last_fire_ms, cooldown_sec, Time.get_ticks_msec()):
 		return {"ok": false, "reason": "cooldown", "result": null}
 
@@ -363,4 +381,20 @@ func on_confirmed(result) -> void:
 func on_rejected(reason: String) -> void:
 	_owner_last_fire_ms = -1
 	GameLog.debug("[KICK] rejected: %s -- windup cancelled" % reason)
+
+
+## HOST-ONLY lookup (TK-BUG-P3-02): GameManager lives as a sibling of
+## Players/PlayerSpawner under world/TestArena.tscn's root -- reached the
+## exact same way TagAbility.gd's own _game_manager() already does (this
+## file's own host_validate() above already walks up to "Players" via
+## `_body.get_parent()`, one level further is the arena root). get_node_or_null
+## (not get_node) so a scene missing GameManager fails soft (null) into
+## host_validate()'s own explicit fail-open handling above, rather than an
+## uncaught engine error -- unlike TagAbility, Kick's own scope never
+## previously required GameManager to exist at all, so this new check must not
+## newly make Kick depend on it being present.
+func _game_manager() -> Node:
+	var players_root: Node = _body.get_parent()
+	var arena: Node = players_root.get_parent()
+	return arena.get_node_or_null("GameManager")
 

@@ -88,7 +88,33 @@ extends Control
 ## change_scene_to_file() is deferred, so a double-press (or a duplicate/
 ## retried RPC) must not queue two scene switches.
 ##
-## Reference: CLAUDE.md server authority; _backlog.json TK-P2-12, TK-P2-13.
+## TK-BUG-P3-01 fix (gameplay-engineer, S2 -- RPC/despawn race on the
+## MATCH_END -> WaitingRoom return trip, see managers/GameManager.gd's own
+## return_to_waiting_room() doc for the full root-cause writeup and the
+## primary fix, a client-side settle window that makes the host reliably
+## arrive at its fresh WaitingRoom scene first): as a belt-and-suspenders
+## complement, _ready() below no longer eagerly calls _broadcast_roster() when
+## peers are ALREADY connected at the moment this node enters the tree. That
+## eager broadcast is only ever safe in the ORIGINAL "just started hosting,
+## nobody has joined yet" flow (see ROSTER SYNC DESIGN above -- "the host-side
+## target of that hello RPC is never itself subject to the race" reasoning
+## ONLY holds because, in that flow, connections happen one at a time,
+## staggered, well after this host's own WaitingRoom already exists). The
+## RETURNING-from-Arena case is different: every peer is ALREADY connected and
+## switches scenes together, so an eager broadcast fired the instant THIS
+## machine's own WaitingRoom exists is a broadcast toward peers who may not
+## have reached THEIR OWN fresh WaitingRoom yet -- the exact node-path-cache-
+## poison class TK-BUG-P3-01 is about, just aimed the other direction. Instead,
+## when peers are already connected, this file relies entirely on each of
+## THEIR OWN unconditional _rpc_client_hello() calls (sent the moment EACH
+## client's own WaitingRoom exists -- always eventually true, and per
+## GameManager's settle-window fix, always AFTER this host's own WaitingRoom
+## already exists) to trigger a correctly-targeted-enough roster broadcast;
+## _on_peer_connected()/_on_peer_disconnected() below (unchanged) remain a
+## further fallback for the ordinary staggered-join/leave case.
+##
+## Reference: CLAUDE.md server authority; _backlog.json TK-P2-12, TK-P2-13,
+## TK-BUG-P3-01.
 
 const MAIN_MENU_SCENE: String = "res://ui/MainMenu.tscn"
 
@@ -141,9 +167,20 @@ func _ready() -> void:
 	_configure_start_button()
 
 	if NetworkManager.is_host():
-		# Host is the source of truth -- build + broadcast (call_local also
-		# updates this same node UI, see class doc).
-		_broadcast_roster()
+		if NetworkManager.get_connected_peer_ids().is_empty():
+			# Fresh hosting, nobody connected yet -- safe, no race (see class
+			# doc TK-BUG-P3-01 note). Host is the source of truth -- build +
+			# broadcast (call_local also updates this same node UI).
+			_broadcast_roster()
+		else:
+			# TK-BUG-P3-01 fix: peers are ALREADY connected (the
+			# returning-from-Arena case, or a 2nd-ever WaitingRoom visit with
+			# an existing session) -- do NOT eagerly broadcast here (see class
+			# doc note for why). Each already-connected peer's own
+			# _rpc_client_hello() (below, sent unconditionally from THEIR OWN
+			# WaitingRoom._ready()) will trigger a correctly-timed roster
+			# broadcast once it arrives.
+			pass
 	else:
 		# Client-hello handshake (see class doc SCENE-CHANGE RACE): asks
 		# the host to re-send the current roster now that this node exists.

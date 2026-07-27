@@ -145,7 +145,11 @@ extends Node
 ## instead of a new GameManager signal). This is explicitly NOT a durable design
 ## decision -- TK-P3-04 (GDD Open Questions, balance tuning from real playtest
 ## data) owns picking the real match-end feel (fixed rounds vs. a total match
-## timer vs. something else entirely).
+## timer vs. something else entirely). NOTE (TK-BUG-P3-03): the paragraph above
+## still accurately describes how a "round" is COUNTED -- it no longer
+## describes when the match actually ENDS. That decision moved to
+## try_reserve_next_round() (see the "TK-BUG-P3-01/02/03" doc section further
+## below and that method's own doc) -- see there for the current mechanism.
 ##
 ## AUTOLOAD-VS-SCENE-LOCAL DECISION (open question carried forward from the
 ## original TK-P2-03 architect ruling / design doc §8a, explicitly required to
@@ -178,6 +182,63 @@ extends Node
 ## exactly that class of bug). Per this card's own instruction, this decision is
 ## recorded here AND in the card's own `notes` in `_backlog.json` -- NOT escalated
 ## to architect, since (a) is not the call being made.
+##
+## TK-BUG-P3-01/02/03 (gameplay-engineer, bug fixes -- filed from a human's
+## CASE E bot-harness run, 2026-07-26, tests/net/run_bot_outer.sh, 3 players
+## host+2bots): all three fix the MATCH_END edge this class doc's "FLOW"
+## section above describes, which had never been live-exercised until that
+## run (TK-P2-15's own human 2-instance pass only reached CASE D "N=1 rounds
+## early", never actually drove a full multi-round match to its real end with
+## live Tag exchanges). See each fix's own doc at its call site below for the
+## full root-cause writeup; summarized here for the class doc's own
+## completeness:
+##
+## TK-BUG-P3-01 (S2, RPC/despawn race on the MATCH_END -> WaitingRoom scene
+## switch): return_to_waiting_room() below now makes the HOST switch scenes
+## immediately (unchanged timing) while every CLIENT deliberately waits
+## CLIENT_RETURN_TO_WAITING_ROOM_SETTLE_SEC before switching ITS OWN copy --
+## see that const's own doc and return_to_waiting_room()'s own doc for the
+## full "why a settle window, and why this direction" reasoning (mirrors, in
+## reverse, the SAME node-path-cache-poison class networking/PlayerSpawner.gd's
+## own "Readiness barrier" class doc documents at length for the FORWARD
+## WaitingRoom -> Arena edge).
+##
+## TK-BUG-P3-02 (S2, a Tag Sequence could start-and-complete a full role swap
+## + RoundManager round-restart AFTER match_state had already flipped to
+## MATCH_END): TagAbility.host_validate() now rejects a Tag the instant
+## match_state leaves PLAYING (the earliest choke point, via the new
+## is_match_playing() accessor below); start_tag_sequence()/_run_sequence()
+## below add the SAME class of gate as defense-in-depth (mirroring the
+## existing can_start_sequence() "should be unreachable in practice" guard).
+## RoundManager.gd (see that file's own class doc for the specific coupling
+## decision) now ALSO stops ticking and refuses to broadcast a timeout-driven
+## round-restart once match_state leaves PLAYING, via the same
+## is_match_playing()/try_reserve_next_round() accessors -- a deliberate, new,
+## minimal READ-ONLY coupling from RoundManager to GameManager (RoundManager
+## previously had ZERO GameManager awareness by design; this bug is exactly
+## the scenario that design gap allowed through, so the coupling is warranted
+## here, not silently avoided).
+##
+## TK-BUG-P3-03 (off-by-one, confirmed live -- was already a non-blocking nit
+## on this card's own code_review N1): the OLD match-end trigger incremented
+## _round_count THEN immediately compared it against rounds_per_match in the
+## SAME handler that had just announced the new round starting, so the FINAL
+## round (round rounds_per_match) got zero play time -- with rounds_per_match=3,
+## only rounds 1-2 actually played. FIX (semantic fix, option (a) from the
+## card): the round-end decision moved OFF the reactive role_changed watcher
+## (_on_any_player_role_changed_for_match_end() below is now a pure OBSERVER/
+## counter again, deciding nothing) and ONTO a new PRE-round-start gate,
+## try_reserve_next_round() below, which start_tag_sequence()/_run_sequence()
+## (and RoundManager's own timeout path) must now call BEFORE performing the
+## swap that would create a NEW round. When the round cap has ALREADY been
+## reached, try_reserve_next_round() refuses the swap AND triggers
+## _end_match() right there instead -- so the (rounds_per_match+1)th round
+## never starts at all (no phantom Tiger, no wasted swap-then-immediately-
+## undone), and every one of the rounds_per_match rounds that DID start gets
+## to fully play out to its own natural conclusion (a tag or a timeout) before
+## the match ends. This single mechanism unifies with the TK-BUG-P3-02 fix
+## above -- "is a new round currently allowed to start" is now the ONE
+## question both bugs needed answered at the SAME checkpoint.
 
 ## Seconds the stub throw-to-ground step "plays" before the transform stub
 ## starts. Placeholder pending TK-P4-0x real animation -- @export so
@@ -266,6 +327,23 @@ const SAFE_CIRCLE_CORRECTION_TOLERANCE_M: float = 0.05
 ## call sites).
 const WAITING_ROOM_SCENE: String = "res://ui/WaitingRoom.tscn"
 
+## TK-BUG-P3-01 fix: seconds a CLIENT (never the host) deliberately waits,
+## after receiving return_to_waiting_room()'s broadcast, before switching ITS
+## OWN copy of this scene away from the arena -- see that method's own doc for
+## the full "why a settle window, and why only clients wait" reasoning. Sized
+## generously relative to how long even a slow host needs to (a) free the old
+## TestArena scene (a handful of lightweight nodes) and (b) instantiate +
+## _ready() the new, equally lightweight ui/WaitingRoom.tscn Control scene --
+## both comfortably sub-100ms in practice -- so this window gives the host a
+## LARGE, deterministic head start into the new scene rather than relying on
+## the "host enters first" call_local-timing assumption alone (which the
+## TK-BUG-P3-01 trace showed is NOT reliable across a windowed host vs a
+## headless/unthrottled bot client -- see that fix's own doc). A `const`, not
+## an `@export`, same "network-timing safety margin, not a design-owned
+## value" reasoning SAFE_CIRCLE_CORRECTION_TOLERANCE_M above already
+## documents for itself.
+const CLIENT_RETURN_TO_WAITING_ROOM_SETTLE_SEC: float = 0.5
+
 ## TK-P2-15: fires whenever set_match_state() actually applies a (possibly
 ## no-op) transition, carrying the new MatchStateRules.State value. No
 ## subscriber exists yet in this card's scope (a HUD match-state indicator is
@@ -290,10 +368,13 @@ var match_state: MatchStateRules.State = MatchStateRules.State.WAITING_ROOM
 ## _first_tiger_assigned's own idempotency-guard shape below).
 var _countdown_started: bool = false
 
-## HOST-ONLY (TK-P2-15). How many rounds (Tiger-assignment transitions while
-## match_state == PLAYING) have been observed so far this match -- see class
-## doc "MATCH-END TRIGGER". Compared against rounds_per_match to decide when
-## to end the match.
+## HOST-ONLY (TK-P2-15, decision moved off this counter by TK-BUG-P3-03). How
+## many rounds (Tiger-assignment transitions while match_state == PLAYING)
+## have STARTED so far this match -- see class doc "MATCH-END TRIGGER". Read
+## by try_reserve_next_round() (the actual match-end DECISION point since
+## TK-BUG-P3-02/03) to determine whether one more round is still allowed to
+## start; this counter itself no longer decides anything, it is purely an
+## observation incremented by _on_any_player_role_changed_for_match_end().
 var _round_count: int = 0
 
 ## HOST-ONLY (TK-P2-15). Guards return_to_waiting_room() the same way
@@ -301,6 +382,17 @@ var _round_count: int = 0
 ## change_scene_to_file() is deferred, so a duplicate/retried reliable RPC
 ## must not queue two scene switches.
 var _match_ended_locally: bool = false
+
+## HOST-ONLY (TK-BUG-P3-02/03). Guards _end_match() itself (a step EARLIER
+## than _match_ended_locally above, which only guards the scene switch at the
+## END of _end_match()'s coroutine) -- try_reserve_next_round() below can, in
+## principle, be reached twice in quick succession for the SAME "final round
+## just concluded" moment (e.g. a Tag Sequence's swap-gate and RoundManager's
+## own timeout-gate both discovering the cap has been reached), and this stops
+## a second _end_match() call from re-logging/re-broadcasting MATCH_END or
+## re-arming a second match_end_grace_sec wait -- same one-shot-guard shape as
+## every other _started/_assigned/_ended_locally flag on this file.
+var _match_ending: bool = false
 
 ## Cached "CountdownManager" sibling (TK-P2-14, managers/CountdownManager.gd)
 ## under this node's parent (world/TestArena.tscn's root) -- same
@@ -639,7 +731,7 @@ func _on_player_spawned_watch_match_end(node: Node) -> void:
 	_watch_player_role_for_match_end(node)
 
 
-## The match-end round counter (see class doc "MATCH-END TRIGGER"). Counts
+## The match-end round COUNTER (see class doc "MATCH-END TRIGGER"). Counts
 ## every transition INTO Tiger while match_state == PLAYING, regardless of
 ## which of the three causes fired it (this file's own first-Tiger pick, this
 ## file's own Tag-Sequence role swap, or RoundManager's independent
@@ -650,6 +742,19 @@ func _on_player_spawned_watch_match_end(node: Node) -> void:
 ## WAITING_ROOM/COUNTDOWN/MATCH_END in this card's scope, but the guard keeps
 ## this correct if a future card ever changes that) so a stray/edge-case role
 ## flip can never accidentally end a match early.
+##
+## TK-BUG-P3-03 fix: this handler is now a PURE OBSERVER -- it no longer
+## decides anything. It used to increment _round_count and immediately end the
+## match once the count reached rounds_per_match, in the SAME handler that had
+## just announced the new round starting -- which meant the FINAL round
+## (round rounds_per_match) got zero play time (see class doc). The decision
+## of whether a new round is even allowed to start has moved EARLIER, to
+## try_reserve_next_round() below, which start_tag_sequence()/_run_sequence()
+## (and RoundManager's own timeout path) call BEFORE performing the swap that
+## would cause this handler to fire in the first place. By the time this
+## handler runs, that gate has ALREADY approved the round -- this only keeps
+## the "how many rounds have started" count accurate for
+## try_reserve_next_round()'s own read and for log readability.
 func _on_any_player_role_changed_for_match_end(new_role: StringName, player: Node) -> void:
 	if match_state != MatchStateRules.State.PLAYING:
 		return
@@ -657,17 +762,78 @@ func _on_any_player_role_changed_for_match_end(new_role: StringName, player: Nod
 		return
 	_round_count += 1
 	GameLog.info("[MATCH] round %d/%d started (tiger=%s)" % [_round_count, rounds_per_match, player.name])
+
+
+## Read-only accessor (TK-BUG-P3-02), mirrors is_sequence_active()'s own
+## "the one piece of live GameManager state a caller cannot know on its own"
+## shape. True iff the match is currently in the PLAYING state -- used as the
+## EARLIEST choke point by TagAbility.host_validate()/KickAbility.host_validate()
+## (reject the ability activation itself before spending any further work on
+## it) and, as defense-in-depth, by start_tag_sequence() below (mirroring the
+## existing "should be unreachable in practice" posture the can_start_sequence()
+## check already documents). A Tag/Kick attempted after MATCH_END has already
+## broadcast (or before PLAYING has even begun) must be a silent, ordinary
+## rejection -- not a crash, not a state mutation.
+func is_match_playing() -> bool:
+	return match_state == MatchStateRules.State.PLAYING
+
+
+## HOST-ONLY (TK-BUG-P3-02/03). THE gate a caller that is about to perform a
+## role swap which would create a NEW round must pass BEFORE actually doing
+## so -- start_tag_sequence()/_run_sequence() below (right before apply_role_
+## switch.rpc()) and RoundManager's own timeout-driven round-restart (see that
+## file's own class doc for the coupling reasoning) both call this.
+##
+## Returns true ("go ahead, start the round") iff match_state == PLAYING AND
+## fewer than rounds_per_match rounds have started so far (_round_count is
+## the count of rounds that have ALREADY started -- see that var's own doc --
+## so this is deliberately a STRICT less-than: a would-be round number
+## rounds_per_match+1 is over the cap).
+##
+## Returns false in two DIFFERENT situations a caller does not need to tell
+## apart (both mean "do not perform the swap"), but which behave differently
+## as a SIDE EFFECT:
+##   - match_state is not PLAYING at all (already MATCH_END, or -- purely
+##     defensively -- some other state): a Tag/timeout arriving after the
+##     match has already ended is an ordinary too-late rejection, so this
+##     branch does NOT call _end_match() again (TK-BUG-P3-02's own core
+##     report -- a second match-end attempt must be a silent no-op, not
+##     re-triggered work).
+##   - match_state IS still PLAYING but the round cap has ALREADY been
+##     reached: this is EXACTLY the signal that the final round has just
+##     concluded (see class doc "MATCH-END TRIGGER") -- there is no other
+##     moment this file ever learns that fact. Triggers _end_match() as a
+##     deliberate side effect (idempotent via _match_ending) and returns
+##     false, so the caller refuses the swap instead of starting a round that
+##     would immediately need tearing back down (TK-BUG-P3-03's fix: the
+##     (rounds_per_match+1)th round never starts in the first place, so every
+##     round up to and including rounds_per_match gets to fully play out).
+func try_reserve_next_round() -> bool:
+	if match_state != MatchStateRules.State.PLAYING:
+		return false
 	if _round_count >= rounds_per_match:
 		_end_match()
+		return false
+	return true
 
 
-## HOST-ONLY: the MatchEnd trigger fired (see class doc "MATCH-END TRIGGER").
-## Broadcasts PLAYING -> MATCH_END immediately, then -- after
-## match_end_grace_sec -- broadcasts the scene switch back to the Waiting
-## Room (see return_to_waiting_room() below). Not awaited by any caller (this
-## runs from a signal handler, same "fire-and-forget coroutine" shape
-## _run_sequence()'s own await chain already uses in this file).
+## HOST-ONLY: the MatchEnd trigger fired (see class doc "MATCH-END TRIGGER" +
+## try_reserve_next_round() above, the ONE call site that decides to invoke
+## this since the TK-BUG-P3-03 fix). Broadcasts PLAYING -> MATCH_END
+## immediately, then -- after match_end_grace_sec -- broadcasts the scene
+## switch back to the Waiting Room (see return_to_waiting_room() below). Not
+## awaited by any caller (this runs from try_reserve_next_round(), itself
+## called synchronously from a signal-adjacent handler, same "fire-and-forget
+## coroutine" shape _run_sequence()'s own await chain already uses in this
+## file). Guarded by _match_ending (TK-BUG-P3-02/03) so a second call --
+## e.g. the Tag-Sequence gate and RoundManager's own timeout gate both
+## independently discovering the cap reached at nearly the same moment -- is a
+## clean no-op rather than a duplicate broadcast/wait.
 func _end_match() -> void:
+	if _match_ending:
+		return
+	_match_ending = true
+
 	GameLog.info("[MATCH] match-end trigger reached (%d/%d rounds) -- ending match" % [_round_count, rounds_per_match])
 	set_match_state.rpc(MatchStateRules.State.MATCH_END)
 	await get_tree().create_timer(match_end_grace_sec).timeout
@@ -685,13 +851,79 @@ func _end_match() -> void:
 ## match-scoped state (this instance's _round_count, _tiger_rng,
 ## _is_tag_sequence_active, ...) leaking into a future match -- see class doc
 ## "AUTOLOAD-VS-SCENE-LOCAL DECISION" point 3.
+##
+## TK-BUG-P3-01 fix (S2, RPC/despawn race -- see class doc's own summary):
+## the human's CASE E bot-harness trace showed the host and its bots do NOT
+## reliably agree on who reaches the fresh WaitingRoom scene first here, the
+## way networking/PlayerSpawner.gd's own class doc established for the
+## FORWARD WaitingRoom -> Arena edge (there, a synchronous UI-button-triggered
+## call_local reliably put the host first; here, the call chain runs through
+## an awaited SceneTreeTimer inside _end_match() first, and a headless/
+## unthrottled bot client can process its OWN deferred change_scene_to_file()
+## + fresh WaitingRoom._ready() considerably faster than a windowed host can
+## -- confirmed by the trace: the HOST's own console showed 'Node not found:
+## WaitingRoom', 'Failed to get path from RPC: WaitingRoom', and 'Invalid
+## packet received' right as a BOT's own _rpc_client_hello() (ui/WaitingRoom.gd,
+## sent unconditionally from that bot's OWN, already-arrived WaitingRoom._ready())
+## arrived targeting a WaitingRoom node that did not exist on the host YET --
+## the exact node-path-cache-poison mechanism networking/PlayerSpawner.gd's own
+## "Readiness barrier" doc describes at length, just hitting the OTHER side
+## this time. Separately, the bot's own console showed 3x despawn
+## ERR_UNAUTHORIZED: PlayerSpawner's automatic despawn-replication for the
+## freed TestArena Players (a side effect of the HOST's own scene teardown,
+## timed independently of any client) arrived AFTER that bot had ALREADY
+## locally freed its own copies of those same Player nodes as part of ITS OWN
+## (faster) scene switch.
+##
+## THE FIX -- same category of fix as PlayerSpawner's readiness barrier
+## (per the card's own instruction), applied to the return trip, but shaped
+## for what this specific direction actually needs: rather than a full
+## barrier+hello-ack round trip (which would need a channel that survives
+## the SAME scene switch it is coordinating -- see the "two WRONG attempts"
+## PlayerSpawner's own class doc documents, exactly the trap to avoid
+## re-laying here), the HOST switches ITS OWN copy of this scene IMMEDIATELY
+## (unchanged timing -- this is what lets its own PlayerSpawner-triggered
+## despawn replication go out at the EARLIEST possible moment), while every
+## CLIENT (the receiving side of this SAME call_local broadcast, running the
+## SAME function body) deliberately WAITS
+## CLIENT_RETURN_TO_WAITING_ROOM_SETTLE_SEC (a generous, deterministic settle
+## window -- see that const's own doc) before switching ITS OWN copy. This
+## makes "the host arrives at its fresh WaitingRoom first, by a comfortable
+## margin" TRUE BY CONSTRUCTION (rather than an unreliable side effect of
+## relative frame-processing speed), which fixes BOTH symptoms at once: (a)
+## every client's despawn packets (sent essentially immediately, unaffected by
+## this change) now have the settle window's worth of extra time to arrive and
+## apply BEFORE that client's own local teardown could possibly race them, and
+## (b) every client's own _rpc_client_hello() (sent from ITS OWN, now
+## deliberately-later WaitingRoom._ready()) is now guaranteed to find the
+## host's WaitingRoom node already resolvable, so it can never again target a
+## not-yet-existing node on the host. ui/WaitingRoom.gd's own host-side
+## _ready() also stops eagerly broadcasting its OWN initial roster when peers
+## are already connected at that moment (the returning-from-Arena case) as a
+## belt-and-suspenders complement -- see that file's own doc for why.
 @rpc("authority", "call_local", "reliable")
 func return_to_waiting_room() -> void:
 	if _match_ended_locally:
 		return
 	_match_ended_locally = true
 
-	GameLog.info("[MATCH] match over -- returning to %s" % WAITING_ROOM_SCENE)
+	if multiplayer.is_server():
+		GameLog.info("[MATCH] match over -- returning to %s" % WAITING_ROOM_SCENE)
+		_switch_to_waiting_room()
+	else:
+		# CLIENT settle window (see this method's own doc above) -- deliberately
+		# NOT the host, which must switch immediately (unchanged timing) so its
+		# own despawn replication goes out as early as possible.
+		GameLog.info("[MATCH] match over -- waiting %.2fs before returning to %s (host-arrives-first settle window, TK-BUG-P3-01)" % [CLIENT_RETURN_TO_WAITING_ROOM_SETTLE_SEC, WAITING_ROOM_SCENE])
+		await get_tree().create_timer(CLIENT_RETURN_TO_WAITING_ROOM_SETTLE_SEC).timeout
+		_switch_to_waiting_room()
+
+
+## Shared local scene-switch, extracted so both branches of
+## return_to_waiting_room() above (immediate host / settled client) go
+## through the exact same push_warning-on-error handling rather than
+## duplicating it.
+func _switch_to_waiting_room() -> void:
 	var err: Error = get_tree().change_scene_to_file(WAITING_ROOM_SCENE)
 	if err != OK:
 		push_warning("[MATCH] failed to switch to %s (error %d)" % [WAITING_ROOM_SCENE, err])
@@ -720,6 +952,15 @@ func start_tag_sequence(tiger_id: int, target_id: int) -> void:
 		# branch should be unreachable in practice; fail loudly rather than
 		# silently double-run a sequence if it ever is.
 		GameLog.error("[TAG-SEQ] start_tag_sequence called while a sequence is already active -- ignoring (tiger=%d target=%d)" % [tiger_id, target_id])
+		return
+
+	if not is_match_playing():
+		# Defense in depth (TK-BUG-P3-02) -- TagAbility.host_validate() already
+		# rejects a new Tag once match_state has left PLAYING (the earliest
+		# choke point), so this branch should be unreachable in practice too;
+		# same "fail loudly rather than silently proceed" posture as the
+		# can_start_sequence() guard immediately above.
+		GameLog.error("[TAG-SEQ] start_tag_sequence called while match_state=%s (not PLAYING) -- ignoring (tiger=%d target=%d)" % [MatchStateRules.state_name(match_state), tiger_id, target_id])
 		return
 
 	_is_tag_sequence_active = true
@@ -753,6 +994,22 @@ func _run_sequence(tiger_id: int, target_id: int) -> void:
 	# real transform VFX/SFX once Phase 4 polish lands.
 	GameLog.info("[TAG-SEQ] step3 transform-effect (stub, %.1fs)" % transform_stub_sec)
 	await get_tree().create_timer(transform_stub_sec).timeout
+
+	# TK-BUG-P3-02/03 gate: is a NEW round (the swap below would create one)
+	# still allowed to start? Checked HERE -- right before the swap, after
+	# steps 2-3's stub animations have already played out -- rather than at
+	# the top of start_tag_sequence(), so the grab/throw/transform feedback
+	# still plays for the tag that concludes the FINAL round before the match
+	# ends (see try_reserve_next_round()'s own doc for the full reasoning,
+	# including why a false here may itself trigger _end_match()). A refusal
+	# here means EITHER the match already ended while steps 2-3 were playing
+	# (TK-BUG-P3-02) OR this swap would be the (rounds_per_match+1)th round
+	# (TK-BUG-P3-03, off-by-one fix) -- either way, no swap happens, only the
+	# lock is released.
+	if not try_reserve_next_round():
+		GameLog.info("[TAG-SEQ] refusing role swap: match no longer accepting new rounds (state=%s, round %d/%d) -- old=%d new=%d" % [MatchStateRules.state_name(match_state), _round_count, rounds_per_match, tiger_id, target_id])
+		_is_tag_sequence_active = false
+		return
 
 	# Steps 4+5: tagged player becomes the new Tiger, old Tiger becomes Outer
 	# -- both resolved by the SAME broadcast (design doc section 5 step 1:

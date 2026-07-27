@@ -29,6 +29,9 @@ extends GutTest
 const KickRulesScript := preload("res://characters/abilities/KickRules.gd")
 const KickAbilityScript := preload("res://characters/abilities/KickAbility.gd")
 const PlayerScene := preload("res://characters/Player.tscn")
+const GameManagerScript := preload("res://managers/GameManager.gd")
+const CountdownManagerScript := preload("res://managers/CountdownManager.gd")
+const MatchStateRulesScript := preload("res://managers/MatchStateRules.gd")
 
 
 # --- KickRules.is_in_range (pure) ------------------------------------------
@@ -191,6 +194,93 @@ func test_host_validate_never_substitutes_an_in_range_outer_when_no_tiger_is_rea
 	assert_false(verdict.get("ok", false),
 		"no Tiger is in range -- an in-range Outer must never be accepted as a substitute target")
 	assert_eq(verdict.get("reason"), "no_target_in_range")
+
+
+# --- KickAbility.host_validate match-state gate (TK-BUG-P3-02 consistency) --
+# The human's bug report for TagAbility's own identical gap explicitly flagged
+# Kick's stagger-applying path too, "for consistency/future-proofing" -- see
+# characters/abilities/KickAbility.gd's own doc on _game_manager()/the new
+# host_validate() gate. Unlike the role-filter tests above (a bare
+# "_kick_players_root", no arena needed), KickAbility._game_manager() walks up
+# to _kick_players_root's PARENT looking for a "GameManager" sibling -- so
+# these two tests build a full mirror of world/TestArena.tscn's own shape (an
+# arena root with "Players"/"CountdownManager"/"GameManager" children, exactly
+# tests/test_match_end_flow.gd's own _build_arena()/_add_game_manager() shape)
+# rather than reusing _kick_players_root directly, so GameManager's own
+# host-only _ready() (which DOES run for real here, unlike this file's other
+# tests) resolves its own sibling lookups without crashing.
+
+func _build_kick_arena_with_game_manager(match_state: int) -> Node:
+	var arena := Node3D.new()
+	add_child_autofree(arena)
+	var players := Node3D.new()
+	players.name = "Players"
+	arena.add_child(players)
+	var countdown := CountdownManagerScript.new()
+	countdown.name = "CountdownManager"
+	arena.add_child(countdown)
+	var gm := GameManagerScript.new()
+	gm.name = "GameManager"
+	arena.add_child(gm)
+	# _ready() (0 Players present at that moment) armed the match-ready watch
+	# -- suppress it (this test drives match_state directly, same "not this
+	# card's scope" reasoning tests/test_match_end_flow.gd's own
+	# _add_game_manager() helper documents) before spawning any candidates.
+	gm._countdown_started = true
+	gm.match_state = match_state
+	return arena
+
+
+func test_host_validate_rejects_a_kick_once_the_match_has_ended() -> void:
+	var arena: Node = _build_kick_arena_with_game_manager(MatchStateRulesScript.State.MATCH_END)
+	_kick_players_root = arena.get_node("Players")
+
+	_kick_kicker = _spawn_kick_candidate("1", ROLE_OUTER, Vector3.ZERO)
+	_spawn_kick_candidate("2", ROLE_TIGER, Vector3(1.0, 0, 0))
+
+	var ability_controller: Node = _kick_kicker.get_node("AbilityController")
+	var kick_ability: KickAbility = ability_controller._abilities[&"kick"]
+
+	var verdict: Dictionary = kick_ability.host_validate({"sender_id": 1})
+
+	assert_false(verdict.get("ok", false), "a Kick attempted after MATCH_END must be rejected")
+	assert_eq(verdict.get("reason"), "match_not_playing")
+
+
+func test_host_validate_still_accepts_a_kick_while_playing_with_a_gamemanager_present() -> void:
+	var arena: Node = _build_kick_arena_with_game_manager(MatchStateRulesScript.State.PLAYING)
+	_kick_players_root = arena.get_node("Players")
+
+	_kick_kicker = _spawn_kick_candidate("1", ROLE_OUTER, Vector3.ZERO)
+	var tiger: CharacterBody3D = _spawn_kick_candidate("2", ROLE_TIGER, Vector3(1.0, 0, 0))
+
+	var ability_controller: Node = _kick_kicker.get_node("AbilityController")
+	var kick_ability: KickAbility = ability_controller._abilities[&"kick"]
+
+	var verdict: Dictionary = kick_ability.host_validate({"sender_id": 1})
+
+	assert_true(verdict.get("ok", false), "match is PLAYING -- must not block an otherwise-legal kick")
+	assert_eq(String(verdict.get("result", {}).get("target_id")), String(tiger.name))
+
+
+func test_host_validate_still_accepts_a_kick_when_no_gamemanager_exists_in_the_scene() -> void:
+	# Fail-OPEN when GameManager is simply absent (see KickAbility._game_manager()'s
+	# own doc) -- Kick must not newly REQUIRE a GameManager to function; every
+	# OTHER test in this file (predating this gate) relies on exactly this,
+	# using the bare _kick_players_root shape (no arena/GameManager at all).
+	_kick_players_root = Node3D.new()
+	add_child_autofree(_kick_players_root)
+
+	_kick_kicker = _spawn_kick_candidate("1", ROLE_OUTER, Vector3.ZERO)
+	var tiger: CharacterBody3D = _spawn_kick_candidate("2", ROLE_TIGER, Vector3(1.0, 0, 0))
+
+	var ability_controller: Node = _kick_kicker.get_node("AbilityController")
+	var kick_ability: KickAbility = ability_controller._abilities[&"kick"]
+
+	var verdict: Dictionary = kick_ability.host_validate({"sender_id": 1})
+
+	assert_true(verdict.get("ok", false), "no GameManager present -- must not block an otherwise-legal kick")
+	assert_eq(String(verdict.get("result", {}).get("target_id")), String(tiger.name))
 
 
 # --- KickAbility.on_confirmed() Kick Stagger targeting (TK-BUG-P2-01 bug fix)

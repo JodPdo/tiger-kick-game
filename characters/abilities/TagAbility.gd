@@ -123,15 +123,19 @@ func on_activate_local(_ctx: Dictionary) -> void:
 ## reached via AbilityController._host_process_request(), same invariant
 ## KickAbility.host_validate()'s own assert documents.
 ##
-## Order of checks (per the card): (1) re-trigger guard -- reject
-## "sequence_active" while GameManager reports a Tag Sequence already running
-## (mandatory, see class doc above); (2) this ability's OWN cooldown ledger;
-## (3) target selection, delegated to TagRules.nearest_candidate() (TK-P2-02,
-## unchanged) fed by this Tiger's own TagDetector.get_candidates_in_range()
-## (TK-P2-02, unchanged) -- thin shell around pure statics, same
-## "host_validate does the two things that NEED a live scene tree, hands the
-## actual decision to a pure static" split KickAbility.host_validate()
-## documents.
+## Order of checks (per the card, extended by TK-BUG-P3-02): (0) match-state
+## gate -- reject "match_not_playing" the instant match_state has left PLAYING
+## (the EARLIEST choke point per the bug card's own instruction -- a Tag
+## attempted after MATCH_END has already broadcast, or before PLAYING has even
+## begun, must never even reach the re-trigger/cooldown/target checks below);
+## (1) re-trigger guard -- reject "sequence_active" while GameManager reports
+## a Tag Sequence already running (mandatory, see class doc above); (2) this
+## ability's OWN cooldown ledger; (3) target selection, delegated to
+## TagRules.nearest_candidate() (TK-P2-02, unchanged) fed by this Tiger's own
+## TagDetector.get_candidates_in_range() (TK-P2-02, unchanged) -- thin shell
+## around pure statics, same "host_validate does the two things that NEED a
+## live scene tree, hands the actual decision to a pure static" split
+## KickAbility.host_validate() documents.
 func host_validate(ctx: Dictionary) -> Dictionary:
 	assert(multiplayer.is_server(), "TagAbility.host_validate must only ever run on the host (design doc section 4a)")
 
@@ -144,6 +148,15 @@ func host_validate(ctx: Dictionary) -> Dictionary:
 		# closed rather than let host_apply() crash on a null GameManager.
 		GameLog.error("[TAG] host_validate: no GameManager found under the arena -- rejecting (scene setup bug?)")
 		return {"ok": false, "reason": "no_game_manager", "result": null}
+
+	if not gm.is_match_playing():
+		# TK-BUG-P3-02 fix: a Tag Sequence could previously start (and fully
+		# complete: role swap + RoundManager round-restart) after match_state
+		# had already flipped to MATCH_END, because nothing here ever checked
+		# match_state at all -- only the re-trigger lock below was checked.
+		# Rejecting here, before that lock check, is the earliest possible
+		# choke point.
+		return {"ok": false, "reason": "match_not_playing", "result": null}
 
 	if gm.is_sequence_active():
 		return {"ok": false, "reason": "sequence_active", "result": null}

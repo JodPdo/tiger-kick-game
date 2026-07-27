@@ -86,6 +86,39 @@ extends Node
 ## as a Phase 2 placeholder -- GDD 9 leaves the whole round-end feel open for
 ## Phase 3 tuning; TK-P3-04 may revisit (uniform-random or a weighted
 ## not-recently-Tiger bias) once real playtesting data exists.
+##
+## TK-BUG-P3-02/03 (gameplay-engineer, bug fix -- NEW, deliberate GameManager
+## coupling): a human's CASE E bot-harness run (2026-07-26) found that a Tag
+## Sequence could start-and-complete a role swap AFTER managers/GameManager.gd's
+## own match_state had already flipped to MATCH_END, plus a related off-by-one
+## where the FINAL round of a match got zero play time. Both bugs share one
+## root cause: nothing anywhere ever asked "is a new round still allowed to
+## start" BEFORE actually starting one. This file's own timeout-driven
+## round-restart (_on_round_timeout() below) has EXACTLY the same exposure as
+## the Tag Sequence did -- if the round timer expires during GameManager's
+## match_end_grace_sec window (entirely possible with a short round_duration_sec
+## test session, or even in ordinary play near a match's natural end), this
+## file would broadcast start_new_round() and create a round GameManager never
+## agreed to. Per this file's own longstanding "reuse the existing
+## role_changed hook rather than touch a proven, reviewed, live-RPC file"
+## discipline (see "ROUND-START / ROUND-RESET TRIGGER" above) -- that
+## discipline was ABOUT AVOIDING UNNECESSARY coupling, not avoiding NECESSARY
+## coupling. This bug is precisely the scenario RoundManager's previous ZERO
+## GameManager-awareness allowed through, so a NEW, deliberate, MINIMAL,
+## READ-ONLY coupling is warranted here (recorded per this repo's own
+## architecture-decision-adjacent discipline, mirroring managers/GameManager.gd's
+## own "AUTOLOAD-VS-SCENE-LOCAL DECISION" precedent for a "decide deliberately,
+## don't silently avoid or silently add" call): this file now reads (never
+## writes) GameManager's `is_match_playing()`/`try_reserve_next_round()`
+## accessors via a new `_game_manager` sibling lookup (see below), exactly the
+## same "reach a sibling via a relative NodePath" pattern `_players_root`
+## already uses. Nothing here calls back INTO GameManager beyond those two
+## read-oriented accessors (try_reserve_next_round() has the SAME
+## may-trigger-_end_match()-as-a-side-effect shape whichever caller -- Tag or
+## timeout -- happens to discover the cap has been reached); RoundManager still
+## owns 100% of its own timer/re-pick logic and GameManager still owns 100% of
+## match_state -- this is a read-only DEPENDENCY, not a merge of the two
+## managers' scopes.
 
 ## Design-owned tunable (Game_Balance.md "Round length: 3-5 minutes", sourced
 ## "GDD (yet unset)" -- exact value NOT yet locked by design). @export per
@@ -99,6 +132,18 @@ extends Node
 ## same relative-lookup pattern as managers/GameManager.gd's own
 ## _players_root.
 @onready var _players_root: Node = get_node("../Players")
+
+## Cached "GameManager" sibling (TK-BUG-P3-02/03, see class doc for the
+## coupling reasoning) -- same relative-lookup pattern as _players_root above.
+## SIBLING ORDER NOTE: this file is placed BEFORE GameManager in
+## world/TestArena.tscn (see class doc "SIBLING ORDER MATTERS"), but that only
+## constrains _ready() EXECUTION order, not node EXISTENCE -- by the time
+## ANY sibling's _ready() runs, the whole scene's node tree already exists
+## (a single scene instantiation adds every child synchronously before any of
+## their _ready() calls fire), so this @onready get_node() resolves safely
+## regardless of sibling order, the same way GameManager's own @onready
+## `_countdown_manager` lookup already relies on.
+@onready var _game_manager: Node = get_node("../GameManager")
 
 ## HOST-ONLY. Seconds elapsed in the CURRENT Tiger's reign. Reset to 0.0
 ## every time any Player's role becomes Tiger (see
@@ -183,10 +228,19 @@ func _on_any_player_role_changed(new_role: StringName, player: Node) -> void:
 ## HOST-ONLY: accumulates elapsed time for the current Tiger's reign and
 ## checks the round-end condition every physics tick. Mirrors
 ## GameManager._physics_process()'s own is_server() gate.
+##
+## TK-BUG-P3-02/03 fix: also stops ticking once GameManager reports the match
+## is no longer PLAYING (see class doc for the coupling reasoning) -- without
+## this, the round timer would keep accumulating (and could still time out)
+## during GameManager's own match_end_grace_sec window, or before PLAYING even
+## begins, and _on_round_timeout() would try to start a round GameManager
+## never agreed to.
 func _physics_process(delta: float) -> void:
 	if not multiplayer.is_server():
 		return
 	if not _round_running:
+		return
+	if not _game_manager.is_match_playing():
 		return
 
 	_elapsed_sec += delta
@@ -202,6 +256,20 @@ func _physics_process(delta: float) -> void:
 ## GameManager.apply_role_switch, so the host's own copy also applies the
 ## result instead of being special-cased.
 func _on_round_timeout() -> void:
+	if not _game_manager.try_reserve_next_round():
+		# TK-BUG-P3-02/03: either the match ended out from under this timeout
+		# (extremely unlikely given the _physics_process() gate above already
+		# stops ticking once match_state leaves PLAYING, but checked here too
+		# as the authoritative gate -- same "belt and suspenders" posture this
+		# file's own start_new_round() reset-before-call_local comment already
+		# uses) OR -- the actually-expected case -- this timeout IS the final
+		# round (rounds_per_match) concluding: try_reserve_next_round() has
+		# already triggered GameManager._end_match() as a side effect. Either
+		# way, no new round starts here.
+		GameLog.info("[ROUND] round timer expired but GameManager is not accepting a new round (match ending or already ended) -- not starting a new round")
+		_round_running = false
+		return
+
 	var ids: Array = _current_player_ids()
 	var new_tiger_id: int = TigerSelector.pick_first_tiger(ids, _round_rng, _current_tiger_id)
 	if new_tiger_id == TigerSelector.NO_ID:
