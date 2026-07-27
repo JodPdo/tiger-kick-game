@@ -45,8 +45,12 @@ enum Resolution { HOST_AUTHORITATIVE, LOCAL_ONLY }
 @export var input_action: StringName = &""
 
 ## Minimum seconds between activations. 0.0 = no cooldown. Design-owned per
-## ability; a later card (TK-P3-01) may upgrade this to a shared `.tres`
-## resource without changing this contract.
+## ability. TK-P3-01 (tools-devops): concrete abilities with a real cooldown
+## (KickAbility/PounceAbility/TagAbility) now source this from their own
+## per-ability `.tres` tuning Resource (see e.g.
+## characters/abilities/tuning/KickTuning.gd) in `_init()`, without changing
+## this base contract -- `cooldown_sec` itself stays a plain @export float
+## every caller reads directly, exactly as before.
 @export var cooldown_sec: float = 0.0
 
 ## See the Resolution doc-comment above. HOST_AUTHORITATIVE is the safe

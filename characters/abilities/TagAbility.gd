@@ -32,6 +32,15 @@ extends TigerAbility
 ## the sequence's full multi-second duration, not just one cooldown window.
 ## See managers/TagSequenceRules.can_start_sequence()'s own doc.
 
+## TK-P3-01 (tools-devops): the actual, externally-editable source of truth
+## for tag_range_m/cooldown_sec below is now this Resource, not the
+## class-level literals -- see characters/abilities/tuning/TagTuning.gd's
+## own class doc (and, for the full "why a Resource" investigation,
+## characters/abilities/tuning/KickTuning.gd's own class doc). Defaults to
+## the project's own placeholder asset; `_init()` below copies its fields
+## onto `tag_range_m`/`cooldown_sec` once, at construction.
+@export var tuning: TagTuning = preload("res://characters/abilities/tuning/tag_tuning.tres")
+
 ## Tag range, meters. @export (not hard-coded), same placeholder-tuning
 ## discipline as KickAbility.kick_range_m -- see
 ## characters/components/TagDetectorComponent.gd's own doc comment on why
@@ -40,6 +49,10 @@ extends TigerAbility
 ## default so the Tiger's grab range agrees with the sensor that fed this
 ## card's candidate list in the first place; NOT the same @export instance
 ## (they can be retuned independently once a designer actually locks values).
+## Kept as a plain @export (rather than removed) so this ability's external
+## contract is unchanged; the VALUE actually driving gameplay comes from
+## `tuning` above as of TK-P3-01 (see `_init()` below) -- edit
+## tuning/tag_tuning.tres, not this literal, to retune.
 @export var tag_range_m: float = 2.0
 
 ## Owner-side (predicted) cooldown ledger -- see can_activate()/
@@ -88,10 +101,13 @@ func _init() -> void:
 	# left-mouse-button as `kick` -- Tiger/Outer catalogs are mutually
 	# exclusive per role, so no input conflict; see
 	# AbilityController._unhandled_input's per-role `_abilities` iteration).
-	cooldown_sec = 0.6 # Placeholder, same value/rationale as KickAbility's own
-	# cooldown_sec -- no locked Game_Balance.md entry for Tag cooldown yet,
-	# tune Phase 3. @export so producer/designer can retune without touching
-	# code.
+	# TK-P3-01: cooldown_sec/tag_range_m are now sourced from `tuning` (see
+	# that @export var's own doc above) rather than a literal here -- edit
+	# tuning/tag_tuning.tres to retune, not this file. Same "defends against
+	# a hypothetical null tuning" guard KickAbility.gd's own _init() uses.
+	if tuning != null:
+		cooldown_sec = tuning.cooldown_sec
+		tag_range_m = tuning.tag_range_m
 	# resolution stays Ability's default (HOST_AUTHORITATIVE) -- Tag decides
 	# the game (design doc section 3 table: "Kick, Jump-Kick, Tag, Pounce --
 	# HOST"), so we deliberately do NOT override it here.

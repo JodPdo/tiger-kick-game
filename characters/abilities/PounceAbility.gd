@@ -43,10 +43,25 @@ extends TigerAbility
 ## ability-layer involvement at all). on_rejected() below is the one place
 ## genuinely different from Kick/Tag's own template -- see that method's doc.
 
+## TK-P3-01 (tools-devops): the actual, externally-editable source of truth
+## for every value below is now this Resource, not the class-level literals
+## sitting next to each @export var -- see
+## characters/abilities/tuning/PounceTuning.gd's own class doc (and, for the
+## full "why a Resource" investigation,
+## characters/abilities/tuning/KickTuning.gd's own class doc). Defaults to
+## the project's own placeholder asset; `_init()` below copies its fields
+## onto `pounce_speed_mps`/`pounce_duration_sec`/`cooldown_sec` once, at
+## construction.
+@export var tuning: PounceTuning = preload("res://characters/abilities/tuning/pounce_tuning.tres")
+
 ## Burst speed, m/s. Game_Balance.md section 4 locked-ish value (~8.0 m/s
 ## short burst) -- @export (not hard-coded) per CLAUDE.md's "expose
 ## design-owned tunables" rule, same as every other balance value in this
-## codebase, even though this one is closer to locked than most.
+## codebase, even though this one is closer to locked than most. Kept as a
+## plain @export (rather than removed) so this ability's external contract
+## is unchanged; the VALUE actually driving gameplay comes from `tuning`
+## above as of TK-P3-01 (see `_init()` below) -- edit
+## tuning/pounce_tuning.tres, not this literal, to retune.
 @export var pounce_speed_mps: float = 8.0
 
 ## Burst duration, seconds -- NOT specified anywhere in the docs (Game_
@@ -59,6 +74,8 @@ extends TigerAbility
 ## tag_range_m (2.0m) plus margin, without covering the ENTIRE Safe Circle
 ## radius (5.0m, MovementComponent.safe_circle_radius) in a single press,
 ## keeping Pounce a distance-closer, not a teleport across the whole circle.
+## TK-P3-01: same "kept for contract, actual value comes from `tuning`
+## above" posture as pounce_speed_mps's own doc.
 @export var pounce_duration_sec: float = 0.35
 
 ## Cooldown, seconds. Game_Balance.md section 4: "Cooldowns (Kick/Pounce) --
@@ -71,7 +88,9 @@ extends TigerAbility
 ## would let repeated Pounces effectively let the Tiger CHASE by spamming
 ## bursts, directly undermining the locked "hunt, not chase" intent this
 ## whole card exists to let the team feel-test. @export so producer/designer
-## can retune without touching code once real playtest data exists.
+## can retune without touching code once real playtest data exists. TK-P3-01:
+## same "kept for contract, actual value comes from `tuning` above" posture
+## as pounce_speed_mps's own doc.
 
 ## Cached parent Player body -- same @onready pattern as
 ## KickAbility/TagAbility's own _body (get_parent() is this ability's
@@ -137,9 +156,15 @@ func _init() -> void:
 	# Outer catalogs are mutually exclusive per role (AbilityController.
 	# _unhandled_input's per-role _abilities iteration), so only one of
 	# kick/tag/pounce is ever registered for a given Player at a time.
-	cooldown_sec = 2.0 # placeholder -- see the @export doc above
-	# (pounce_duration_sec) for why this is deliberately longer than Kick/
-	# Tag's 0.6s.
+	# TK-P3-01: pounce_speed_mps/pounce_duration_sec/cooldown_sec are now
+	# sourced from `tuning` (see that @export var's own doc above) rather
+	# than a literal here -- edit tuning/pounce_tuning.tres to retune, not
+	# this file. Same "defends against a hypothetical null tuning" guard
+	# KickAbility.gd's own _init() uses.
+	if tuning != null:
+		pounce_speed_mps = tuning.pounce_speed_mps
+		pounce_duration_sec = tuning.pounce_duration_sec
+		cooldown_sec = tuning.cooldown_sec
 	# resolution stays Ability's default (HOST_AUTHORITATIVE) -- Pounce
 	# decides the game the same "Kick, Jump-Kick, Tag, Pounce -- HOST" way
 	# Kick/Tag's own _init() docs cite (design doc section 3 resolution
