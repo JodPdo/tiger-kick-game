@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="PounceTuning" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://characters/abilities/tuning/PounceTuning.gd" id="1_pounce_tuning"]
+
+[resource]
+script = ExtResource("1_pounce_tuning")
+pounce_speed_mps = 8.0
+pounce_duration_sec = 0.35
+cooldown_sec = 2.0

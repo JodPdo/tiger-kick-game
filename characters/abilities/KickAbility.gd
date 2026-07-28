@@ -62,11 +62,28 @@ extends HumanAbility
 ## and evaluates every gate (ownership + role) against THAT resolved node --
 ## see on_confirmed()'s own doc for the full fix.
 
+## TK-P3-01 (tools-devops): the actual, externally-editable source of truth
+## for every value below is now this Resource, not the class-level literals
+## sitting next to each @export var -- see
+## characters/abilities/tuning/KickTuning.gd's own class doc for the full
+## "why a Resource, not just @export" investigation (short version: this
+## ability node is built at runtime via `Script.new()`, AbilityController/
+## AbilityCatalog, so it has no saved scene instance anywhere an Inspector
+## override could live -- a .tres does not need one). Defaults to the
+## project's own placeholder asset; `_init()` below copies its fields onto
+## `kick_range_m`/`cooldown_sec`/`stagger_duration_sec`/
+## `stagger_knockback_speed_mps` once, at construction, per design doc §2
+## ("อัปเกรดเป็น .tres ใน TK-P3-01 ได้โดยไม่แตะโครง").
+@export var tuning: KickTuning = preload("res://characters/abilities/tuning/kick_tuning.tres")
+
 ## Kick range, meters (Game_Balance.md: "Kick range | 1.5 m | proposed, tune
-## P3; host validate distance kicker<->tiger"). @export (not hard-coded) so
-## designer/producer can tune it in the Inspector once a real Kick ability
-## scene/values resource exists (TK-P3-01 upgrades tunables to .tres without
-## changing this contract, per design doc §2).
+## P3; host validate distance kicker<->tiger"). Kept as a plain @export
+## (rather than removed) so this ability's external contract -- every caller/
+## test reading `KickAbility.kick_range_m` directly -- is unchanged; the
+## VALUE actually driving gameplay comes from `tuning` above as of TK-P3-01
+## (see `_init()` below) -- edit tuning/kick_tuning.tres, not this literal,
+## to retune. The literal is kept numerically identical to tuning's own
+## default purely so there is only ever one real number to know.
 @export var kick_range_m: float = 1.5
 
 ## Kick Stagger duration, seconds (TK-P2-17, gameplay-engineer). Game_
@@ -94,7 +111,9 @@ extends HumanAbility
 ## (see kick_range_m/cooldown_sec's own docs above, and
 ## characters/abilities/PounceAbility.pounce_duration_sec's own doc for the
 ## closest precedent of an un-locked companion value sitting next to a
-## locked one). Picked equal to MovementComponent.tiger_walk_speed (4.0 m/s)
+## locked one). TK-P3-01: same "kept for contract, actual value comes from
+## `tuning` above" posture as kick_range_m's own doc. Picked equal to
+## MovementComponent.tiger_walk_speed (4.0 m/s)
 ## -- "slightly" pushed, not flung: decaying LINEARLY from this speed over
 ## 0.3s, the total knockback displacement averages out to roughly 0.6m
 ## (½ × 4.0 m/s × 0.3s), a noticeable shove without covering serious ground,
@@ -151,7 +170,19 @@ func _init() -> void:
 	# touching Ability's base declarations.
 	ability_id = &"kick"
 	input_action = &"kick"
-	cooldown_sec = 0.6 # Game_Balance.md: "Cooldowns (Kick/Pounce) | TBD | tune P3" -- 0.6s placeholder, tune later; @export so producer/designer can retune without touching code.
+	# TK-P3-01: cooldown_sec/kick_range_m/stagger_duration_sec/
+	# stagger_knockback_speed_mps are now sourced from `tuning` (see that
+	# @export var's own doc above) rather than a literal here -- edit
+	# tuning/kick_tuning.tres to retune, not this file. `tuning` defaults to
+	# a preloaded .tres so this is never null in practice; the guard exists
+	# purely so a hypothetical future caller that explicitly nulled `tuning`
+	# before construction (nothing in this codebase does) still gets the
+	# same placeholder values as a safe fallback rather than a crash.
+	if tuning != null:
+		cooldown_sec = tuning.cooldown_sec
+		kick_range_m = tuning.kick_range_m
+		stagger_duration_sec = tuning.stagger_duration_sec
+		stagger_knockback_speed_mps = tuning.stagger_knockback_speed_mps
 	# resolution stays Ability's default (HOST_AUTHORITATIVE) -- Kick decides
 	# the game (design doc §3 table: "Kick, Jump-Kick, Tag, Pounce -- HOST"),
 	# so we deliberately do NOT override it here.

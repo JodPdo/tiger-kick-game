@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="KickTuning" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://characters/abilities/tuning/KickTuning.gd" id="1_kick_tuning"]
+
+[resource]
+script = ExtResource("1_kick_tuning")
+kick_range_m = 1.5
+cooldown_sec = 0.6
+stagger_duration_sec = 0.3
+stagger_knockback_speed_mps = 4.0
