@@ -497,13 +497,14 @@
       "type": "task",
       "priority": "Medium",
       "owner_agent": "tools-devops",
-      "status": "review",
+      "status": "done",
       "depends_on": [
         "TK-P3-01"
       ],
       "labels": "task, phase-3, prio-medium",
       "ready": false,
       "detail_fields": [
+        "code_review",
         "fix_result",
         "handoff",
         "note"
@@ -527,7 +528,6 @@
       "labels": "task, phase-3, prio-medium",
       "ready": false,
       "blocked_by": [
-        "TK-P3-02",
         "TK-P3-12"
       ],
       "detail_fields": [
