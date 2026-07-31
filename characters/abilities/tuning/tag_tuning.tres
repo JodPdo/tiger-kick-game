@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="TagTuning" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://characters/abilities/tuning/TagTuning.gd" id="1_tag_tuning"]
+
+[resource]
+script = ExtResource("1_tag_tuning")
+tag_range_m = 2.0
+cooldown_sec = 0.6

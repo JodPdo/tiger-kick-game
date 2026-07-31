@@ -25,18 +25,29 @@
 ## 4. กลไกหลัก (ค่าเสนอ)
 | ค่า | เสนอ | สถานะ |
 |---|---|---|
-| **Safe Circle radius** | **5.0 m** | locked (balance value) — ⚠️ marker ใน `world/TestArena.tscn` (P0-05) วาดไว้ ~6.0 ต้อง reconcile ตอน TK-P2-06 |
+| **Safe Circle radius** | **5.0 m** | locked (balance value) — boundary logic ทำแล้วที่ TK-P2-06 (`characters/components/SafeCircleRules.gd`, host+owner clamp); marker ใน `world/TestArena.tscn` reconcile เป็น 5.0 แล้ว (outer_radius = 5.0, ตรงกับค่านี้) |
 | **Kick range** | 1.5 m | เสนอ (จูน P3; host validate ระยะ kicker↔tiger) |
+| **Jump impulse (jump_speed)** | 5.0 m/s | เสนอ (จูน P3; การ์ด TK-P2-10 — ยังไม่มีใน GDD) |
 | **Kick Stagger** | เสือเซ ~0.3s + ดันถอยเล็กน้อย (ห้าม stun เต็ม) | การ์ด TK-P2-17 |
 | **Pounce burst** | ~8 m/s ระยะสั้น | การ์ด TK-P2-18 (TigerAbility, HOST validate) |
 | **Round length** | 3–5 นาที | GDD (ยังไม่ทำ) |
 | Cooldowns (Kick/Pounce) | TBD | จูน P3 |
+| **Charged Kick threshold** | **5 ครั้ง** (นับต่อผู้เล่น, host นับ, รีเซ็ตเมื่อ trigger) | **locked** (2026-07-19) — การ์ด `TK-P3-06`, ยังไม่ implement |
+| **Super Kick launch distance** | **= ระยะ Pounce burst ของเสือ** (ไม่ใช่ค่าใหม่แยกต่างหาก — ผูกกับค่า Pounce burst ด้านบน ~8 m/s ชั่วขณะ/~2.8m ปัจจุบัน; ถ้า Pounce จูนใหม่ ค่านี้ตามไปด้วย) | **locked** (2026-07-19) — การ์ด `TK-P3-06` |
+| **Super Kick knockdown duration** | **1.0 วินาที** | **locked** (2026-07-19) — การ์ด `TK-P3-06` |
+| **Super Kick post-knockdown invuln** | **0.5 วินาที** | **locked** (2026-07-19) — การ์ด `TK-P3-06`; กัน chain-knockdown |
 
 ## 5. Ability resolution (สรุปจาก Ability_System_Design.md)
 - **HOST_AUTHORITATIVE:** Kick, Jump-Kick, Tag, **Pounce**, Hide(default)
 - **LOCAL_ONLY** (+pose sync): Crouch, Lean, Peek, Emote
 - **ไม่ใช่ ability (MovementComponent):** Sprint, Jump
 - **TigerAbility = {Crouch, Lean, Pounce, Peek}** · HumanAbility = {Kick, Hide, Emote} (+Jump-Kick)
+
+## 6. Known Limitations — Phase 2→3
+
+| ข้อจำกัด | สาเหตุ | แผนแก้ไข |
+|---|---|---|
+| **Tiger position = owner-authoritative** — ไม่ได้ป้องกันกับ client ที่แก้ไขโค้ด (modified client ที่ข้ามการ clamp ทั่ว client ได้) | Phase 2 ยอมรับ owner-auth ทั่ว core loop; host-side correction ช่วย honest clients/transient bugs เท่านั้น | Phase 3+ anti-cheat hardening (ถ้าจำเป็น) — ขณะนี้ไม่มีการประเมินความสำคัญ (TK-P2-28 architect ruling, Change Log [0.45]) |
 
 ## เปลี่ยนค่า?
 แก้ที่ไฟล์นี้ + Change Log + (ถ้ากระทบโค้ด) การ์ด. ค่าในโค้ดควร `@export`/`.tres` (TK-P3-01) เพื่อจูนโดยไม่แตะ logic.

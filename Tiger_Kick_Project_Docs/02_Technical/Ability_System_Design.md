@@ -18,9 +18,12 @@ Player (CharacterBody3D)  — PlayerRoot (Player.gd เดิม ผอมลง
 ├── CameraRig → SpringArm3D → Camera3D   (transform ยังอยู่ใต้ Player; CameraComponent ถือ logic)
 ├── AbilityController (Node)     characters/abilities/AbilityController.gd
 │   └── [ability nodes — สร้าง/ลบ runtime ตาม role จาก AbilityCatalog]
+├── TagDetector (Area3D)         characters/components/TagDetectorComponent.gd + TagRules.gd (pure helper)
 └── MultiplayerSynchronizer      (เดิม + property ใหม่ ดู §4 ช่อง A)
 ```
 - **component = child Node** (ไม่ใช่ Resource) — ต้องมี lifecycle + ถือ scene node ได้ (เช่น KickHitbox Area3D อยู่ใต้ ability node เอง → เพิ่ม ability = 1 ไฟล์). ค่าจูนเป็น `@export` วันนี้ → อัปเกรดเป็น `.tres` ใน TK-P3-01 ได้โดยไม่แตะโครง.
+
+**Architectural boundary:** Detection **sensors** (เช่น TagDetector) เป็น plain Player-root components: role-agnostic, **RPC-free**, consumed host-side โดย GameManager (TK-P2-03). Ability-owned **hitboxes** (เช่น KickHitbox) nest ใต้ ability node ตัวเอง (Kick precedent). ความแตกต่างนี้จงใจออกแบบ: sensor ไม่มี owning ability, hitbox ต้อง tie เข้ากับ ability lifecycle และ RPC surface ของมัน.
 
 **ความรับผิดชอบ / อะไรย้ายจาก Player.gd เดิม**
 | ส่วน | รับผิดชอบ |
@@ -58,6 +61,8 @@ func on_rejected(reason) -> void                     # owner ยกเลิก 
 | Crouch, Lean, Peek, Emote | **LOCAL_ONLY** + pose replication (ช่อง A) |
 | **Sprint, Jump** | **ไม่ใช่ ability** — MovementComponent (movement primitive) |
 
+**หมายเหตุ:** "Tag = HOST" ที่นี่หมายถึง **Tag action** (ability ที่ Tiger ที่จะเรียก ตัดสินต่อฝั่ง host) และ **Tag Sequence 7 ขั้น** (GameManager-owned, TK-P2-03, ไม่ใช่ ability). Tag **detection sensor** (TagDetector, TK-P2-02) เป็น plain component ไม่ใช่ ability — ไม่มี resolution value.
+
 **testability:** logic ตัดสินใจเป็น pure static แยกไฟล์ (pattern เดียวกับ `TigerSelector`/`SpawnPointUtil`) เช่น `KickRules.is_in_range()`, `CooldownLedger.can_fire()`, `AbilityCatalog.abilities_for_role()` → `host_validate` เป็นเปลือกบาง.
 
 ## 4. Networking — 2 ช่องทาง (จารึกถาวร)
@@ -73,6 +78,17 @@ func on_rejected(reason) -> void                     # owner ยกเลิก 
 **เดินจริง Kick:** client กด → can_activate → on_activate_local(windup) → `rpc_request_activate.rpc_id(1,...)` → host: เช็ค sender-owns-player + state==Playing + `host_validate` (ระยะจากตำแหน่งฝั่ง host, cooldown ledger ฝั่ง host) → ผ่าน `host_apply`+`rpc_confirm`(call_local) → ทุก peer `on_confirmed`; ไม่ผ่าน `rpc_reject` → owner `on_rejected`.
 - LOCAL_ONLY (Crouch): ไม่ยิง RPC — set `stance` บน root → synchronizer พาไป.
 - **หมายเหตุ latency:** host เห็น client ช้ากว่าจอ client เล็กน้อย → "จอฉันโดนแต่ host บอกไม่โดน" เกิดได้ → รับได้สำหรับ party game, จูนระยะให้ใจดี Phase 3.
+
+### 4a. Authority ของ node ใน Player (จารึกเพิ่ม 2026-07-05 — แก้ defect ที่ review TK-P2-16 Step 3 พบ; architect APPROVE, Change Log [0.35])
+- **Player (root), MultiplayerSynchronizer, MovementComponent, CameraComponent:** authority = **peer เจ้าของ** (จาก recursive set ใน `Player._enter_tree()` — INVARIANT TK-BUG-P1-01 คงเดิม ห้ามย้าย)
+- **AbilityController + ability children ทั้งหมด:** authority = **1 (server) เสมอ** — AbilityController เรียก `set_multiplayer_authority(1)` ใน `_enter_tree()` ของตัวเอง ซึ่งวิ่ง**หลัง** recursive set ของ Player เสมอ (parent-ก่อน-child, ยืนยัน empirically บน Godot 4.7) และ override เฉพาะ subtree ตัวเอง — sibling synchronizer ยังเป็นของ owner → position/spawn sync ไม่กระทบ. ability node ที่สร้าง runtime ได้ default authority = 1 ตรงกันอยู่แล้ว
+- **เหตุผล:** Godot ตรวจ `@rpc("authority")` ฝั่งรับด้วย `sender == authority ของ node นั้น`. ถ้า AbilityController เป็นของ owner: confirm/reject จาก host โดน drop และ client เจ้าของ forge `rpc_confirm` ได้เอง = server authority พลิกกลับ (S1). ตั้ง authority=1 ให้ engine drop RPC ปลอมก่อนถึงโค้ดเรา (fail-closed)
+- **กฎถาวร:** ห้ามตีความ `@rpc("authority")` ว่า "host-only" บน node ใดที่ authority ไม่ใช่ server — annotation ผูกกับ authority ของ node เสมอ. guard `is_server()` + `sender == authority ของ Player` ใน `rpc_request_activate` คงไว้ (defense in depth). ในโค้ด ability: **owner check = `_body.is_multiplayer_authority()` (Player root)** · **host check = `multiplayer.is_server()`** — ห้ามใช้ `is_multiplayer_authority()` ของ AbilityController เอง (หลัง fix = "am I host" ไม่ใช่ "am I owner")
+- **walkthrough Kick (host/offline ที่เป็นเจ้าของ Player เอง):** `try_activate` ห้ามยิง `rpc_id(1)` หาตัวเอง (Godot ห้าม self-RPC) — เรียก `_host_process_request(...)` (method ธรรมดา ตัวเดียวกับที่ `rpc_request_activate` เรียก) ตรง ๆ; reject ให้ host ผู้ขอ = `on_rejected` local ไม่ยิง `rpc_reject.rpc_id(1)`. client ทางไกลเดินเส้นเดิมผ่าน sender==authority guard ครบ
+
+### 4b. RPC-free invariant ของ TagDetector (จารึกจาก architect approval 2026-07-13 — TK-P2-02)
+- **กฎถาวร:** TagDetector (characters/components/TagDetectorComponent.gd) ห้ามมี `@rpc` เอง — node authority คือ owning peer (recursive set จาก Player root ตามเดิม), แต่เนื่องจาก sensor ไม่มี ability-lifetime ทำให้ transport reading ของมันออกจาก host **ต้อง** ไปผ่าน host-authority node เช่น AbilityController หรือ GameManager RPC, ไม่ใช่ TagDetector ตัวเอง
+- **Future-proofing:** ถ้าต้อง transport TagDetector state ในอนาคต ห้ามเพิ่ม `@rpc` ลงใน TagDetectorComponent — ต้อง wrap ผ่าน AbilityController หรือ GameManager (host-authority) เท่านั้น (การหลีกเลี่ยง owner-authority pitfall ของ §4a)
 
 ## 5. Role-swap
 1. GameManager (host) เดิน Tag Sequence ถึง transform → `apply_role_switch.rpc(old, new)` (`authority, call_local, reliable`)
@@ -102,6 +118,26 @@ func on_rejected(reason) -> void                     # owner ยกเลิก 
 - **GameManager** (TK-P2-15) = เจ้าของ role + Tag Sequence 7 ขั้น (ability ไม่กลืน match flow)
 - **MovementComponent** = เจ้าของ physics primitives (Sprint, Jump)
 - **ability subclass** = logic + visuals เท่านั้น
+
+### 8a. GameManager — minimal scope + placement (จารึกจาก architect approval 2026-07-14 — TK-P2-03)
+- GameManager ตัวแรกเกิดที่ TK-P2-03 ในสโคป "ขั้นต่ำ": เป็นเจ้าของ **เฉพาะ** Tag Sequence 7 ขั้น
+  + ล็อก `_is_tag_sequence_active` เท่านั้น — **ยังไม่ใช่** match state machine เต็ม
+  (WaitingRoom → Countdown → Playing → MatchEnd ยังเป็นของ TK-P2-15). step 7
+  ("return to Playing") = "เคลียร์ล็อก" ล้วน ๆ ไม่มี match-state enum ในไฟล์นี้.
+- **Placement:** scene-local node ใต้ world/TestArena.tscn (sibling ของ Players/PlayerSpawner),
+  **ไม่ใช่ autoload** — mirror precedent ของ networking/PlayerSpawner.gd. authority = 1 (server)
+  โดยปริยาย เพราะเป็น static scene node ที่ไม่เคยถูก spawn และไม่เคยเป็น descendant ของ Player
+  จึงไม่โดน recursive owner-set ของ Player._enter_tree() (ต่างจาก AbilityController §4a ที่ต้อง
+  override เอง). `apply_role_switch` = `@rpc("authority","call_local","reliable")` ถูกต้องตาม §5 step 1.
+- **RPC boundary:** apply_role_switch อยู่บน GameManager ไม่ใช่ AbilityController — ไม่ขัด §8
+  ("AbilityController owns ability RPC surface") เพราะ role-swap = match flow (GameManager-owned, §5),
+  ไม่ใช่ ability RPC. ability subclass (TagAbility) ยังไม่มี @rpc เองตาม §3.
+- **OPEN QUESTION → TK-P2-15 ต้องตัดสิน (ห้ามสมมติเงียบ):** เมื่อ TK-P2-15 เพิ่ม match state ที่ต้อง
+  ข้ามฉาก WaitingRoom ↔ Arena, GameManager แบบ scene-local จะถือ state ก่อนเข้า arena ไม่ได้ →
+  TK-P2-15 ต้องเลือก (a) promote เป็น autoload ที่ persist ข้าม scene switch, หรือ (b) จำกัด state
+  machine ให้เริ่มที่ Countdown (ใน arena) แล้วให้ pre-arena state อยู่ที่อื่น + กลไก hand-off/snapshot.
+  bool lock ปัจจุบันดูดกลืนเข้า enum ได้สะอาด (`is_sequence_active()` เป็น derived accessor ต่อได้),
+  แต่การเลือก autoload-vs-scene-local เป็น decision ของ TK-P2-15 ไม่ใช่ของการ์ดนี้.
 
 ## 9. ความเสี่ยง / open (ตรง ๆ)
 - Host-view fairness: "จอฉันโดนแต่ระบบบอกไม่โดน" ตามธรรมชาติ — เลือกถูกต้อง (no desync) เหนือแม่น; แก้ด้วยขยาย range ก่อน lag-comp

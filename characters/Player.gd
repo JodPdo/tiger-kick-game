@@ -82,6 +82,89 @@ extends CharacterBody3D
 @onready var mesh_instance: MeshInstance3D = $MeshInstance3D
 @onready var camera: Camera3D = $CameraRig/SpringArm3D/Camera3D
 @onready var synchronizer: MultiplayerSynchronizer = $MultiplayerSynchronizer
+@onready var ability_controller: Node = $AbilityController
+
+## TK-P2-04 (Role state machine, gameplay-engineer): sibling ref, same
+## @onready/get_parent()-free direct-child pattern as ability_controller
+## above. set_role() below calls its set_role() the same way it already
+## calls ability_controller.set_role() -- see that method's own doc for why
+## MovementComponent (not CameraComponent) is the "property" half of this
+## card's title (design doc §5 step 3 / §6 balance table).
+@onready var movement_component: Node = $MovementComponent
+
+## TK-P2-16 Step 3 (Ability System scaffold, gameplay-engineer): role +
+## replicated pose plumbing. See
+## Tiger_Kick_Project_Docs/02_Technical/Ability_System_Design.md §5/§4.
+##
+## PlayerRoot is the single place `role` lives (design doc §2 table). Default
+## &"outer" -- everyone starts as a plain player until GameManager (later
+## card) says otherwise. Deliberately NOT part of MultiplayerSynchronizer /
+## SceneReplicationConfig (design doc §4 channel B): role is HOST-DECIDED and
+## must only ever arrive via GameManager's future apply_role_switch RPC --
+## never inferred from ordinary owner-sync state, or a client could simply
+## declare itself Tiger.
+var role: StringName = &"outer"
+
+## TK-P2-04 (Role state machine, gameplay-engineer): emitted at the END of a
+## successful set_role() call (after `role` itself and every distributed
+## component have already been updated -- see set_role() below), so any
+## listener always observes fully-consistent post-swap state, never a
+## half-applied one. This is the "camera-relevant state TK-P2-05 will need"
+## hook this card's backlog note calls for: CameraComponent does not
+## subscribe to it YET (TK-P2-05's own job, still todo, to add its FP/TP
+## handler and connect it -- deliberately NOT done here, see set_role()'s own
+## doc for why that boundary is drawn here and not earlier), but the signal
+## exists now so that card (and any other future per-role reactor -- HUD role
+## indicator, Phase 4 polish, etc.) has a single, decoupled place to listen
+## rather than PlayerRoot needing a direct reference to every future
+## subscriber the way it already does for ability_controller/
+## movement_component (an intentional mix: the two calls that exist TODAY
+## stay direct calls for consistency with the existing TK-P2-16 pattern;
+## this signal is for consumers that don't exist yet).
+signal role_changed(new_role: StringName)
+
+## Replicated pose channel A (design doc §4): authored by the OWNING peer,
+## replicated ON_CHANGE via MultiplayerSynchronizer -- see this scene's
+## SceneReplicationConfig, same settings as position/rotation (spawn = false,
+## replication_mode = ON_CHANGE). Default 0 / 0.0 means zero replication
+## traffic until some future LOCAL_ONLY ability (Crouch/Lean -- TK-P3-05)
+## actually sets them; nothing writes these yet this step (scaffold only).
+## Cheating these only ever shows a remote a wrong pose, never a game-
+## deciding lie (design doc §3 resolution criterion), which is exactly why
+## they live in owner-sync state (channel A) and not host-RPC (channel B),
+## unlike `role` above.
+@export var stance: int = 0
+@export var lean: float = 0.0
+
+## TK-P2-10 (gameplay-engineer): replicated pose channel A, same rules as
+## stance/lean above -- authored by the OWNING peer's MovementComponent (see
+## MovementComponent._is_jumping, mirrored onto this property unconditionally
+## every physics tick for simplicity; the underlying flag itself only ever
+## actually CHANGES value at two transitions -- jump-fire / real-landing --
+## so this property's VALUE only changes at those same two moments even
+## though the assignment runs every tick), replicated ON_CHANGE via
+## MultiplayerSynchronizer (this scene's SceneReplicationConfig) -- ON_CHANGE
+## is what gates actual outgoing network traffic to real value changes, not
+## the local assignment. Lets every
+## OTHER peer (and the host, which is just "another peer" for a client-owned
+## Player) know a Player has jumped and not landed yet, without needing that
+## Player's own is_on_floor()/physics to be live locally -- non-authority
+## copies never run physics at all (TK-P1-06 invariant, see
+## MovementComponent's own doc), so this is the only way a remote observer
+## can tell "this Player is mid-jump" at all.
+##
+## NAMING (review nit): named `is_jumping`, not `airborne` -- it is ONLY ever
+## true from an actual jump impulse to landing; a player falling off a ledge
+## (never jumped) reads false here the whole fall. See
+## MovementComponent.is_jumping()'s own doc for why that scope gap matters to
+## TK-P2-11 ("kick while jumping" vs "kick while falling").
+##
+## Cosmetic-only by design (design doc §3 resolution criterion: "cheating
+## this only ever shows a remote a wrong pose") -- MUST NOT be trusted as an
+## authoritative signal by any future HOST_AUTHORITATIVE ability (e.g.
+## TK-P2-11 Jump-Kick); see MovementComponent.is_jumping()'s own doc for that
+## open question, deliberately left for that later card.
+@export var is_jumping: bool = false
 
 ## TK-P2-16 Step 1 (Ability System scaffold, gameplay-engineer): the movement
 ## Tunables (walk_speed/sprint_multiplier/gravity), _physics_process(), and
@@ -168,6 +251,65 @@ func _ready() -> void:
 ## CameraRig/SpringArm3D/Camera3D).
 func get_view_camera() -> Camera3D:
 	return camera
+
+
+## TK-P2-16 Step 3 / TK-P2-04 (design doc §5 step 3): idempotent role setter.
+## PlayerRoot is the single place `role` lives; calling this with the role it
+## already has is a safe no-op rebuild (AbilityController.set_role() below
+## always fully rebuilds from AbilityCatalog rather than diffing, so
+## re-applying the same role is harmless, just wasteful).
+##
+## TK-P2-04 (gap found during this card's investigation): guard against an
+## invalid role value BEFORE mutating any state -- a role state machine must
+## own its own valid-transition guard rather than trusting every caller
+## (GameManager.apply_role_switch today, possibly others later) to only ever
+## pass &"outer"/&"tiger". See RoleRules.gd for why this is a SEPARATE guard
+## from managers/TagSequenceRules.is_valid_role_swap() (that one sanity-checks
+## a swap's peer ids on GameManager; this one sanity-checks the role VALUE
+## itself, which belongs next to `role` on PlayerRoot). Fails closed (rejects
+## and leaves `role` unchanged) rather than silently accepting garbage --
+## same "fail loudly, do not half-apply" posture AbilityController's
+## duplicate-ability-id assert and GameManager's re-trigger-guard error use
+## elsewhere in this codebase.
+##
+## Distributes the new role to AbilityController (ability catalog swap) and
+## MovementComponent (per-role speed profile, design doc §6 balance table --
+## the "property" half of this card's title; see MovementComponent.set_role()
+## for the actual values) now that both have role-handling code (TK-P2-04).
+## CameraComponent's FP/TP swap is explicitly OUT of scope for this card --
+## TK-P2-05 owns the actual view swap and will add its own handler + either
+## call it from here (same direct-call shape as the two below) or subscribe
+## to `role_changed` below (that card's choice); see this file's `signal
+## role_changed` doc for the hook left for it.
+##
+## Called by GameManager.apply_role_switch() at Tag Sequence steps 4+5 (see
+## managers/GameManager.gd) -- the real Role state machine's only legitimate
+## caller today; GameManager itself decides the swap (host-authoritative),
+## this method is the client-applied CONSEQUENCE, not a second decision
+## point (no host/authority check here on purpose -- by the time this runs,
+## the decision already happened on the host and arrived via RPC).
+func set_role(new_role: StringName) -> void:
+	if not RoleRules.is_valid_role(new_role):
+		GameLog.error(
+			"[Player] set_role: '%s' is not a valid role (expected one of %s) -- ignoring, role stays '%s'"
+			% [new_role, RoleRules.VALID_ROLES, role]
+		)
+		return
+
+	role = new_role
+	# Review nit (TK-P2-01 carried over from the TK-P2-16 Step 3 review):
+	# `ability_controller`/`movement_component` are @onready vars (assigned
+	# just before this node's own _ready()) -- guard against a hypothetical
+	# caller invoking set_role() on a Player that has not entered the tree
+	# yet (not ready), where they would still be null. Not reachable today
+	# (nobody calls set_role() before spawn), but this keeps the method safe
+	# regardless of future callers/timing.
+	if ability_controller:
+		ability_controller.set_role(new_role)
+	if movement_component:
+		movement_component.set_role(new_role)
+
+	role_changed.emit(new_role)
 
 
 ## TK-P2-16 Step 1: movement input handling (_physics_process) and the pure

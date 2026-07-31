@@ -3,8 +3,9 @@
 /build/
 /android/
 .import/
-export_presets.cfg
 *.translation
+# export_presets.cfg is intentionally tracked (see TK-P3-02): it holds the
+# shared "Windows Desktop" playtest-build preset, no local paths/secrets in it.
 
 # --- Addons that are vendored separately (optional) ---
 # addons/gut/    # keep if you commit GUT; ignore if installed per-machine
@@ -18,3 +19,7 @@ Thumbs.db
 *.tmp
 .~lock.*#
 node_modules/
+
+# --- Python tooling (tools/) ---
+__pycache__/
+*.pyc

@@ -18,7 +18,7 @@ from pathlib import Path
 
 BACKLOG = Path(__file__).resolve().parent.parent / "_backlog.json"
 REQUIRED_FIELDS = ("id", "status")
-ALLOWED_STATUS = {"backlog", "todo", "doing", "review", "done"}
+ALLOWED_STATUS = {"backlog", "todo", "doing", "review", "review-pending-human", "done"}
 
 
 def fail(msg: str) -> None:
@@ -31,7 +31,7 @@ def main() -> None:
         fail(f"{BACKLOG.name} not found at {BACKLOG}")
 
     try:
-        cards = json.loads(BACKLOG.read_text(encoding="utf-8"))
+        cards = json.loads(BACKLOG.read_text(encoding="utf-8-sig"))
     except json.JSONDecodeError as e:
         fail(f"{BACKLOG.name} is not valid JSON (truncated/corrupt?): {e}")
 

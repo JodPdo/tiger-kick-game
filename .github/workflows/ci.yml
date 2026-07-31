@@ -53,3 +53,11 @@ jobs:
       - name: Spawn probe — 2-instance regression gate (TK-BUG-P1-01/02)
         timeout-minutes: 3
         run: GODOT_BIN=./godot bash tests/net/run_spawn_probe.sh
+
+      - name: Spawn probe (together) — Waiting Room entry-sweep gate (TK-P2-13)
+        timeout-minutes: 3
+        run: GODOT_BIN=./godot bash tests/net/run_spawn_probe_together.sh
+
+      - name: Tag detect probe — cross-peer overlap + host-only-emit + despawn gate (TK-P2-24)
+        timeout-minutes: 3
+        run: GODOT_BIN=./godot bash tests/net/run_tag_detect_probe.sh
