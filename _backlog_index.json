@@ -526,10 +526,7 @@
         "TK-P3-12"
       ],
       "labels": "task, phase-3, prio-medium",
-      "ready": false,
-      "blocked_by": [
-        "TK-P3-12"
-      ],
+      "ready": true,
       "detail_fields": [
         "gating_note",
         "note"
@@ -1583,14 +1580,15 @@
       "type": "task",
       "priority": "High",
       "owner_agent": "polish-agent",
-      "status": "todo",
+      "status": "done",
       "depends_on": [
         "TK-P1-02",
         "TK-P2-01"
       ],
       "labels": "task, phase-3, prio-high, audio, playtest-blocker, pulled-forward",
-      "ready": true,
+      "ready": false,
       "detail_fields": [
+        "closed_note",
         "gating_note",
         "note"
       ]
