@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://characters/components/FootstepAudioComponent.gd" id="6_footstepaudio"]
 [ext_resource type="AudioStream" path="res://audio/sfx/footstep_walk.wav" id="7_footstepsfx"]
 [ext_resource type="AudioStream" path="res://audio/sfx/kick_impact.wav" id="8_kicksfx"]
+[ext_resource type="Script" path="res://characters/components/RoleVisualComponent.gd" id="9_rolevisual"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
 radius = 0.4
@@ -62,6 +63,9 @@ bus = &"SFX"
 
 [node name="CameraComponent" type="Node" parent="."]
 script = ExtResource("3_camera")
+
+[node name="RoleVisualComponent" type="Node" parent="."]
+script = ExtResource("9_rolevisual")
 
 [node name="AbilityController" type="Node" parent="."]
 script = ExtResource("4_ability")
