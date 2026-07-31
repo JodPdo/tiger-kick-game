@@ -1,7 +1,7 @@
 {
   "_comment": "GENERATED FILE - do not edit by hand. Source of truth is _backlog.json. Regenerate with: python3 tools/split_backlog.py",
-  "card_count": 86,
-  "ready_count": 17,
+  "card_count": 87,
+  "ready_count": 18,
   "cards": [
     {
       "id": "TK-P0-01",
@@ -1589,6 +1589,23 @@
       "ready": false,
       "detail_fields": [
         "closed_note",
+        "gating_note",
+        "note"
+      ]
+    },
+    {
+      "id": "TK-P3-13",
+      "phase": "Phase 3",
+      "milestone": "M3 First Playtest",
+      "title": "TEMPORARY role-visual distinction (throwaway scaffolding): Tiger capsule = orange + 2.0 scale, Outer = default white -- clean-signal enabler before TK-P3-03 (First Playtest)",
+      "type": "task",
+      "priority": "High",
+      "owner_agent": "gameplay-engineer",
+      "status": "todo",
+      "depends_on": [],
+      "labels": "task, phase-3, prio-high, playtest-blocker, cosmetic, temporary-scaffolding",
+      "ready": true,
+      "detail_fields": [
         "gating_note",
         "note"
       ]
