@@ -61,6 +61,14 @@ extends HumanAbility
 ## confirmed target's own Player node off the shared "Players" root first,
 ## and evaluates every gate (ownership + role) against THAT resolved node --
 ## see on_confirmed()'s own doc for the full fix.
+##
+## TK-P3-12 (polish-agent): Kick SFX landed. on_confirmed() below now also
+## plays a one-shot impact sound (`_kick_sfx_player`) UNCONDITIONALLY, on
+## every peer, the instant the confirm broadcast arrives -- deliberately NOT
+## gated behind the target-ownership/role checks the stagger effect uses
+## (those decide "do I personally apply a stagger", not "did a kick happen
+## that everyone should hear"). See `_kick_sfx_player`'s own @onready doc and
+## `_play_kick_sfx()`'s own doc below for the full reasoning.
 
 ## TK-P3-01 (tools-devops): the actual, externally-editable source of truth
 ## for every value below is now this Resource, not the class-level literals
@@ -148,6 +156,23 @@ var _host_last_fire_ms: int = -1
 ## owning CharacterBody3D is one level further up. Same @onready-cache pattern
 ## as MovementComponent/CameraComponent's own `_body` (their class docs).
 @onready var _body: CharacterBody3D = get_parent().get_parent() as CharacterBody3D
+
+## TK-P3-12 (polish-agent): Kick SFX -- a sibling AudioStreamPlayer3D on the
+## KICKER's own Player node (see characters/Player.tscn), played from
+## on_confirmed() below for EVERY peer (design doc §3: rpc_confirm's
+## `call_local` broadcast already reaches every peer, same "no new RPC" rule
+## this card's own DoD requires). Deliberately anchored to the KICKER
+## (`_body`, always resolvable on every peer -- see this file's class doc for
+## why `_body` here is always the kicker, never the target) rather than the
+## resolved target node, so the sound has somewhere safe to play from even in
+## the target-disconnected edge case on_confirmed() already guards against
+## (see that method's own doc) -- at Kick's ~1.5m range the kicker and target
+## are close enough that this is a reasonable stand-in for "impact position"
+## without adding a second lookup. get_node_or_null (not get_node): a bare
+## KickAbility.new() never added under a real Player.tscn (this file's class
+## doc: safe for can_activate()/on_rejected() tests) must not crash resolving
+## this at _ready() time.
+@onready var _kick_sfx_player: AudioStreamPlayer3D = _body.get_node_or_null("KickSfxPlayer") as AudioStreamPlayer3D
 
 ## TK-BUG-P2-01 (gameplay-engineer, bug fix): NO cached `_movement` @onready
 ## sibling here (unlike characters/abilities/PounceAbility.gd's own
@@ -383,6 +408,16 @@ func host_apply(result) -> void:
 func on_confirmed(result) -> void:
 	GameLog.info("[KICK] confirmed: kicker=%s target=%s" % [result.get("kicker_id"), result.get("target_id")])
 
+	# TK-P3-12 (polish-agent): Kick SFX -- unconditional, BEFORE any of the
+	# target-ownership/role gates below. Those gates only decide whether
+	# THIS peer applies the stagger to itself (a per-peer, per-target
+	# decision) -- the SOUND, by contrast, must be heard on every peer the
+	# instant the broadcast confirm arrives (this card's own DoD: "Kick
+	# produces audible sound on every connected peer the instant
+	# on_confirmed() fires"), same as the GameLog.info() line immediately
+	# above already runs unconditionally for the same reason.
+	_play_kick_sfx()
+
 	var players_root: Node = _body.get_parent()
 	var target_node: CharacterBody3D = players_root.get_node_or_null(str(result.get("target_id"))) as CharacterBody3D
 	if target_node == null:
@@ -401,6 +436,23 @@ func on_confirmed(result) -> void:
 	var direction: Vector3 = StaggerRules.direction_away_from(kicker_position, target_node.global_position)
 	target_movement.start_stagger(direction, stagger_knockback_speed_mps, stagger_duration_sec)
 	GameLog.debug("[KICK] stagger applied locally (I am target=%s)" % target_node.name)
+
+
+## TK-P3-12 (polish-agent): plays the Kick impact SFX from the KICKER's own
+## KickSfxPlayer (see `_kick_sfx_player`'s own @onready doc above for why
+## anchored to the kicker, not the target). Called unconditionally from
+## on_confirmed() -- every peer -- never gated on ownership/role, unlike the
+## stagger effect below it. Headless-CI safety (this card's DoD explicitly
+## calls this out as a real risk to check): degrades silently, no SCRIPT
+## ERROR, if the node is missing (a bare KickAbility never added under a real
+## Player.tscn) or has no stream assigned (e.g. an import that failed to
+## produce one).
+func _play_kick_sfx() -> void:
+	if _kick_sfx_player == null:
+		return
+	if _kick_sfx_player.stream == null:
+		return
+	_kick_sfx_player.play()
 
 
 ## Owner-only (design doc §3: "owner cancels windup"). The host rejected this

@@ -406,6 +406,75 @@ func test_on_confirmed_does_not_crash_when_the_target_node_is_gone() -> void:
 	assert_true(true, "on_confirmed must not crash when the confirmed target_id no longer resolves to a live node")
 
 
+# --- KickAbility.on_confirmed() Kick SFX (TK-P3-12, polish-agent) -----------
+# Per the TK-P2-33 lesson (this class doc's own TK-BUG-P2-01 section above is
+# the same bug CLASS recurring once already: wiring that looks connected but
+# is structurally unreachable) -- these assert the OBSERVABLE side effect
+# (`AudioStreamPlayer3D.playing` actually flips true), not just "on_confirmed
+# ran without crashing". Unlike the stagger tests above, Kick SFX must play
+# UNCONDITIONALLY on every peer -- these deliberately reuse the exact
+# "peer does not own the target" / "non-Tiger target" scenarios above that
+# correctly suppress the STAGGER, to prove the SFX is NOT gated the same way.
+
+func test_on_confirmed_plays_kick_sfx_even_when_this_peer_does_not_own_the_target() -> void:
+	_kick_players_root = Node3D.new()
+	add_child_autofree(_kick_players_root)
+
+	var kicker: CharacterBody3D = _spawn_kick_candidate("2", ROLE_OUTER, Vector3.ZERO)
+	var tiger: CharacterBody3D = _spawn_kick_candidate("3", ROLE_TIGER, Vector3(1.0, 0, 0))
+
+	var ability_controller: Node = kicker.get_node("AbilityController")
+	var kick_ability: KickAbility = ability_controller._abilities[&"kick"]
+	var kick_sfx_player: AudioStreamPlayer3D = kicker.get_node("KickSfxPlayer")
+
+	kick_ability.on_confirmed({"kicker_id": 2, "target_id": tiger.name})
+
+	assert_true(kick_sfx_player.playing,
+		"Kick SFX must play on every peer the instant on_confirmed() fires, even one that does not own the targeted Tiger (unlike the stagger effect, which is correctly gated)")
+
+
+func test_on_confirmed_plays_kick_sfx_even_for_a_non_tiger_target() -> void:
+	_kick_players_root = Node3D.new()
+	add_child_autofree(_kick_players_root)
+
+	var kicker: CharacterBody3D = _spawn_kick_candidate("2", ROLE_OUTER, Vector3.ZERO)
+	var outer: CharacterBody3D = _spawn_kick_candidate("1", ROLE_OUTER, Vector3(1.0, 0, 0))
+
+	var ability_controller: Node = kicker.get_node("AbilityController")
+	var kick_ability: KickAbility = ability_controller._abilities[&"kick"]
+	var kick_sfx_player: AudioStreamPlayer3D = kicker.get_node("KickSfxPlayer")
+
+	kick_ability.on_confirmed({"kicker_id": 2, "target_id": outer.name})
+
+	assert_true(kick_sfx_player.playing, "Kick SFX must still play even in the defense-in-depth non-Tiger-target edge case")
+
+
+func test_on_confirmed_plays_kick_sfx_even_when_the_target_node_is_gone() -> void:
+	_kick_players_root = Node3D.new()
+	add_child_autofree(_kick_players_root)
+
+	var kicker: CharacterBody3D = _spawn_kick_candidate("2", ROLE_OUTER, Vector3.ZERO)
+	var ability_controller: Node = kicker.get_node("AbilityController")
+	var kick_ability: KickAbility = ability_controller._abilities[&"kick"]
+	var kick_sfx_player: AudioStreamPlayer3D = kicker.get_node("KickSfxPlayer")
+
+	kick_ability.on_confirmed({"kicker_id": 2, "target_id": "9"}) # target disconnected, see test above
+
+	assert_true(kick_sfx_player.playing,
+		"Kick SFX is anchored to the KICKER (always resolvable), not the target -- must still play even when the target node can't be found")
+
+
+func test_kick_sfx_player_node_is_routed_to_the_sfx_bus() -> void:
+	_kick_players_root = Node3D.new()
+	add_child_autofree(_kick_players_root)
+
+	var kicker: CharacterBody3D = _spawn_kick_candidate("2", ROLE_OUTER, Vector3.ZERO)
+	var kick_sfx_player: AudioStreamPlayer3D = kicker.get_node("KickSfxPlayer")
+
+	assert_eq(kick_sfx_player.bus, "SFX",
+		"Kick SFX must route through the existing SFX bus (ConfigManager/TK-PX-05), not a new/second AudioBus")
+
+
 # --- KickAbility owner-side cooldown prediction (can_activate/on_rejected) -
 
 var _kick: KickAbility
